@@ -50,7 +50,7 @@ Use it in your A-FRAME scene:
 
 See an example minimalistic _Vite_ project with _A-FRAME_ and _Spatial Design System_ installed. 
 
-1. Go to folder `example-project`
+1. Go to folder `example-project` (download it from [GitHub repository](https://github.com/SpatialHub-MENDELU/spatial-design-system))
 2. Run `npm install`.
 3. Run `npm run dev`. 
 4. Open the displayed link in browser. 
