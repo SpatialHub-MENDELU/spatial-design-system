@@ -2,12 +2,11 @@ import * as AFRAME from "aframe";
 
 AFRAME.registerComponent("flexbox", {
     schema: {
-        hAlign: { type: "string", default: "start" },
-        vAlign: { type: "string", default: "stretch" },
+        mainAlign: { type: "string", default: "start" },
+        secondaryAlign: { type: "string", default: "stretch" },
         direction: { type: "string", default: "row" },
         wrap: { type: "boolean", default: false },
-        padding: { type: "vec2", default: { x: 0, y: 0 } },
-        gap: { type: "number", default: 0 }
+        gap: { type: "vec2", default: { x: 0, y: 0 } }
     },
 
     init() {
@@ -22,24 +21,23 @@ AFRAME.registerComponent("flexbox", {
                 height: geometry.parameters.height,
                 depth: geometry.parameters.depth
             };
-            this.data.gap = this.data.wrap && this.data.gap > 0 ? this.data.gap : 0;
 
-            this.setPadding(this.data.padding.x, this.data.padding.y);
+            this.setGap(this.data.gap.x, this.data.gap.y);
             this.setItemsPosition();
         });
     },
 
     /**
-     * Sets the padding that is used for item scaling and positioning, normalizing values between 0 and 1.
-     * @param {number} x - The horizontal padding percentage between 0 and 100 (excluded).
-     * @param {number} y - The vertical padding percentage between 0 and 100 (excluded).
+     * Sets the gap that is used for item scaling and positioning, normalizing values between 0 and 1.
+     * @param {number} x - The horizontal gap percentage between 0 and 100 (excluded).
+     * @param {number} y - The vertical gap percentage between 0 and 100 (excluded).
      */
-    setPadding(x, y) {
+    setGap(x, y) {
         const isColumnDirection = this.data.direction === "column";
-        const isJustifiedSpace = this.data.hAlign === "space-around" || this.data.hAlign === "space-between";
+        const isJustifiedSpace = this.data.mainAlign === "space-around" || this.data.mainAlign === "space-between";
 
-        let paddingX = x > 0 && x < 100 ? x / 100 : 0;
-        let paddingY = y > 0 && y < 100 ? y / 100 : 0;
+        let gapX = x > 0 && x < 100 ? x / 100 : 0;
+        let gapY = y > 0 && y < 100 ? y / 100 : 0;
 
         if (isJustifiedSpace) {
             const [containerWidthPerItem, containerHeightPerItem] = this.getContainerWidthAndHeightPerItem(isColumnDirection);                    
@@ -48,13 +46,13 @@ AFRAME.registerComponent("flexbox", {
             const itemsOffset = Math.ceil((this.items.length / numberOfWraps)) - 1; 
             
             if (isColumnDirection) {
-                paddingY = (containerHeightPerItem * 0.5 / this.container.height) * itemsOffset;
+                gapY = (containerHeightPerItem * 0.5 / this.container.height) * itemsOffset;
             } else {
-                paddingX = (containerWidthPerItem * 0.5 / this.container.width) * itemsOffset;
+                gapX = (containerWidthPerItem * 0.5 / this.container.width) * itemsOffset;
             }
         }
 
-        this.normalizedPadding = { x: paddingX, y: paddingY };
+        this.normalizedGap = { x: gapX, y: gapY };
     },
 
     /**
@@ -62,7 +60,7 @@ AFRAME.registerComponent("flexbox", {
      */
     setItemsPosition() {
         const isColumnDirection = this.data.direction === "column";
-        const isStretchAlignment = this.data.vAlign === "stretch";
+        const isStretchAlignment = this.data.secondaryAlign === "stretch";
 
         const containerWidth = this.container.width;
         const containerHeight = this.container.height;
@@ -71,8 +69,7 @@ AFRAME.registerComponent("flexbox", {
         const [containerWidthPerItem, containerHeightPerItem] = this.getContainerWidthAndHeightPerItem(isColumnDirection);
 
         const [xOffsetFromOrigin, yOffsetFromOrigin] = this.getItemOriginOffsets(isColumnDirection);
-        const [hAlignOffset, vAlignOffset] = this.getAlignmentOffsets(isColumnDirection);
-        const gapOffset = this.data.gap;
+        const [mainAlignOffset, secondaryAlignOffset] = this.getAlignmentOffsets(isColumnDirection);
 
         const numberOfWraps = this.getNumberOfWraps(isColumnDirection);
 
@@ -87,8 +84,8 @@ AFRAME.registerComponent("flexbox", {
             const yPos = containerHeight / 2 - containerHeightPerItem / 2 + yOffsetFromOrigin;
             const zPos = containerDepth / 2 + itemBboxSize.z / 2;
 
-            const xOffset = colIndex * hAlignOffset;
-            const yOffset = rowIndex + vAlignOffset;
+            const xOffset = colIndex * mainAlignOffset;
+            const yOffset = rowIndex + secondaryAlignOffset;
 
             if (isColumnDirection) {
                 item.object3D.position.x = xPos + yOffset;
@@ -137,17 +134,17 @@ AFRAME.registerComponent("flexbox", {
                     "space-around": numberOfEmptyCellsPerLine / 2
                 };
                 // 0 - for start and space-between
-                colIndex = colIndexFromAlignment[this.data.hAlign] ?? 0;
+                colIndex = colIndexFromAlignment[this.data.mainAlign] ?? 0;
 
                 const rowOffset = isStretchAlignment ? containerDimensionWhenStretch / numberOfWraps : containerDimensionPerItem;
-                rowIndex += rowOffset + gapOffset;
+                rowIndex += rowOffset;
 
                 if (isColumnDirection) {
-                    item.object3D.position.x = xPos + rowIndex + vAlignOffset; 
-                    item.object3D.position.y = yPos - colIndex * hAlignOffset;
+                    item.object3D.position.x = xPos + rowIndex + secondaryAlignOffset; 
+                    item.object3D.position.y = yPos - colIndex * mainAlignOffset;
                 } else {
-                    item.object3D.position.x = xPos + colIndex * hAlignOffset;
-                    item.object3D.position.y = yPos - rowIndex - vAlignOffset;
+                    item.object3D.position.x = xPos + colIndex * mainAlignOffset;
+                    item.object3D.position.y = yPos - rowIndex - secondaryAlignOffset;
                 }
             }
 
@@ -164,8 +161,8 @@ AFRAME.registerComponent("flexbox", {
      * @param {number} scale.z
      */
     setItemScale(item, scale) {
-        item.object3D.scale.x = scale.x - (scale.x * this.normalizedPadding.x);
-        item.object3D.scale.y = scale.y - (scale.y * this.normalizedPadding.y);
+        item.object3D.scale.x = scale.x - (scale.x * this.normalizedGap.x);
+        item.object3D.scale.y = scale.y - (scale.y * this.normalizedGap.y);
         item.object3D.scale.z = scale.z;
     },
 
@@ -209,91 +206,90 @@ AFRAME.registerComponent("flexbox", {
      * @returns {number[]} array containing the horizontal and vertical alignment offsets.
      */
     getAlignmentOffsets(isColumnDirection = false) {
-        const hAlignData = this.data.hAlign;
-        const vAlignData = this.data.vAlign;
+        const mainAlignData = this.data.mainAlign;
+        const secondaryAlignData = this.data.secondaryAlign;
         const [containerWidthPerItem, containerHeightPerItem] = this.getContainerWidthAndHeightPerItem(isColumnDirection);
 
-        const gapOffset = this.data.gap;
         const wrapOffset = this.getNumberOfWraps(isColumnDirection);
 
-        let hAlignContainerDimension = this.container.width, vAlignContainerDimension = this.container.height;
-        let hAlignContainerDimensionPerItem = containerWidthPerItem, vAlignContainerDimensionPerItem = containerHeightPerItem;
-        let hAlignPadding = this.normalizedPadding.x, vAlignPadding = this.normalizedPadding.y;
+        let mainAlignContainerDimension = this.container.width, secondaryAlignContainerDimension = this.container.height;
+        let mainAlignContainerDimensionPerItem = containerWidthPerItem, secondaryAlignContainerDimensionPerItem = containerHeightPerItem;
+        let mainAlignGap = this.normalizedGap.x, secondaryAlignGap = this.normalizedGap.y;
 
         if (isColumnDirection) {
-            hAlignContainerDimension = this.container.height;
-            hAlignContainerDimensionPerItem = containerHeightPerItem;
-            hAlignPadding = this.normalizedPadding.y;
+            mainAlignContainerDimension = this.container.height;
+            mainAlignContainerDimensionPerItem = containerHeightPerItem;
+            mainAlignGap = this.normalizedGap.y;
 
-            vAlignContainerDimension = this.container.width;
-            vAlignContainerDimensionPerItem = containerWidthPerItem;
-            vAlignPadding = this.normalizedPadding.x;
+            secondaryAlignContainerDimension = this.container.width;
+            secondaryAlignContainerDimensionPerItem = containerWidthPerItem;
+            secondaryAlignGap = this.normalizedGap.x;
         }
 
         const alignmentValues = {
-            hAlign: {
-                "start": hAlignContainerDimensionPerItem,
-                "center": hAlignContainerDimensionPerItem,
-                "end": hAlignContainerDimensionPerItem,
-                "space-around": hAlignContainerDimensionPerItem,
-                "space-between": hAlignContainerDimensionPerItem + (hAlignContainerDimensionPerItem * hAlignPadding) 
-                / Math.max(((hAlignContainerDimension / hAlignContainerDimensionPerItem) - 1), 1)
+            mainAlign: {
+                "start": mainAlignContainerDimensionPerItem,
+                "center": mainAlignContainerDimensionPerItem,
+                "end": mainAlignContainerDimensionPerItem,
+                "space-around": mainAlignContainerDimensionPerItem,
+                "space-between": mainAlignContainerDimensionPerItem + (mainAlignContainerDimensionPerItem * mainAlignGap) 
+                / Math.max(((mainAlignContainerDimension / mainAlignContainerDimensionPerItem) - 1), 1)
             },
-            vAlign: {
+            secondaryAlign: {
                 "start": 0,
-                "center": vAlignContainerDimension / 2 - vAlignContainerDimensionPerItem / 2 * wrapOffset - (gapOffset / 2 * (wrapOffset - 1)),
-                "end": vAlignContainerDimension - vAlignContainerDimensionPerItem * wrapOffset - (gapOffset * (wrapOffset - 1)),
-                "stretch": vAlignContainerDimension / 2 - vAlignContainerDimensionPerItem / 2 
-                - (vAlignContainerDimension / 2 / wrapOffset) * (wrapOffset - 1) - (vAlignContainerDimension / 2 / wrapOffset) * vAlignPadding
+                "center": secondaryAlignContainerDimension / 2 - secondaryAlignContainerDimensionPerItem / 2 * wrapOffset,
+                "end": secondaryAlignContainerDimension - secondaryAlignContainerDimensionPerItem * wrapOffset,
+                "stretch": secondaryAlignContainerDimension / 2 - secondaryAlignContainerDimensionPerItem / 2 
+                - (secondaryAlignContainerDimension / 2 / wrapOffset) * (wrapOffset - 1) - (secondaryAlignContainerDimension / 2 / wrapOffset) * secondaryAlignGap
             }
         }; 
 
-        const hAlignOffset = alignmentValues.hAlign[hAlignData] ?? alignmentValues.hAlign["start"];
-        const vAlignOffset = alignmentValues.vAlign[vAlignData] ?? alignmentValues.vAlign["start"];
+        const mainAlignOffset = alignmentValues.mainAlign[mainAlignData] ?? alignmentValues.mainAlign["start"];
+        const secondaryAlignOffset = alignmentValues.secondaryAlign[secondaryAlignData] ?? alignmentValues.secondaryAlign["start"];
 
-        return [hAlignOffset, vAlignOffset];
+        return [mainAlignOffset, secondaryAlignOffset];
     },
 
     /**
      * Calculates offsets to move the item's origin from default focal point 
-     * based on container's width and height per item, padding, direction and alignment values.
+     * based on container's width and height per item, gap, direction and alignment values.
      * @param {boolean} isColumnDirection - flag that indicates if flexbox is in column direction.
      * @returns {number[]} array containing offsets for moving item origin.
      */
     getItemOriginOffsets(isColumnDirection = false) {
         const [containerWidthPerItem, containerHeightPerItem] = this.getContainerWidthAndHeightPerItem(isColumnDirection);
-        const hAlignData = this.data.hAlign;
-        const vAlignData = this.data.vAlign;
-        const padding = this.normalizedPadding;
+        const mainAlignData = this.data.mainAlign;
+        const secondaryAlignData = this.data.secondaryAlign;
+        const gap = this.normalizedGap;
 
         const alignmentValues = {
-            hAlign: {
+            mainAlign: {
                 "start": isColumnDirection 
-                ? containerHeightPerItem / 2 * padding.y 
-                : -containerWidthPerItem / 2 * padding.x,
+                ? containerHeightPerItem / 2 * gap.y 
+                : -containerWidthPerItem / 2 * gap.x,
                 "center": 0,
                 "end": isColumnDirection 
-                ? -containerHeightPerItem / 2 * padding.y 
-                : containerWidthPerItem / 2 * padding.x,
+                ? -containerHeightPerItem / 2 * gap.y 
+                : containerWidthPerItem / 2 * gap.x,
                 "space-around": 0,
                 "space-between": isColumnDirection 
-                ? containerHeightPerItem / 2 * padding.y 
-                : -containerWidthPerItem / 2 * padding.x
+                ? containerHeightPerItem / 2 * gap.y 
+                : -containerWidthPerItem / 2 * gap.x
             },
-            vAlign: {
+            secondaryAlign: {
                 "start": isColumnDirection 
-                ? -containerWidthPerItem / 2 * padding.x 
-                : containerHeightPerItem / 2 * padding.y,
+                ? -containerWidthPerItem / 2 * gap.x 
+                : containerHeightPerItem / 2 * gap.y,
                 "center": 0,
                 "end": isColumnDirection 
-                ? containerWidthPerItem / 2 * padding.x 
-                : -containerHeightPerItem / 2 * padding.y,
+                ? containerWidthPerItem / 2 * gap.x 
+                : -containerHeightPerItem / 2 * gap.y,
                 "stretch": 0
             }
         };
 
-        const xOffsetFromOrigin = alignmentValues.hAlign[hAlignData] ?? 0;
-        const yOffsetFromOrigin = alignmentValues.vAlign[vAlignData] ?? 0;
+        const xOffsetFromOrigin = alignmentValues.mainAlign[mainAlignData] ?? 0;
+        const yOffsetFromOrigin = alignmentValues.secondaryAlign[secondaryAlignData] ?? 0;
         const offsets = isColumnDirection ? [yOffsetFromOrigin, xOffsetFromOrigin] : [xOffsetFromOrigin, yOffsetFromOrigin];
 
         return offsets;
