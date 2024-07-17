@@ -148,16 +148,14 @@ AFRAME.registerComponent('auto-position', {
         let x = 0
         let y = 0
 
-        if (this.hAlignment === "left") {
-            x = (-(this.parentBboxSize.x / 2)) + this.elBboxSize.x / 2
-        } else if (this.hAlignment === "right") {
-            x = this.parentBboxSize.x / 2 - this.elBboxSize.x / 2
+        if (this.hAlignment !== "center") {
+            const sign = this.hAlignment === "right" ? 1 : -1;
+            x = (this.parentBboxSize.x / 2 - this.elBboxSize.x / 2) * sign;
         }
 
-        if (this.vAlignment === "top") {
-            y = this.parentBboxSize.y / 2 - this.elBboxSize.y / 2
-        } else if (this.vAlignment === "bottom") {
-            y = (-(this.parentBboxSize.y / 2)) + this.elBboxSize.y / 2
+        if (this.vAlignment !== "center") {
+            const sign = this.vAlignment === "bottom" ? -1 : 1;
+            y = (this.parentBboxSize.y / 2 - this.elBboxSize.y / 2) * sign;
         }
 
         this.el.object3D.position.x = x
@@ -181,17 +179,17 @@ AFRAME.registerComponent('auto-position', {
 
 AFRAME.registerComponent('fit-into-fov', {
     schema: {
-        percentage: { type: "number", default: 100 },
+        margin: { type: "number", default: 0 },
         useFrontFace: { type: "boolean", default: false }
     },
 
     validateSchema() {
         // A-Frame returns `NaN`, if the value of property doesn't conform to type in schema
-        // Example: fit-into-fov="percentage: aaaa" will return `NaN` (default value won't be used)
+        // Example: fit-into-fov="margin: aaaa" will return `NaN` (default value won't be used)
         // Thus there is a below check
-        if (isNaN(this.data.percentage) || this.data.percentage < 0) {
-            console.warn("Warning fit-into-fov: percentage must be a positive number")
-            this.data.percentage = 100
+        if (isNaN(this.data.margin) || this.data.margin < 0) {
+            console.warn("Warning fit-into-fov: margin must be a positive number")
+            this.data.margin = 0
         }
     },
 
@@ -224,6 +222,10 @@ AFRAME.registerComponent('fit-into-fov', {
         const vFOV = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)
         const bboxSize = this.bbox.getSize(new THREE.Vector3())
 
+        // Divide margin by two to make it CSS-like
+        // For example: margin is 20, so 10 and 10 for both sides
+        const margin = (this.data.margin / 2) / 100
+
         let difference = 100
         let oldScale = 1
         let newScale = 1
@@ -235,8 +237,8 @@ AFRAME.registerComponent('fit-into-fov', {
             const visibleHeight = vFOV * distance
             const visibleWidth = visibleHeight * this.camera.aspect
 
-            const scaleByVisibleHeight = (visibleHeight / bboxSize.y) * this.data.percentage / 100
-            const scaleByVisibleWidth = (visibleWidth / bboxSize.x) * this.data.percentage / 100
+            const scaleByVisibleHeight = (visibleHeight - visibleHeight * margin) / bboxSize.y
+            const scaleByVisibleWidth = (visibleWidth - visibleWidth * margin) / bboxSize.x
 
             newScale = Math.min(scaleByVisibleWidth, scaleByVisibleHeight)
             difference = Math.abs(newScale - oldScale)
