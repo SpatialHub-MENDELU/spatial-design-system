@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@tweenjs/tween.js": "^23.1.1",
-    "aframe": "^1.4.2"
+    "aframe": "~1.5.0"
   },
   "devDependencies": {
     "vite": "^4.2.1"
