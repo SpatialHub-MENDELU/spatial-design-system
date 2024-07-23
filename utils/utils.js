@@ -86,3 +86,27 @@ export function getContrast(color1, color2) {
 export function setContrastColor(color) {
     return getContrast(color, "black") > getContrast(color, "white") ? 'black' : 'white';
 }
+
+/**
+ * Centers the geometry of a glTF model associated with an A-Frame entity.
+ * Loads the glTF model from the entity's 'gltf-model' attribute, adds it to the entity, 
+ * and centers its geometry.
+ *
+ * @param {AFRAME.AEntity} entity
+ */
+export function centerGltfModelGeometry(entity) {
+    const modelSrc = entity.getAttribute("gltf-model");
+
+    if (modelSrc) {
+        new THREE.GLTFLoader().load(modelSrc, (gltf) => {
+            const model = gltf.scene;
+            entity.setObject3D("mesh", model);
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.geometry.center();
+                }
+            });  
+        });
+    }
+}
