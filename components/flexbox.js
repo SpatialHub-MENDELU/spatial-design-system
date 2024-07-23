@@ -273,7 +273,7 @@ AFRAME.registerComponent("flexbox", {
 
         const mainAlignOffset = alignmentValues.mainAlign[mainAlignData] ?? alignmentValues.mainAlign["start"];
         const secondaryAlignOffset = alignmentValues.secondaryAlign[secondaryAlignData] ?? alignmentValues.secondaryAlign["start"];
-        console.log("alignment offsets", mainAlignOffset, secondaryAlignOffset);
+        
         return [mainAlignOffset, secondaryAlignOffset];
     },
 
