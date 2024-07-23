@@ -9,7 +9,7 @@
     "/.gitignore"
   ],
   "scripts": {
-    "dev": "vite"
+    "demo": "vite demo"
   },
   "dependencies": {
     "@tweenjs/tween.js": "^23.1.1",
