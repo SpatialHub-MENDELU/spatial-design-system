@@ -1,4 +1,5 @@
 import * as AFRAME from "aframe";
+import { centerGltfModelGeometry } from "../utils/utils.js";
 
 AFRAME.registerComponent("flexbox", {
     schema: {
@@ -11,19 +12,42 @@ AFRAME.registerComponent("flexbox", {
 
     init() {
         this.el.addEventListener("loaded", () => {
-            this.items = Array.from(this.el.children);
-            if (this.items.length === 0) return 
+            const mesh = this.el.getObject3D("mesh");
 
-            const geometry = this.el.getObject3D("mesh").geometry;
+            if (!mesh || !mesh.geometry || this.el.children.length === 0) return
 
             this.container = {
-                width: geometry.parameters.width,
-                height: geometry.parameters.height,
-                depth: geometry.parameters.depth
+                width: mesh.geometry.parameters.width,
+                height: mesh.geometry.parameters.height,
+                depth: mesh.geometry.parameters.depth
             };
 
-            this.setGap(this.data.gap.x, this.data.gap.y);
-            this.setItemsPosition();
+            let gltfModelsCount = 0;
+
+            this.items = Array.from(this.el.children, (child) => {
+                if (child.getAttribute("gltf-model")) {
+                    gltfModelsCount++;
+                    // Centering gltf model geometry, so it's properly positioned like aframe primitives
+                    centerGltfModelGeometry(child);
+                }
+
+                return child;
+            });
+
+            if (gltfModelsCount === 0) {
+                this.setGap(this.data.gap.x, this.data.gap.y);
+                this.setItemsLayout();
+            } else {
+                this.el.addEventListener("model-loaded", () => {
+                    gltfModelsCount--;
+
+                    if (gltfModelsCount === 0) {
+                        // All models were loaded
+                        this.setGap(this.data.gap.x, this.data.gap.y);
+                        this.setItemsLayout();
+                    }
+                });
+            }
         });
     },
 
@@ -56,9 +80,9 @@ AFRAME.registerComponent("flexbox", {
     },
 
     /**
-     * Sets the overall layout of the items inside the flexbox.
+     * Sets the overall layout of the items, i.e. their position and scale inside the flexbox.
      */
-    setItemsPosition() {
+    setItemsLayout() {
         const isColumnDirection = this.data.direction === "column";
         const isStretchAlignment = this.data.secondaryAlign === "stretch";
 
@@ -76,8 +100,9 @@ AFRAME.registerComponent("flexbox", {
         let rowIndex = 0, colIndex = 0;
 
         for (let itemIndex = 0; itemIndex < this.items.length; itemIndex++) {
+            /** @type {AFRAME.AEntity} */
             const item = this.items[itemIndex];
-            const itemBbox = new THREE.Box3().setFromObject(item.object3D);
+            const itemBbox = new THREE.Box3().setFromObject(item.getObject3D("mesh"));
             const itemBboxSize = itemBbox.getSize(new THREE.Vector3());
 
             const xPos = (-containerWidth / 2) + containerWidthPerItem / 2 + xOffsetFromOrigin;
@@ -153,17 +178,19 @@ AFRAME.registerComponent("flexbox", {
     },
 
     /**
-     * Sets the scale of the flexbox item.
-     * @param {Object} item
-     * @param {Object} scale
-     * @param {number} scale.x
-     * @param {number} scale.y
-     * @param {number} scale.z
+     * Sets the scale of the flexbox item based on the provided scale.
+     * It also takes into account the component's normalized gap.
+     * @param {AFRAME.AEntity} item
+     * @param {AFRAME.THREE.Vector3} scale
      */
     setItemScale(item, scale) {
         item.object3D.scale.x = scale.x - (scale.x * this.normalizedGap.x);
         item.object3D.scale.y = scale.y - (scale.y * this.normalizedGap.y);
         item.object3D.scale.z = scale.z;
+
+        // Multiply new item's scale by container's scale in cases where the container has a modified scale
+        // This ensures the item fits within the container's scale, whether reduced or increased
+        item.object3D.scale.multiply(this.el.object3D.scale);
     },
 
     /**
@@ -246,7 +273,7 @@ AFRAME.registerComponent("flexbox", {
 
         const mainAlignOffset = alignmentValues.mainAlign[mainAlignData] ?? alignmentValues.mainAlign["start"];
         const secondaryAlignOffset = alignmentValues.secondaryAlign[secondaryAlignData] ?? alignmentValues.secondaryAlign["start"];
-
+        console.log("alignment offsets", mainAlignOffset, secondaryAlignOffset);
         return [mainAlignOffset, secondaryAlignOffset];
     },
 
@@ -321,7 +348,7 @@ AFRAME.registerComponent("flexbox", {
 
     /**
      * 
-     * @param {Object} item 
+     * @param {AFRAME.AEntity} item 
      * @param {boolean} isColumnDirection - flag that indicates if flexbox is in column direction.
      * @returns {boolean} boolean, indicating whether or not the item should be wrapped to a new row or column.
      */
