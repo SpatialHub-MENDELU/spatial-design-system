@@ -222,9 +222,9 @@ AFRAME.registerComponent('fit-into-fov', {
         const vFOV = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)
         const bboxSize = this.bbox.getSize(new THREE.Vector3())
 
-        // Divide margin by two to make it CSS-like
-        // For example: margin is 20, so 10 and 10 for both sides
-        const margin = (this.data.margin / 2) / 100
+        // Multiply margin by two to make it CSS-like
+        // For example: margin is 20, so 20 and 20 for both sides, 40 in total
+        const margin = (this.data.margin * 2) / 100
 
         let difference = 100
         let oldScale = 1
