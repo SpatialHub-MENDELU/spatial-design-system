@@ -3,8 +3,8 @@
 A set of reusable components and styles for AR and VR applications developed in A-FRAME.
 Primary focus is on mobile AR but general guidelines are applicable and goggles.
 
-<img src="public/showcase/elements.png" height="300" alt="Spatial Design System logo">
-<img src="public/showcase/positioning.png" height="300"  alt="Spatial Design System logo">
+<img src="https://sds.pisarovic.cz/showcase/elements.png" height="300" alt="Spatial Design System logo">
+<img src="https://sds.pisarovic.cz/showcase/positioning.png" height="300"  alt="Spatial Design System logo">
 
 
 ## Documentation
