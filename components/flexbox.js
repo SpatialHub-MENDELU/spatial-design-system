@@ -43,8 +43,17 @@ AFRAME.registerComponent("flexbox", {
 
                     if (gltfModelsCount === 0) {
                         // All models were loaded
+
+                        const tempContainerRotation = this.el.object3D.rotation.clone();
+
+                        // Reset container rotation for correct calculation of bounding boxes of items with gltf models
+                        this.el.object3D.rotation.set(0, 0, 0);
+                        this.el.object3D.updateMatrixWorld();
+
                         this.setGap(this.data.gap.x, this.data.gap.y);
                         this.setItemsLayout();
+
+                        this.el.object3D.rotation.copy(tempContainerRotation);
                     }
                 });
             }
