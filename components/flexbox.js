@@ -44,16 +44,22 @@ AFRAME.registerComponent("flexbox", {
                     if (gltfModelsCount === 0) {
                         // All models were loaded
 
-                        const tempContainerRotation = this.el.object3D.rotation.clone();
+                        const originalContainerRotation = this.el.object3D.rotation.clone();  
+                        const containerParent = this.el.object3D.parent;
 
-                        // Reset container rotation for correct calculation of bounding boxes of items with gltf models
+                        // Removing the container from its parent and resetting its rotation 
+                        // prevents incorrect bounding box sizes of items with gltf models 
+                        // when a parent entity modifies rotation (e.g., a wrapper with the billboard component)
+                        containerParent.remove(this.el.object3D);
+
                         this.el.object3D.rotation.set(0, 0, 0);
-                        this.el.object3D.updateMatrixWorld();
+                        this.el.object3D.updateMatrixWorld(true);
 
                         this.setGap(this.data.gap.x, this.data.gap.y);
                         this.setItemsLayout();
 
-                        this.el.object3D.rotation.copy(tempContainerRotation);
+                        this.el.object3D.rotation.copy(originalContainerRotation);
+                        containerParent.add(this.el.object3D);
                     }
                 });
             }
