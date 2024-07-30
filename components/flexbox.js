@@ -1,5 +1,5 @@
 import * as AFRAME from "aframe";
-import { centerGltfModelGeometry } from "../utils/utils.js";
+import { centerGltfModelGeometry, onSceneLoaded } from "../utils/utils.js";
 
 AFRAME.registerComponent("flexbox", {
     schema: {
@@ -11,7 +11,7 @@ AFRAME.registerComponent("flexbox", {
     },
 
     init() {
-        this.el.addEventListener("loaded", () => {
+        onSceneLoaded(this.el.sceneEl, () => {
             const mesh = this.el.getObject3D("mesh");
 
             if (!mesh || !mesh.geometry || this.el.children.length === 0) return
@@ -117,8 +117,8 @@ AFRAME.registerComponent("flexbox", {
         for (let itemIndex = 0; itemIndex < this.items.length; itemIndex++) {
             /** @type {AFRAME.AEntity} */
             const item = this.items[itemIndex];
-            const itemBbox = new THREE.Box3().setFromObject(item.getObject3D("mesh"));
-            const itemBboxSize = itemBbox.getSize(new THREE.Vector3());
+            const itemBbox = new AFRAME.THREE.Box3().setFromObject(item.getObject3D("mesh"));
+            const itemBboxSize = itemBbox.getSize(new AFRAME.THREE.Vector3());
 
             const xPos = (-containerWidth / 2) + containerWidthPerItem / 2 + xOffsetFromOrigin;
             const yPos = containerHeight / 2 - containerHeightPerItem / 2 + yOffsetFromOrigin;
@@ -148,7 +148,7 @@ AFRAME.registerComponent("flexbox", {
             
             this.setItemScale(
                 item, 
-                new THREE.Vector3(
+                new AFRAME.THREE.Vector3(
                     xScale,
                     yScale,
                     item.object3D.scale.z

@@ -1,10 +1,11 @@
 import * as AFRAME from "aframe"
+import { onSceneLoaded } from "../utils/utils"
 
 AFRAME.registerComponent('billboard', {
     init() {
         this.element = this.el.object3D
         this.camera = this.el.sceneEl.camera
-        this.cameraPos = new THREE.Vector3()
+        this.cameraPos = new AFRAME.THREE.Vector3()
     },
 
     tick() {        
@@ -22,7 +23,7 @@ AFRAME.registerComponent('auto-scale', {
     init() {
         this.originalScale = this.el.object3D.scale.clone()
         this.camera = this.el.sceneEl.camera
-        this.cameraPos = new THREE.Vector3()
+        this.cameraPos = new AFRAME.THREE.Vector3()
 
         this.captureInitialDistance()
         this.camera.el.addEventListener('loaded', () => this.captureInitialDistance())
@@ -67,12 +68,12 @@ AFRAME.registerComponent('follow-camera', {
     init() {
         this.camera = this.el.sceneEl.camera
 
-        this.cameraPos = new THREE.Vector3()
-        this.cameraDir = new THREE.Vector3()
+        this.cameraPos = new AFRAME.THREE.Vector3()
+        this.cameraDir = new AFRAME.THREE.Vector3()
 
-        this.vecBetweenCameraAndEl = new THREE.Vector3()
+        this.vecBetweenCameraAndEl = new AFRAME.THREE.Vector3()
         this.angleBetweenCameraAndEl = 0.0
-        this.targetPos = new THREE.Vector3()
+        this.targetPos = new AFRAME.THREE.Vector3()
 
         this.initialElPosY = this.el.object3D.position.y
 
@@ -124,7 +125,10 @@ AFRAME.registerComponent('auto-position', {
 
     init() {
         this.validateSchema()
-        this.setElAndParentBoundingBox()
+        onSceneLoaded(this.el.sceneEl, () => {
+            this.setElAndParentBoundingBox()
+            this.setElAlignment()
+        })
     },
 
     validateSchema() {
@@ -164,16 +168,14 @@ AFRAME.registerComponent('auto-position', {
     },
     
     setElAndParentBoundingBox() {
-        // Need to wait for setting alignment, until the parent has been rendered
-        this.el.sceneEl.addEventListener("loaded", () => {
-            this.elBbox = new THREE.Box3().setFromObject(this.el.object3D)
-            this.elBboxSize = this.elBbox.getSize(new THREE.Vector3())
+        const elMesh = this.el.getObject3D("mesh")
+        const parentMesh = this.el.parentNode.getObject3D("mesh")
 
-            this.parentBbox = new THREE.Box3().setFromObject(this.el.parentNode.object3D)
-            this.parentBboxSize = this.parentBbox.getSize(new THREE.Vector3())
-
-            this.setElAlignment()
-        })
+        this.elBbox = new AFRAME.THREE.Box3().setFromObject(elMesh)
+        this.elBboxSize = this.elBbox.getSize(new AFRAME.THREE.Vector3())
+        
+        this.parentBbox = new AFRAME.THREE.Box3().setFromObject(parentMesh)
+        this.parentBboxSize = this.parentBbox.getSize(new AFRAME.THREE.Vector3())
     }
 })
 
@@ -199,7 +201,7 @@ AFRAME.registerComponent('fit-into-fov', {
         this.camera = this.el.sceneEl.camera
         this.el.object3D.scale.set(1, 1, 1)
         
-        this.el.addEventListener("loaded", () => {
+        onSceneLoaded(this.el.sceneEl, () => {
             this.computeBBox()
             this.setScale()
             this.el.addEventListener("fit", () => {
@@ -210,17 +212,21 @@ AFRAME.registerComponent('fit-into-fov', {
 
     computeBBox() {
         const tempRotation = this.el.object3D.rotation.clone()
+        const elMesh = this.el.getObject3D("mesh")
+        
         this.el.object3D.rotation.set(0, 0, 0) // reset rotation to compute correct original bbox
-        this.bbox = new THREE.Box3().setFromObject(this.el.object3D)
+        this.bbox = new AFRAME.THREE.Box3().setFromObject(elMesh)
         this.el.object3D.rotation.copy(tempRotation)
     },
 
     calculateNewScale() {
         const elementPos = this.el.object3D.position
-        const cameraPos = this.camera.getWorldPosition(new THREE.Vector3())
+        const cameraPos = this.camera.getWorldPosition(new AFRAME.THREE.Vector3())
+        const cameraFovInRad = AFRAME.THREE.MathUtils.degToRad(this.camera.fov)
+
         const distanceToCenter = Math.abs(cameraPos.distanceTo(elementPos))
-        const vFOV = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)
-        const bboxSize = this.bbox.getSize(new THREE.Vector3())
+        const vFOV = 2 * Math.tan(cameraFovInRad / 2)
+        const bboxSize = this.bbox.getSize(new AFRAME.THREE.Vector3())
 
         // Multiply margin by two to make it CSS-like
         // For example: margin is 20, so 20 and 20 for both sides, 40 in total
@@ -251,7 +257,7 @@ AFRAME.registerComponent('fit-into-fov', {
             console.warn("Warning fit-into-fov: calculation of new scale took too long, fit-into-fov might not work properly")
         }
 
-        return new THREE.Vector3(newScale, newScale, newScale)
+        return new AFRAME.THREE.Vector3(newScale, newScale, newScale)
     },
 
     setScale() {

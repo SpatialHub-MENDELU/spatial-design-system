@@ -1,3 +1,5 @@
+import { THREE } from "aframe";
+
 export function isObjectTrulyVisible(el) {
     if (!el.visible) return false;
 
@@ -87,6 +89,8 @@ export function setContrastColor(color) {
     return getContrast(color, "black") > getContrast(color, "white") ? 'black' : 'white';
 }
 
+/** @import { AFRAME.AEntity } from "aframe" */
+
 /**
  * Centers the geometry of a glTF model associated with an A-Frame entity.
  * Loads the glTF model from the entity's 'gltf-model' attribute, adds it to the entity, 
@@ -108,5 +112,19 @@ export function centerGltfModelGeometry(entity) {
                 }
             });  
         });
+    }
+}
+
+/**
+ * Executes the callback function when the A-Frame scene has fully loaded. 
+ * Useful, for instance, for calculating bounding boxes.
+ * @param {AFRAME.Scene} scene
+ * @param {function(): void} callback 
+ */
+export function onSceneLoaded(scene, callback) {
+    if (scene.hasLoaded) {
+        callback();
+    } else {
+        scene.addEventListener("loaded", callback);
     }
 }
