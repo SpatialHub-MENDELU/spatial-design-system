@@ -199,7 +199,7 @@ AFRAME.registerComponent('fit-into-fov', {
         this.camera = this.el.sceneEl.camera
         this.el.object3D.scale.set(1, 1, 1)
         
-        this.el.sceneEl.addEventListener("loaded", () => {
+        this.el.addEventListener("loaded", () => {
             this.computeBBox()
             this.setScale()
             this.el.addEventListener("fit", () => {
