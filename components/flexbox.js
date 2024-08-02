@@ -1,5 +1,9 @@
 import * as AFRAME from "aframe";
-import { centerGltfModelGeometry, onSceneLoaded } from "../utils/utils.js";
+import { 
+    center3DModelGeometry, 
+    computeBbox, 
+    onSceneLoaded,
+} from "../utils/utils.js";
 
 AFRAME.registerComponent("flexbox", {
     schema: {
@@ -28,7 +32,7 @@ AFRAME.registerComponent("flexbox", {
                 if (child.getAttribute("gltf-model")) {
                     gltfModelsCount++;
                     // Centering gltf model geometry, so it's properly positioned like aframe primitives
-                    centerGltfModelGeometry(child);
+                    center3DModelGeometry(child);
                 }
 
                 return child;
@@ -117,7 +121,7 @@ AFRAME.registerComponent("flexbox", {
         for (let itemIndex = 0; itemIndex < this.items.length; itemIndex++) {
             /** @type {AFRAME.AEntity} */
             const item = this.items[itemIndex];
-            const itemBbox = new AFRAME.THREE.Box3().setFromObject(item.getObject3D("mesh"));
+            const itemBbox = computeBbox(item);
             const itemBboxSize = itemBbox.getSize(new AFRAME.THREE.Vector3());
 
             const xPos = (-containerWidth / 2) + containerWidthPerItem / 2 + xOffsetFromOrigin;

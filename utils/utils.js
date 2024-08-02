@@ -100,7 +100,7 @@ export function setContrastColor(color) {
  * @param {AEntity} entity
  * @param {function(): void} onDone - a callback that is executed after the 3d model geometry is centered.
  */
-export function centerGltfModelGeometry(entity, onDone) {
+export function center3DModelGeometry(entity, onDone) {
     const modelSrc = entity.components["gltf-model"]?.data;
 
     if (modelSrc) {

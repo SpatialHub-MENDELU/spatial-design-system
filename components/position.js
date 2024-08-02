@@ -1,5 +1,10 @@
 import * as AFRAME from "aframe"
-import { onSceneLoaded } from "../utils/utils"
+import { 
+    center3DModelGeometry, 
+    computeBbox,
+    onLoaded,
+    on3DModelLoaded,
+} from "../utils/utils"
 
 AFRAME.registerComponent('billboard', {
     init() {
@@ -54,7 +59,6 @@ AFRAME.registerComponent('auto-scale', {
 
         return this.originalScale.clone().multiplyScalar(normalizedDistance * this.data.factor)
     }
-
 })
 
 AFRAME.registerComponent('follow-camera', {
@@ -125,7 +129,13 @@ AFRAME.registerComponent('auto-position', {
 
     init() {
         this.validateSchema()
-        onSceneLoaded(this.el.sceneEl, () => {
+
+        onLoaded(this.el, () => {
+            if (this.el.parentNode === this.el.sceneEl) {
+                console.warn("Warning auto-position: parent cannot be a scene object, auto-position won't work")
+                return
+            }
+
             this.setElAndParentBoundingBox()
             this.setElAlignment()
         })
@@ -168,13 +178,10 @@ AFRAME.registerComponent('auto-position', {
     },
     
     setElAndParentBoundingBox() {
-        const elMesh = this.el.getObject3D("mesh")
-        const parentMesh = this.el.parentNode.getObject3D("mesh")
-
-        this.elBbox = new AFRAME.THREE.Box3().setFromObject(elMesh)
+        this.elBbox = computeBbox(this.el)
         this.elBboxSize = this.elBbox.getSize(new AFRAME.THREE.Vector3())
         
-        this.parentBbox = new AFRAME.THREE.Box3().setFromObject(parentMesh)
+        this.parentBbox = computeBbox(this.el.parentNode)
         this.parentBboxSize = this.parentBbox.getSize(new AFRAME.THREE.Vector3())
     }
 })
@@ -201,22 +208,11 @@ AFRAME.registerComponent('fit-into-fov', {
         this.camera = this.el.sceneEl.camera
         this.el.object3D.scale.set(1, 1, 1)
         
-        onSceneLoaded(this.el.sceneEl, () => {
-            this.computeBBox()
+        onLoaded(this.el, () => {
+            this.bbox = computeBbox(this.el)
             this.setScale()
-            this.el.addEventListener("fit", () => {
-                this.setScale()
-            })
+            this.el.addEventListener("fit", () => this.setScale())
         })
-    },
-
-    computeBBox() {
-        const tempRotation = this.el.object3D.rotation.clone()
-        const elMesh = this.el.getObject3D("mesh")
-        
-        this.el.object3D.rotation.set(0, 0, 0) // reset rotation to compute correct original bbox
-        this.bbox = new AFRAME.THREE.Box3().setFromObject(elMesh)
-        this.el.object3D.rotation.copy(tempRotation)
     },
 
     calculateNewScale() {
@@ -261,7 +257,22 @@ AFRAME.registerComponent('fit-into-fov', {
     },
 
     setScale() {
+        // This guard is needed for auto-scale, because its tick method can be faster than computation of bbox
+        if (!this.bbox) return
+
         const newScale = this.calculateNewScale()
         this.el.object3D.scale.copy(newScale)
+    }
+})
+
+AFRAME.registerComponent("center-3d-model-geometry", {
+    schema: { type: "boolean", default: true },
+
+    init() {
+        on3DModelLoaded(this.el, () => {
+            center3DModelGeometry(this.el, () => {
+                if (this.data) { this.el.removeAttribute("center-3d-model-geometry") }
+            })
+        })
     }
 })
