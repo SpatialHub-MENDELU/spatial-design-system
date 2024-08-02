@@ -1,3 +1,6 @@
+/** @typedef {import('aframe').Scene} AScene */
+/** @typedef {import('aframe').Entity} AEntity */
+
 import { THREE } from "aframe";
 
 export function isObjectTrulyVisible(el) {
@@ -89,17 +92,16 @@ export function setContrastColor(color) {
     return getContrast(color, "black") > getContrast(color, "white") ? 'black' : 'white';
 }
 
-/** @import { AFRAME.AEntity } from "aframe" */
-
 /**
  * Centers the geometry of a glTF model associated with an A-Frame entity.
  * Loads the glTF model from the entity's 'gltf-model' attribute, adds it to the entity, 
  * and centers its geometry.
  *
- * @param {AFRAME.AEntity} entity
+ * @param {AEntity} entity
+ * @param {function(): void} onDone - a callback that is executed after the 3d model geometry is centered.
  */
-export function centerGltfModelGeometry(entity) {
-    const modelSrc = entity.getAttribute("gltf-model");
+export function centerGltfModelGeometry(entity, onDone) {
+    const modelSrc = entity.components["gltf-model"]?.data;
 
     if (modelSrc) {
         new THREE.GLTFLoader().load(modelSrc, (gltf) => {
@@ -110,7 +112,11 @@ export function centerGltfModelGeometry(entity) {
                 if (child.isMesh) {
                     child.geometry.center();
                 }
-            });  
+            });
+
+            if (onDone) {
+                onDone();
+            }
         });
     }
 }
@@ -118,13 +124,70 @@ export function centerGltfModelGeometry(entity) {
 /**
  * Executes the callback function when the A-Frame scene has fully loaded. 
  * Useful, for instance, for calculating bounding boxes.
- * @param {AFRAME.Scene} scene
+ * @param {AScene} scene
  * @param {function(): void} callback 
  */
 export function onSceneLoaded(scene, callback) {
+    if (!scene) return;
+
     if (scene.hasLoaded) {
         callback();
     } else {
         scene.addEventListener("loaded", callback);
     }
+}
+
+/**
+ * Executes the callback function when the 3D model has fully loaded.
+ * Useful, for instance, to get the bounding box of the model.
+ * @param {AEntity} entity
+ * @param {function(): void} callback 
+ */
+ export function on3DModelLoaded(entity, callback) {
+    if (!entity || !entity.components["gltf-model"]) {
+        throw new Error("3D model is not defined or entity does not have a 3D model component");
+    }
+
+    entity.addEventListener("model-loaded", () => callback(), { once: true });
+}
+
+/**
+ * Waits for the 3D model to load if set on entity, otherwise waits for the scene to load, and then executes a callback.
+ * @param {AEntity} entity 
+ * @param {function(): void} callback 
+ */
+export function onLoaded(entity, callback) {
+    if (!entity) {
+        throw new Error("Entity is not defined");
+    }
+
+    const is3DModel = entity.components["gltf-model"];
+    
+    if (is3DModel) {
+        on3DModelLoaded(entity, callback);
+    } else {
+        onSceneLoaded(entity.sceneEl, callback);
+    }
+}
+
+/**
+ * Computes bounding box, based on the provided A-Frame entity.
+ * @param {AEntity} entity
+ * @returns {(THREE.Box3 | undefined)} computed bounding box or `undefined`, if entity or its mesh is not defined.
+ */
+export function computeBbox(entity) {
+    if (!entity) return;
+
+    const originalRotation = entity.object3D.rotation.clone();
+    const mesh = entity.getObject3D("mesh");
+
+    if (!mesh) return;
+    
+    entity.object3D.rotation.set(0, 0, 0); // reset rotation to compute correct original bbox
+    entity.object3D.updateMatrixWorld(true);
+
+    const bbox = new THREE.Box3().setFromObject(mesh);
+    entity.object3D.rotation.copy(originalRotation);
+
+    return bbox;
 }
