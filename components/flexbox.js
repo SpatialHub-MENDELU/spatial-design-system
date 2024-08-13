@@ -31,19 +31,20 @@ AFRAME.registerComponent("flexbox", {
             this.items = Array.from(this.el.children, (child) => {
                 if (child.getAttribute("gltf-model")) {
                     gltfModelsCount++;
-                    // Centering gltf model geometry, so it's properly positioned like aframe primitives
-                    center3DModelGeometry(child);
                 }
 
                 return child;
             });
 
-            if (gltfModelsCount === 0) {
+            if (gltfModelsCount <= 0) {
                 this.setGap(this.data.gap.x, this.data.gap.y);
                 this.setItemsLayout();
             } else {
-                this.el.addEventListener("model-loaded", () => {
+                this.el.addEventListener("model-loaded", (e) => {
                     gltfModelsCount--;
+
+                    // Centering gltf model geometry, so it's properly positioned like aframe primitives
+                    center3DModelGeometry(e.target);
 
                     if (gltfModelsCount === 0) {
                         // All models were loaded

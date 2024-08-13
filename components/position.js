@@ -270,9 +270,11 @@ AFRAME.registerComponent("center-3d-model-geometry", {
 
     init() {
         on3DModelLoaded(this.el, () => {
-            center3DModelGeometry(this.el, () => {
-                if (this.data) { this.el.removeAttribute("center-3d-model-geometry") }
-            })
+            center3DModelGeometry(this.el);
+            
+            if (this.data) { 
+                this.el.removeAttribute("center-3d-model-geometry");
+            }
         })
     }
 })

@@ -93,29 +93,26 @@ export function setContrastColor(color) {
 }
 
 /**
- * Centers the geometry of a glTF model associated with an A-Frame entity.
- * Loads the glTF model from the entity's 'gltf-model' attribute, adds it to the entity, 
- * and centers its geometry.
+ * Centers the geometry of a 3D model associated with an A-Frame entity.
+ * NOTE: the model should already be loaded.
+ * Use it inside the {@link on3DModelLoaded} callback.
  *
- * @param {AEntity} entity
- * @param {function(): void} onDone - a callback that is executed after the 3d model geometry is centered.
+ * @param {AEntity} entity - A-Frame entity with `gltf-model` component.
  */
-export function center3DModelGeometry(entity, onDone) {
-    const modelSrc = entity.components["gltf-model"]?.data;
+export function center3DModelGeometry(entity) {
+    const hasSrc = entity.components["gltf-model"]?.data;
 
-    if (modelSrc) {
-        new THREE.GLTFLoader().load(modelSrc, (gltf) => {
-            const model = gltf.scene;
-            entity.setObject3D("mesh", model);
+    if (hasSrc) {
+        const model = entity.getObject3D("mesh");
 
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.geometry.center();
-                }
-            });
+        if (!model) {
+            console.error("Failed to center 3D model geometry, mesh is undefined");
+            return;
+        }
 
-            if (onDone) {
-                onDone();
+        model.traverse(child => {
+            if (child.isMesh) {
+                child.geometry.center();
             }
         });
     }
@@ -143,7 +140,7 @@ export function onSceneLoaded(scene, callback) {
  * @param {AEntity} entity
  * @param {function(): void} callback 
  */
- export function on3DModelLoaded(entity, callback) {
+export function on3DModelLoaded(entity, callback) {
     if (!entity || !entity.components["gltf-model"]) {
         throw new Error("3D model is not defined or entity does not have a 3D model component");
     }
