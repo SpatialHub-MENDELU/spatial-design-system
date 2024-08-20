@@ -170,15 +170,24 @@ export function onLoaded(entity, callback) {
 /**
  * Computes bounding box, based on the provided A-Frame entity.
  * @param {AEntity} entity
- * @returns {(THREE.Box3 | undefined)} computed bounding box or `undefined`, if entity or its mesh is not defined.
+ * @returns {THREE.Box3} computed bounding box from the entity's mesh,
+ * or an empty bounding box, if the entity or its mesh is not defined.
  */
 export function computeBbox(entity) {
-    if (!entity) return;
+    const defaultBbox = new THREE.Box3().makeEmpty();
+
+    if (!entity) {
+        console.warn("Entity is undefined, return empty bounding box; the component that uses this bounding box may not work properly");
+        return defaultBbox;
+    }
 
     const originalRotation = entity.object3D.rotation.clone();
     const mesh = entity.getObject3D("mesh");
 
-    if (!mesh) return;
+    if (!mesh) {
+        console.warn(`Mesh of ${entity.tagName} is undefined, return empty bounding box; the component that uses this bounding box may not work properly`);
+        return defaultBbox;
+    }
     
     entity.object3D.rotation.set(0, 0, 0); // reset rotation to compute correct original bbox
     entity.object3D.updateMatrixWorld(true);
