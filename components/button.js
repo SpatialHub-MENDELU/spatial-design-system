@@ -78,7 +78,7 @@ AFRAME.registerComponent("button", {
     updateButtonOpacity() {
         const opacityValue = this.data.textonly ? 0.1 : this.data.opacity;
         this.buttonMesh.material.opacity = opacityValue;
-        this.shadowMesh.material.opacity = opacityValue * 0.6;
+        if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.6;
     },
 
     updateTextColor() {
