@@ -135,7 +135,7 @@ AFRAME.registerComponent("button", {
                 if (this.data.text === "") iconXPosition = 0;
                 
                 // moving the text to the right, so it doesnt hide the icon
-                textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.01 })
+                textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.05 })
                 
                 iconEl.setAttribute("geometry", { width: iconWidth, height: 0.2 * this.el.getAttribute('sizeCoef')})
                 iconEl.setAttribute("position", { x: iconXPosition, y: 0, z: 0.02 })
@@ -223,6 +223,8 @@ AFRAME.registerComponent("button", {
                 transparent: true
             });
             const outlineMesh = new AFRAME.THREE.Mesh(outlineGeometry, outlineMaterial);
+            outlineMesh.position.z -= 0.05;
+
             this.outlineMesh = outlineMesh;
             group.add(outlineMesh);
         }
@@ -263,7 +265,7 @@ AFRAME.registerComponent("button", {
         textEl.setAttribute("value", text === undefined ? "" : text)
         textEl.setAttribute("align", "center")
         textEl.setAttribute('scale', {x: 0.7 * sizeCoef * capsCoef, y: 0.7 * sizeCoef * capsCoef, z: 0.7 * sizeCoef * capsCoef});
-        textEl.setAttribute("position", '0 0 0.01')
+        textEl.setAttribute("position", '0 0 0.05')
 
         // If there is an icon, the button has to be wider
         const iconWidth = icon !== "" && !this.data.textonly ? 0.2 * this.el.getAttribute('sizeCoef') : 0
