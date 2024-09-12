@@ -1,6 +1,6 @@
 {
   "name": "spatial-design-system",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "files": [
     "/components",
     "/primitives",
@@ -9,7 +9,8 @@
     "/.gitignore"
   ],
   "scripts": {
-    "demo": "vite demo"
+    "demo": "vite demo",
+    "dev": "vite debug/"
   },
   "dependencies": {
     "@tweenjs/tween.js": "^23.1.1",

@@ -16,14 +16,20 @@ AFRAME.registerComponent("flexbox", {
 
     init() {
         onSceneLoaded(this.el.sceneEl, () => {
-            const mesh = this.el.getObject3D("mesh");
-
-            if (!mesh || !mesh.geometry || this.el.children.length === 0) return
+            const bbox = computeBbox(this.el);            
+            if (bbox.isEmpty() || this.el.children.length === 0) {
+                console.warn("Warning flexbox: the container has invalid bounding box or has no children");
+                return;
+            }
+            
+            const bboxSizeWithoutScale = bbox
+                .getSize(new AFRAME.THREE.Vector3())
+                .divide(this.el.object3D.scale); // clean dims of the parent
 
             this.container = {
-                width: mesh.geometry.parameters.width,
-                height: mesh.geometry.parameters.height,
-                depth: mesh.geometry.parameters.depth
+                width: bboxSizeWithoutScale.x,
+                height: bboxSizeWithoutScale.y,
+                depth: bboxSizeWithoutScale.z
             };
 
             let gltfModelsCount = 0;
@@ -123,8 +129,10 @@ AFRAME.registerComponent("flexbox", {
             /** @type {AFRAME.AEntity} */
             const item = this.items[itemIndex];
             const itemBbox = computeBbox(item);
-            const itemBboxSize = itemBbox.getSize(new AFRAME.THREE.Vector3());
-
+            const itemBboxSize = itemBbox
+                .getSize(new AFRAME.THREE.Vector3())
+                .divide(this.el.object3D.scale); // clean dims of the item
+            
             const xPos = (-containerWidth / 2) + containerWidthPerItem / 2 + xOffsetFromOrigin;
             const yPos = containerHeight / 2 - containerHeightPerItem / 2 + yOffsetFromOrigin;
             const zPos = containerDepth / 2 + itemBboxSize.z / 2;
@@ -207,10 +215,6 @@ AFRAME.registerComponent("flexbox", {
         item.object3D.scale.x = scale.x - (scale.x * this.normalizedGap.x);
         item.object3D.scale.y = scale.y - (scale.y * this.normalizedGap.y);
         item.object3D.scale.z = scale.z;
-
-        // Multiply new item's scale by container's scale in cases where the container has a modified scale
-        // This ensures the item fits within the container's scale, whether reduced or increased
-        item.object3D.scale.multiply(this.el.object3D.scale);
     },
 
     /**
