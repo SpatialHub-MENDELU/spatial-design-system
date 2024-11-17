@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "demo": "vite demo",
-    "dev": "vite debug/",
+    "dev": "vite --host",
     "build": "vite build"
   },
   "dependencies": {

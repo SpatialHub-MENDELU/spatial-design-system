@@ -76,6 +76,15 @@ AFRAME.registerComponent("flexbox", {
     },
 
     setItemsLayout() {
+        if(this.data.direction === "row"){
+            this.setRowItemsLayout()
+        } else{
+            this.setColItemsLayout()
+        }
+
+    },
+
+    setRowItemsLayout() {
         let xPos = -this.container.width / 2;
 
         for (let i = 0; i < this.items.length; i++) {
@@ -92,6 +101,26 @@ AFRAME.registerComponent("flexbox", {
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01 // Keep the z-offset for consistency
             );
             xPos += (itemBboxSize.x / 2) + this.data.gap.x; // Move xPos for the next item + gap
+        }
+    },
+
+    setColItemsLayout() {
+        let yPos = this.container.height / 2; // Start at the top
+
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
+            const itemBbox = computeBbox(item);
+            const itemBboxSize = itemBbox
+                .getSize(new AFRAME.THREE.Vector3())
+                .divide(this.el.object3D.scale);
+
+            yPos -= itemBboxSize.y / 2;
+            item.object3D.position.set(
+                -this.container.width / 2 + itemBboxSize.x / 2, // x-position: left-aligned
+                yPos,
+                this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
+            );
+            yPos -= (itemBboxSize.y / 2) + this.data.gap.y;
         }
     },
 })
