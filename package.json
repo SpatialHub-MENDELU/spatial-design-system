@@ -1,6 +1,6 @@
 {
   "name": "spatial-design-system",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "files": [
     "/components",
     "/primitives",
@@ -19,5 +19,8 @@
   },
   "devDependencies": {
     "vite": "^5.3.4"
+  },
+  "overrides": {
+    "three-bmfont-text": "@spatialhub/three-bmfont-text"
   }
 }
