@@ -24,7 +24,7 @@ export default defineConfig({
                     aframe: 'AFRAME'
                 }
             },
-            dir: 'dist' // output directory
+            dir: 'umd' // output directory
         }
     }
 })
