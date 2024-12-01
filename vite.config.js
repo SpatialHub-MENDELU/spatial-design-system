@@ -22,9 +22,9 @@ export default defineConfig({
                 globals: {
                     // aframe
                     aframe: 'AFRAME'
-                }
+                },
+                dir: 'umd' // output directory
             },
-            dir: 'umd' // output directory
         }
     }
 })
