@@ -1,13 +1,13 @@
 {
   "name": "spatial-design-system",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "files": [
     "/components",
     "/primitives",
     "/public",
     "/utils",
     "/.gitignore",
-    "/dist"
+    "/umd"
   ],
   "scripts": {
     "demo": "vite demo",
