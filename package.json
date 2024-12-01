@@ -6,7 +6,8 @@
     "/primitives",
     "/public",
     "/utils",
-    "/.gitignore"
+    "/.gitignore",
+    "/dist"
   ],
   "scripts": {
     "demo": "vite demo",

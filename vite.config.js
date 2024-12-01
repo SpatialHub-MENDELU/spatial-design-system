@@ -16,13 +16,15 @@ export default defineConfig({
             // into your library
             external: ['aframe'],
             output: {
+                format: ['umd'], // ensure that the UMD build is used
                 // Provide global variables to use in the UMD build
                 // for externalized deps
                 globals: {
                     // aframe
                     aframe: 'AFRAME'
                 }
-            }
+            },
+            dir: 'dist' // output directory
         }
     }
 })
