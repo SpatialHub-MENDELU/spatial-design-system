@@ -77,9 +77,17 @@ AFRAME.registerComponent("flexbox", {
 
     setItemsLayout() {
         if(this.data.direction === "row"){
-            this.setRowItemsLayout()
+            if(this.data.wrap) {
+                this.setRowItemsLayoutWrap()
+            } else {
+                this.setRowItemsLayout()
+            }
         } else{
-            this.setColItemsLayout()
+            if(this.data.wrap) {
+                this.setColItemsLayoutWrap()
+            } else {
+                this.setColItemsLayout()
+            }
         }
     },
 
@@ -120,6 +128,80 @@ AFRAME.registerComponent("flexbox", {
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
             );
             yPos -= (itemBboxSize.y / 2) + this.data.gap.y;
+        }
+    },
+
+    setRowItemsLayoutWrap() {
+        this.lines = [[]]; // Initialize lines array
+        let currentLine = this.lines[0];
+        let xPos = -this.container.width / 2;
+        let yPos = this.container.height / 2;
+        let currentLineHeight = 0;
+
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
+            const itemBbox = computeBbox(item);
+            const itemBboxSize = itemBbox
+                .getSize(new AFRAME.THREE.Vector3())
+                .divide(this.el.object3D.scale);
+
+            xPos += itemBboxSize.x / 2;
+
+            if (xPos + itemBboxSize.x / 2 > this.container.width / 2) {
+                // Move to the next line
+                xPos = -this.container.width / 2 + itemBboxSize.x / 2;
+                yPos -= currentLineHeight + this.data.gap.y;
+                currentLineHeight = 0; // Reset line height for the new line
+                currentLine = []; // Start a new line
+                this.lines.push(currentLine);
+            }
+
+            item.object3D.position.set(
+                xPos,
+                yPos - itemBboxSize.y / 2,
+                this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
+            );
+
+            xPos += itemBboxSize.x / 2 + this.data.gap.x;
+            currentLineHeight = Math.max(currentLineHeight, itemBboxSize.y); // Update line height
+            currentLine.push(item); // Add item to the current line
+        }
+    },
+
+    setColItemsLayoutWrap() {
+        this.lines = [[]]; // Initialize lines array
+        let currentLine = this.lines[0];
+        let xPos = -this.container.width / 2;
+        let yPos = this.container.height / 2;
+        let currentLineWidth = 0;
+
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
+            const itemBbox = computeBbox(item);
+            const itemBboxSize = itemBbox
+                .getSize(new AFRAME.THREE.Vector3())
+                .divide(this.el.object3D.scale);
+
+            yPos -= itemBboxSize.y / 2;
+
+            if (yPos - itemBboxSize.y / 2 < -this.container.height / 2) {
+                // Move to the next column
+                yPos = this.container.height / 2 - itemBboxSize.y / 2;
+                xPos += currentLineWidth + this.data.gap.x;
+                currentLineWidth = 0; // Reset line width for the new column
+                currentLine = []; // Start a new column
+                this.lines.push(currentLine);
+            }
+
+            item.object3D.position.set(
+                xPos + itemBboxSize.x / 2,
+                yPos,
+                this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
+            );
+
+            yPos -= itemBboxSize.y / 2 + this.data.gap.y;
+            currentLineWidth = Math.max(currentLineWidth, itemBboxSize.x); // Update column width
+            currentLine.push(item); // Add item to the current column
         }
     },
 })

@@ -28,11 +28,12 @@ scene.innerHTML = `
 
 <a-plane 
   position="6 1.6 -5" 
-  width="8"
-  height="2"
+  width="4"
+  height="8ds"
   material="color: #018A6C"
   flexbox="
       direction: row;
+      wrap: true;
   "
 >
   <a-plane color="white" width="1.5"></a-plane>
