@@ -32,9 +32,7 @@ scene.innerHTML = `
   height="2"
   material="color: #018A6C"
   flexbox="
-      gap: 1 1;
-      wrap: true;
-      direction: column;
+      direction: row;
   "
 >
   <a-plane color="white" width="1.5"></a-plane>

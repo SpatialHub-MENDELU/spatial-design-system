@@ -81,7 +81,6 @@ AFRAME.registerComponent("flexbox", {
         } else{
             this.setColItemsLayout()
         }
-
     },
 
     setRowItemsLayout() {
