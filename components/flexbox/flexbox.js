@@ -18,6 +18,7 @@ AFRAME.registerComponent("flexbox", {
         height: 0,
         depth: 0
     },
+    items: [],
 
     init() {
         onSceneLoaded(this.el.sceneEl, () => {
@@ -147,7 +148,8 @@ AFRAME.registerComponent("flexbox", {
 
             xPos += itemBboxSize.x / 2;
 
-            if (xPos + itemBboxSize.x / 2 > this.container.width / 2) {
+            const doesItemNotFit = xPos + itemBboxSize.x / 2 > this.container.width / 2
+            if (doesItemNotFit) {
                 // Move to the next line
                 xPos = -this.container.width / 2 + itemBboxSize.x / 2;
                 yPos -= currentLineHeight + this.data.gap.y;
@@ -184,7 +186,8 @@ AFRAME.registerComponent("flexbox", {
 
             yPos -= itemBboxSize.y / 2;
 
-            if (yPos - itemBboxSize.y / 2 < -this.container.height / 2) {
+            const doesItemNotFit = yPos - itemBboxSize.y / 2 < -this.container.height / 2
+            if (doesItemNotFit) {
                 // Move to the next column
                 yPos = this.container.height / 2 - itemBboxSize.y / 2;
                 xPos += currentLineWidth + this.data.gap.x;
