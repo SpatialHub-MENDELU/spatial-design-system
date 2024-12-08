@@ -19,6 +19,7 @@ AFRAME.registerComponent("flexbox", {
         depth: 0
     },
     items: [],
+    lines: [],
 
     init() {
         onSceneLoaded(this.el.sceneEl, () => {
@@ -90,6 +91,8 @@ AFRAME.registerComponent("flexbox", {
                 this.setColItemsLayout()
             }
         }
+
+        this.applyGrow()
     },
 
     setRowItemsLayout() {
@@ -207,4 +210,48 @@ AFRAME.registerComponent("flexbox", {
             currentLine.push(item); // Add item to the current column
         }
     },
+
+    applyGrow() {
+        const growDirection = this.data.direction === "row" ? "width" : "height";
+        const growDimension = this.data.direction === "row" ? "x" : "y";
+
+        this.lines.forEach(line => {
+            let freeSpace = this.container[growDirection] - this.data.gap[growDimension] * (line.length - 1);
+
+            line.forEach(item => {
+                const itemBbox = computeBbox(item);
+                const itemBboxSize = itemBbox
+                    .getSize(new AFRAME.THREE.Vector3())
+                    .divide(this.el.object3D.scale);
+
+                freeSpace -= itemBboxSize[growDimension];
+            })
+
+            const growItems = line.filter(item => (
+                item.getAttribute("flex-grow") !== null
+                && item.getAttribute("flex-grow") !== "false"
+            ));
+            const freeSpacePerItem = freeSpace / growItems.length;
+
+            growItems.forEach(growItem => {
+                console.log(growItem.getAttribute("flex-grow"))
+                growItem.object3D.scale[growDimension] += freeSpacePerItem;
+                if(this.data.direction === "row") {
+                    growItem.object3D.position[growDimension] += freeSpacePerItem / 2;
+                } else {
+                    growItem.object3D.position[growDimension] -= freeSpacePerItem / 2;
+                }
+
+
+                const inLineIndex = line.indexOf(growItem);
+                for (let i = inLineIndex + 1; i < line.length; i++) {
+                    if(this.data.direction === "row") {
+                        line[i].object3D.position[growDimension] += freeSpacePerItem;
+                    } else {
+                        line[i].object3D.position[growDimension] -= freeSpacePerItem;
+                    }
+                }
+            })
+        })
+    }
 })
