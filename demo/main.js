@@ -1,6 +1,6 @@
 import "../primitives/ar-button.js";
 import "../components/position.js";
-import "../components/flexbox_old.js"
+import "../components/flexboxDepricated.js"
 import "../components/flexbox/flexbox.js"
 
 const app = document.getElementById("app");

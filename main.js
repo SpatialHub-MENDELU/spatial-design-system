@@ -1,6 +1,6 @@
 import "./primitives/ar-button.js";
 import "./components/position.js";
-import "./components/flexbox_old.js"
+import "./components/flexboxDepricated.js"
 import "./components/flexbox/flexbox.js"
 
 const app = document.getElementById("app");
@@ -29,11 +29,12 @@ scene.innerHTML = `
 <a-plane 
   position="6 1.6 -5" 
   width="4"
-  height="8ds"
+  height="4"
   material="color: #018A6C"
   flexbox="
-      direction: row;
+      direction: column;
       wrap: true;
+      gap: 0.1 0.1;
   "
 >
   <a-plane color="white" width="1.5"></a-plane>
