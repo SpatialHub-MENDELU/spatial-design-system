@@ -212,11 +212,11 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyGrow() {
-        const growDirection = this.data.direction === "row" ? "width" : "height";
-        const growDimension = this.data.direction === "row" ? "x" : "y";
+        const GROW_DIRECTION = this.data.direction === "row" ? "width" : "height";
+        const GROW_DIMENSION = this.data.direction === "row" ? "x" : "y";
 
         this.lines.forEach(line => {
-            let freeSpace = this.container[growDirection] - this.data.gap[growDimension] * (line.length - 1);
+            let freeSpace = this.container[GROW_DIRECTION] - this.data.gap[GROW_DIMENSION] * (line.length - 1);
 
             line.forEach(item => {
                 const itemBbox = computeBbox(item);
@@ -224,7 +224,7 @@ AFRAME.registerComponent("flexbox", {
                     .getSize(new AFRAME.THREE.Vector3())
                     .divide(this.el.object3D.scale);
 
-                freeSpace -= itemBboxSize[growDimension];
+                freeSpace -= itemBboxSize[GROW_DIMENSION];
             })
 
             const growItems = line.filter(item => (
@@ -233,22 +233,28 @@ AFRAME.registerComponent("flexbox", {
             ));
             const freeSpacePerItem = freeSpace / growItems.length;
 
+            const ORIGINAL_DIRECTION_ATTRIBUTE = `original-${GROW_DIRECTION}`;
+
             growItems.forEach(growItem => {
-                console.log(growItem.getAttribute("flex-grow"))
-                growItem.object3D.scale[growDimension] += freeSpacePerItem;
+                if(!growItem.hasAttribute(ORIGINAL_DIRECTION_ATTRIBUTE)) {
+                    growItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, growItem.getAttribute(GROW_DIRECTION) || '1');
+                }
+
+                growItem.setAttribute(GROW_DIRECTION, +growItem.getAttribute(ORIGINAL_DIRECTION_ATTRIBUTE) + freeSpacePerItem);
+
                 if(this.data.direction === "row") {
-                    growItem.object3D.position[growDimension] += freeSpacePerItem / 2;
+                    growItem.object3D.position[GROW_DIMENSION] += freeSpacePerItem / 2;
                 } else {
-                    growItem.object3D.position[growDimension] -= freeSpacePerItem / 2;
+                    growItem.object3D.position[GROW_DIMENSION] -= freeSpacePerItem / 2;
                 }
 
 
                 const inLineIndex = line.indexOf(growItem);
                 for (let i = inLineIndex + 1; i < line.length; i++) {
                     if(this.data.direction === "row") {
-                        line[i].object3D.position[growDimension] += freeSpacePerItem;
+                        line[i].object3D.position[GROW_DIMENSION] += freeSpacePerItem;
                     } else {
-                        line[i].object3D.position[growDimension] -= freeSpacePerItem;
+                        line[i].object3D.position[GROW_DIMENSION] -= freeSpacePerItem;
                     }
                 }
             })
