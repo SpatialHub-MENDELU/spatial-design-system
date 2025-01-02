@@ -7,8 +7,8 @@ import {
 
 AFRAME.registerComponent("flexbox", {
     schema: {
-        "justify-content": { default: "start" },
-        "align-items": { default: "stretch" },
+        justify: { default: "start" },
+        items: { default: "start" },
         direction: { default: "row" },
         wrap: { default: false },
         gap: { type: "vec2", default: { x: 0, y: 0 } }
@@ -93,6 +93,15 @@ AFRAME.registerComponent("flexbox", {
         }
 
         this.applyGrow()
+
+        // SetTimeout is necessary to wait for grow to be applied for further size calculations
+        setTimeout(
+            () => {
+                // this.applyAlignItems()
+                this.applyJustifyContent()
+            },
+            0
+        )
     },
 
     setRowItemsLayout() {
@@ -259,5 +268,124 @@ AFRAME.registerComponent("flexbox", {
                 }
             })
         })
+    },
+
+    applyJustifyContent() {
+        this.lines.forEach(line => {
+            const freeSpace = this.getFreeSpaceForLine(line);
+            const lineStart = this.getLineStartPos(line);
+
+            switch (this.data.justify) {
+                case "start":
+                    // No action needed, items are already at the start
+                    break;
+                case "end":
+                    this.shiftLine(line, freeSpace, lineStart);
+                    break;
+                case "center":
+                    this.shiftLine(line, freeSpace / 2, lineStart);
+                    break;
+                case "between":
+                    this.distributeSpaceBetween(line, freeSpace, lineStart);
+                    break;
+                case "around":
+                    this.distributeSpaceAround(line, freeSpace, lineStart);
+                    break;
+            }
+        });
+    },
+    getItemBboxSize(item) {
+        const itemBbox = computeBbox(item);
+
+        return itemBbox
+            .getSize(new AFRAME.THREE.Vector3())
+            .divide(this.el.object3D.scale);
+    },
+
+    // Helper functions for justify-content
+    getFreeSpaceForLine(line) {
+        const mainAxis = this.data.direction === "row" ? "x" : "y";
+        const mainAxisSize = this.data.direction === "row" ? "width" : "height";
+
+        let usedSpace = this.data.gap[mainAxis] * (line.length - 1);
+        line.forEach(item => usedSpace += this.getItemBboxSize(item)[mainAxis]);
+
+        console.log('usedSpace', usedSpace)
+
+        return this.container[mainAxisSize] - usedSpace;
+    },
+
+    getLineStartPos(line) {
+        const mainAxis = this.data.direction === "row" ? "x" : "y";
+        return line[0].object3D.position[mainAxis] - this.getItemBboxSize(line[0])[mainAxis] / 2;
+    },
+
+    shiftLine(line, freeSpace, lineStart) {
+        line.forEach(item => {
+            if(this.data.direction === "row") {
+                item.object3D.position.x += freeSpace;
+            } else {
+                item.object3D.position.y -= freeSpace;
+            }
+        });
+    },
+
+    distributeSpaceBetween(line, freeSpace, lineStart) {
+        const spacing = freeSpace / (line.length - 1);
+
+        for (let i = 1; i < line.length; i++) {
+            if(this.data.direction === "row"){
+                line[i].object3D.position.x += spacing * i;
+            } else {
+                line[i].object3D.position.y -= spacing * i;
+            }
+        }
+    },
+
+    distributeSpaceAround(line, freeSpace, lineStart) {
+        const spacing = freeSpace / line.length;
+
+        line.forEach((item, i) => {
+            if(this.data.direction === "row"){
+                item.object3D.position.x += spacing * (i + 0.5);
+            } else {
+                item.object3D.position.y -= spacing * (i + 0.5);
+            }
+
+        });
     }
+
+    //
+    // applyAlignItems() {
+    //     const crossAxis = this.data.direction === "row" ? "y" : "x";
+    //     this.lines.forEach((line, lineIndex) => {
+    //         const maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[crossAxis]));
+    //
+    //         line.forEach(item => {
+    //             const itemCrossSize = this.getItemBboxSize(item)[crossAxis];
+    //             let offset = 0;
+    //
+    //             switch (this.data.items) {
+    //                 case "start":
+    //                     // For 'start', adjust the first line to align to the top/left edge
+    //                     if (lineIndex === 0) {
+    //                         offset = this.container.height / 2 - maxCrossSize / 2 - this.getItemBboxSize(item).y / 2;
+    //                     }
+    //                     break;
+    //                 case "center":
+    //                     offset = (maxCrossSize - itemCrossSize) / 2;
+    //                     break;
+    //                 case "end":
+    //                     offset = maxCrossSize - itemCrossSize;
+    //                     break;
+    //             }
+    //
+    //             if (this.data.direction === "row") {
+    //                 item.object3D.position.y += offset;
+    //             } else {
+    //                 item.object3D.position.x += offset;
+    //             }
+    //         });
+    //     });
+    // },
 })
