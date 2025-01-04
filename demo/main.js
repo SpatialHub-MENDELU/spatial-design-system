@@ -12,7 +12,7 @@ scene.innerHTML = `
   width="2"
   height="2"
   material="color: #018A6C"
-  flexbox_old="
+  flexboxDepricated="
       direction: row;
       mainAlign: center;
       secondaryAlign: center;
