@@ -7,9 +7,9 @@ import {
 
 AFRAME.registerComponent("flexbox", {
     schema: {
-        justify: { default: "start" },
-        items: { default: "start" },
-        direction: { default: "row" },
+        justify: { default: "start" }, // start | end | center | between | around
+        items: { default: "start" }, // start | end | center
+        direction: { default: "row" }, // row | col
         wrap: { default: false },
         gap: { type: "vec2", default: { x: 0, y: 0 } }
     },
@@ -91,13 +91,12 @@ AFRAME.registerComponent("flexbox", {
                 this.setColItemsLayout()
             }
         }
-
         this.applyGrow()
 
         // SetTimeout is necessary to wait for grow to be applied for further size calculations
         setTimeout(
             () => {
-                // this.applyAlignItems()
+                this.applyAlignItems()
                 this.applyJustifyContent()
             },
             0
@@ -353,39 +352,64 @@ AFRAME.registerComponent("flexbox", {
             }
 
         });
-    }
+    },
 
-    //
-    // applyAlignItems() {
-    //     const crossAxis = this.data.direction === "row" ? "y" : "x";
-    //     this.lines.forEach((line, lineIndex) => {
-    //         const maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[crossAxis]));
-    //
-    //         line.forEach(item => {
-    //             const itemCrossSize = this.getItemBboxSize(item)[crossAxis];
-    //             let offset = 0;
-    //
-    //             switch (this.data.items) {
-    //                 case "start":
-    //                     // For 'start', adjust the first line to align to the top/left edge
-    //                     if (lineIndex === 0) {
-    //                         offset = this.container.height / 2 - maxCrossSize / 2 - this.getItemBboxSize(item).y / 2;
-    //                     }
-    //                     break;
-    //                 case "center":
-    //                     offset = (maxCrossSize - itemCrossSize) / 2;
-    //                     break;
-    //                 case "end":
-    //                     offset = maxCrossSize - itemCrossSize;
-    //                     break;
-    //             }
-    //
-    //             if (this.data.direction === "row") {
-    //                 item.object3D.position.y += offset;
-    //             } else {
-    //                 item.object3D.position.x += offset;
-    //             }
-    //         });
-    //     });
-    // },
+    applyAlignItems() {
+        const crossAxis = this.data.direction === "row" ? "y" : "x";
+        const CROSS_DIRECION = this.data.direction === "row" ? "height" : "width";
+
+        this.lines.forEach((line, lineIndex) => {
+            const contentPadding = this.container[CROSS_DIRECION] - this.getContentSize(crossAxis)
+            console.log('contentPadding', contentPadding)
+            let maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[crossAxis]));
+
+            line.forEach(item => {
+                const itemCrossSize = this.getItemBboxSize(item)[crossAxis];
+                let offset = 0;
+
+                switch (this.data.items) {
+                    case "start":
+                        // For 'start', adjust the first line to align to the top/left edge
+                        // if (lineIndex === 0) {
+                        //     offset = this.container.height / 2 - maxCrossSize / 2 - this.getItemBboxSize(item).y / 2 - contentPadding;
+                        // }
+                        break;
+                    case "center":
+                        offset = -((maxCrossSize - itemCrossSize) / 2 + contentPadding / this.lines.length);
+                        break;
+                    case "end":
+                        offset = maxCrossSize - itemCrossSize + (this.data.direction === 'row' ? -contentPadding : contentPadding);
+                        break;
+                }
+                console.log('offset', offset)
+                if (this.data.direction === "row") {
+                    item.object3D.position.y += offset;
+                } else {
+                    item.object3D.position.x += offset;
+                }
+            });
+        });
+    },
+
+    /**
+     * Calculates the total size of the content along the specified axis.
+     *
+     * @param {string} axis - The axis to calculate the content size for ('x' or 'y').
+     * @returns {number} - The total size of the content along the specified axis.
+     */
+    getContentSize(axis) {
+        return this.lines
+            .map(line => {
+                let lineSize = 0;
+
+                line.forEach(item => {
+                    lineSize = Math.max(this.getItemBboxSize(item)[axis], lineSize)
+                });
+
+                return lineSize
+            })
+            .reduce((acc, val) => acc + val, 0)
+            // Add gaps
+            + (this.data.gap[axis] * (this.lines.length - 1));
+    }
 })
