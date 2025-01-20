@@ -355,35 +355,36 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyAlignItems() {
-        const crossAxis = this.data.direction === "row" ? "y" : "x";
-        const CROSS_DIRECION = this.data.direction === "row" ? "height" : "width";
+        const CROSS_AXIS = this.data.direction === "row" ? "y" : "x";
+        const CROSS_DIRECTION = this.data.direction === "row" ? "height" : "width";
 
-        this.lines.forEach((line, lineIndex) => {
-            const contentPadding = this.container[CROSS_DIRECION] - this.getContentSize(crossAxis)
-            console.log('contentPadding', contentPadding)
-            let maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[crossAxis]));
+        this.lines.forEach((line) => {
+            const maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
 
             line.forEach(item => {
-                const itemCrossSize = this.getItemBboxSize(item)[crossAxis];
+                const itemCrossSize = this.getItemBboxSize(item)[CROSS_AXIS];
                 let offset = 0;
 
                 switch (this.data.items) {
                     case "start":
-                        // For 'start', adjust the first line to align to the top/left edge
-                        // if (lineIndex === 0) {
-                        //     offset = this.container.height / 2 - maxCrossSize / 2 - this.getItemBboxSize(item).y / 2 - contentPadding;
-                        // }
+                        offset = 0; // No adjustment needed
                         break;
                     case "center":
-                        offset = -((maxCrossSize - itemCrossSize) / 2 + contentPadding / this.lines.length);
+                        offset = (maxCrossSize - itemCrossSize) / 2;
                         break;
                     case "end":
-                        offset = maxCrossSize - itemCrossSize + (this.data.direction === 'row' ? -contentPadding : contentPadding);
+                        offset = maxCrossSize - itemCrossSize;
                         break;
                 }
-                console.log('offset', offset)
+
                 if (this.data.direction === "row") {
-                    item.object3D.position.y += offset;
+                    const resultYPosition = item.object3D.position.y + offset - (itemCrossSize === maxCrossSize ? 0 : (maxCrossSize-itemCrossSize))
+                    if(this.data.items === 'end' && this.data.direction === 'row'){
+                        console.log('resultYPosition', resultYPosition)
+                        console.log('contaner height', this.container.height)
+                    }
+
+                    item.object3D.position.y = resultYPosition;
                 } else {
                     item.object3D.position.x += offset;
                 }
