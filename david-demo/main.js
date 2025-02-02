@@ -1,478 +1,125 @@
-import "../primitives/ar-button.js";
-import "../components/position.js";
-import "../components/flexboxDeprecated.js"
-import "../components/flexbox/flexbox.js"
-import "../components/infowindow.js"
+import "../components/flexbox/flexbox.js";
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
 
-const zIndex = '-22'
-const justifyRowX = '-20.1'
-const justifyColX = '-16'
+// Configuration constants
+const CONFIG = {
+    zIndex: '-22',
+    positions: {
+        justifyRow: '-20.1',
+        justifyCol: '-16',
+        alignRow: '-10',
+        alignCol: '-5.9'
+    },
+    colors: {
+        background: '#018A6C',
+        text: 'black'
+    }
+};
 
-const alignRowX = '-10'
-const alignColX = '-5.9'
-
-scene.innerHTML = `
-<!-- JUSTIFY -->
-<a-text 
-    value="justify" 
-    position="-18 18.5 ${zIndex}" 
-    color="black"
+// Helper functions
+const createText = (value, position, scale = 2) => `
+  <a-text 
+    value="${value}" 
+    position="${position.x} ${position.y} ${CONFIG.zIndex}" 
+    color="${CONFIG.colors.text}"
     align="center"
-    scale="4 4 4"
-></a-text>
-
-<!-- Justify-row-->
-<a-text
-    value="row" 
-    position="${justifyRowX} 15.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="3 3 3"
-></a-text>
-
-<!-- justify-start -->
-<a-text 
-    value="justify-start" 
-    position="${justifyRowX} 13.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyRowX} 11 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      justify: start
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-end -->
-<a-text 
-    value="justify-end" 
-    position="${justifyRowX} 8.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyRowX} 6 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-
-      justify: end
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-    <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-center -->
-<a-text 
-    value="justify-center" 
-    position="${justifyRowX} 3.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyRowX} 1 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      justify: center
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-between -->
-<a-text 
-    value="justify-between" 
-    position="${justifyRowX} -1.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyRowX} -4 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      justify: between
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-around -->
-<a-text 
-    value="justify-around" 
-    position="${justifyRowX} -6.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyRowX} -9 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      justify: around;
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- Justify-col-->
-<a-text
-    value="col" 
-    position="${justifyColX} 15.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="3 3 3"
-></a-text>
-
-<!-- justify-start -->
-<a-text 
-    value="justify-start" 
-    position="${justifyColX} 13.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyColX} 11 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      justify: start
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink"></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-end -->
-<a-text 
-    value="justify-end" 
-    position="${justifyColX} 8.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyColX} 6 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      justify: end
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink"></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-center -->
-<a-text 
-    value="justify-center" 
-    position="${justifyColX} 3.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyColX} 1 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      justify: center
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink"></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-between -->
-<a-text 
-    value="justify-between" 
-    position="${justifyColX} -1.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyColX} -4 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      justify: between
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink"></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green" height="1.5"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- justify-around -->
-<a-text 
-    value="justify-around" 
-    position="${justifyColX} -6.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${justifyColX} -9 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      justify: around;
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink"></a-plane>
-  <a-plane color="blue"></a-plane>
-  <a-plane color="green" height="1.5"></a-plane>
-  <a-plane color="red"></a-plane>
-</a-plane>
-
-<!-- ALIGN -->
-<a-text 
-    value="align" 
-    position="-8 18.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="4 4 4"
-></a-text>
-
-<!-- ALIGN-ROW-->
-<a-text
-    value="row" 
-    position="${alignRowX} 15.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="3 3 3"
-></a-text>
-
-<!-- items-start -->
-<a-text 
-    value="items-start" 
-    position="${alignRowX} 13.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${alignRowX} 11 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      items: start;
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-</a-plane>
-
-<!-- items-end -->
-<a-text 
-    value="items-end" 
-    position="${alignRowX} 8.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${alignRowX} 6 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      items: end;
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-</a-plane>
-
-<!-- items-center -->
-<a-text 
-    value="items-center" 
-    position="${alignRowX} 3.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${alignRowX} 1 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: row;
-      wrap: true;
-      items: center
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-</a-plane>
-
-<!-- ALIGN-COL-->
-<a-text
-    value="col" 
-    position="${alignColX} 15.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="3 3 3"
-></a-text>
-
-<!-- items-start -->
-<a-text 
-    value="items-start" 
-    position="${alignColX} 13.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${alignColX} 11 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      items: start
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-</a-plane>
-
-<!-- items-end -->
-<a-text 
-    value="items-end" 
-    position="${alignColX} 8.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${alignColX} 6 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      items: end
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-</a-plane>
-
-<!-- items-center -->
-<a-text 
-    value="items-center" 
-    position="${alignColX} 3.5 ${zIndex}" 
-    color="black"
-    align="center"
-    scale="2 2 2"
-></a-text>
-<a-plane 
-  position="${alignColX} 1 ${zIndex}" 
-  width="4"
-  height="4"
-  material="color: #018A6C"
-  flexbox="
-      direction: col;
-      wrap: true;
-      items: center
-  "
->
-  <a-plane color="black" width="1.5"></a-plane>
-  <a-plane color="pink" scale="1 2 2" ></a-plane>
-  <a-plane color="blue"></a-plane>
-</a-plane>
+    scale="${scale} ${scale} ${scale}"
+  ></a-text>
 `;
 
+const createFlexContainer = (props) => `
+  <a-plane 
+    position="${props.position.x} ${props.position.y} ${CONFIG.zIndex}" 
+    width="4"
+    height="4"
+    material="color: ${CONFIG.colors.background}"
+    flexbox="
+      direction: ${props.direction};
+      wrap: true;
+      ${props.justify ? `justify: ${props.justify};` : ''}
+      ${props.items ? `items: ${props.items};` : ''}
+    "
+  >
+    ${createFlexChildren(props.childrenCount)}
+  </a-plane>
+`;
+
+const createFlexChildren = (count) => {
+    const colors = ['black', 'pink', 'blue', 'green', 'red'];
+
+    return Array.from({length: count}, (_, i) => `
+    <a-plane 
+      color="${colors[i]}" 
+      ${i === 0 ? 'width="1.5"' : ''}
+      text="value: ${i + 1}; color: white; align: center; wrap-count: 60; width: 10a; font: kelsonsans;"
+      ${i === 1 ? 'scale="1 2 2"' : ''}
+    ></a-plane>
+  `).join('');
+};
+
+// Layout configurations
+const layouts = {
+    justify: {
+        row: ['start', 'end', 'center', 'between', 'around'],
+        col: ['start', 'end', 'center', 'between', 'around']
+    },
+    align: {
+        row: ['start', 'end', 'center'],
+        col: ['start', 'end', 'center']
+    }
+};
+
+// Generate HTML
+let sceneHTML = `
+  ${createText('justify', {x: -18, y: 18.5}, 4)}
+  ${createText('align', {x: -8, y: 18.5}, 4)}
+`;
+
+// Generate justify section
+['row', 'col'].forEach((direction, dirIndex) => {
+    const baseX = direction === 'row' ? CONFIG.positions.justifyRow : CONFIG.positions.justifyCol;
+
+    sceneHTML += `
+    ${createText(direction, {x: baseX, y: 15.5}, 3)}
+  `;
+
+    layouts.justify[direction].forEach((justify, index) => {
+        const y = 13.5 - (index * 5);
+        sceneHTML += `
+      ${createText(`justify-${justify}`, {x: baseX, y: y})}
+      ${createFlexContainer({
+            position: {x: baseX, y: y - 2.5},
+            direction,
+            justify,
+            childrenCount: 5
+        })}
+    `;
+    });
+});
+
+// Generate align section
+['row', 'col'].forEach((direction, dirIndex) => {
+    const baseX = direction === 'row' ? CONFIG.positions.alignRow : CONFIG.positions.alignCol;
+
+    sceneHTML += `
+    ${createText(direction, {x: baseX, y: 15.5}, 3)}
+  `;
+
+    layouts.align[direction].forEach((items, index) => {
+        const y = 13.5 - (index * 5);
+        sceneHTML += `
+      ${createText(`items-${items}`, {x: baseX, y: y})}
+      ${createFlexContainer({
+            position: {x: baseX, y: y - 2.5},
+            direction,
+            items,
+            childrenCount: 3
+        })}
+    `;
+    });
+});
+
+scene.innerHTML = sceneHTML;
 app.appendChild(scene);
