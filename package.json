@@ -10,9 +10,8 @@
   ],
   "scripts": {
     "demo": "vite demo",
-    "dev": "vite --host",
-    "build": "vite build",
-    "david": "vite david-demo"
+    "dev": "vite debug/",
+    "build": "vite build"
   },
   "dependencies": {
     "@tweenjs/tween.js": "^23.1.1",
