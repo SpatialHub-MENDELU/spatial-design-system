@@ -53,7 +53,7 @@ const createFlexChildren = (count) => {
     <a-plane 
       color="${colors[i]}" 
       ${i === 0 ? 'width="1.5"' : ''}
-      text="value: ${i + 1}; color: white; align: center; wrap-count: 60; width: 10a; font: kelsonsans;"
+      text="value: ${i + 1}; color: white; align: center; width: 12; font: kelsonsans;"
       ${i === 1 ? 'scale="1 2 2"' : ''}
     ></a-plane>
   `).join('');
