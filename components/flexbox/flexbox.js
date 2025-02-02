@@ -309,8 +309,6 @@ AFRAME.registerComponent("flexbox", {
         let usedSpace = this.data.gap[mainAxis] * (line.length - 1);
         line.forEach(item => usedSpace += this.getItemBboxSize(item)[mainAxis]);
 
-        console.log('usedSpace', usedSpace)
-
         return this.container[mainAxisSize] - usedSpace;
     },
 
@@ -370,21 +368,23 @@ AFRAME.registerComponent("flexbox", {
                         offset = 0; // No adjustment needed
                         break;
                     case "center":
-                        offset = (maxCrossSize - itemCrossSize) / 2;
+                        if(this.data.direction === "row") {
+                            offset = (itemCrossSize - maxCrossSize) / 2;
+                        } else {
+                            offset = -(itemCrossSize - maxCrossSize) / 2;
+                        }
                         break;
                     case "end":
-                        offset = maxCrossSize - itemCrossSize;
+                        if(this.data.direction === "row") {
+                            offset = itemCrossSize === maxCrossSize ? 0 : (itemCrossSize - maxCrossSize);
+                        }else {
+                            offset = itemCrossSize === maxCrossSize ? 0 : -(itemCrossSize - maxCrossSize);
+                        }
                         break;
                 }
 
                 if (this.data.direction === "row") {
-                    const resultYPosition = item.object3D.position.y + offset - (itemCrossSize === maxCrossSize ? 0 : (maxCrossSize-itemCrossSize))
-                    if(this.data.items === 'end' && this.data.direction === 'row'){
-                        console.log('resultYPosition', resultYPosition)
-                        console.log('contaner height', this.container.height)
-                    }
-
-                    item.object3D.position.y = resultYPosition;
+                    item.object3D.position.y += offset;
                 } else {
                     item.object3D.position.x += offset;
                 }
