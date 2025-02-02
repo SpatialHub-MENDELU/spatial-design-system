@@ -1,8 +1,8 @@
-import "./primitives/ar-button.js";
-import "./components/position.js";
-import "./components/flexboxDepricated.js"
-import "./components/flexbox/flexbox.js"
-import "./components/infowindow.js"
+import "../primitives/ar-button.js";
+import "../components/position.js";
+import "../components/flexboxDepricated.js"
+import "../components/flexbox/flexbox.js"
+import "../components/infowindow.js"
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
