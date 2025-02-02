@@ -337,8 +337,7 @@ scene.innerHTML = `
   flexbox="
       direction: row;
       wrap: true;
-
-      items: start
+      items: start;
   "
 >
   <a-plane color="black" width="1.5"></a-plane>
@@ -362,8 +361,7 @@ scene.innerHTML = `
   flexbox="
       direction: row;
       wrap: true;
-
-      items: end
+      items: end;
   "
 >
   <a-plane color="black" width="1.5"></a-plane>
@@ -387,7 +385,6 @@ scene.innerHTML = `
   flexbox="
       direction: row;
       wrap: true;
-
       items: center
   "
 >
