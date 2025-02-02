@@ -5,7 +5,7 @@ import {
     onSceneLoaded,
 } from "../utils/utils.js";
 
-AFRAME.registerComponent("flexbox_old", {
+AFRAME.registerComponent("flexbox_depricated", {
     schema: {
         mainAlign: { type: "string", default: "start" },
         secondaryAlign: { type: "string", default: "stretch" },
