@@ -78,7 +78,7 @@ AFRAME.registerComponent("flexbox", {
     },
 
     setItemsLayout() {
-        if(this.data.direction === "row"){
+        if(this.isDirectionRow()){
             if(this.data.wrap) {
                 this.setRowItemsLayoutWrap()
             } else {
@@ -220,8 +220,8 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyGrow() {
-        const GROW_DIRECTION = this.data.direction === "row" ? "width" : "height";
-        const GROW_DIMENSION = this.data.direction === "row" ? "x" : "y";
+        const GROW_DIRECTION = this.isDirectionRow() ? "width" : "height";
+        const GROW_DIMENSION = this.isDirectionRow() ? "x" : "y";
 
         this.lines.forEach(line => {
             let freeSpace = this.container[GROW_DIRECTION] - this.data.gap[GROW_DIMENSION] * (line.length - 1);
@@ -250,7 +250,7 @@ AFRAME.registerComponent("flexbox", {
 
                 growItem.setAttribute(GROW_DIRECTION, +growItem.getAttribute(ORIGINAL_DIRECTION_ATTRIBUTE) + freeSpacePerItem);
 
-                if(this.data.direction === "row") {
+                if(this.isDirectionRow()) {
                     growItem.object3D.position[GROW_DIMENSION] += freeSpacePerItem / 2;
                 } else {
                     growItem.object3D.position[GROW_DIMENSION] -= freeSpacePerItem / 2;
@@ -259,7 +259,7 @@ AFRAME.registerComponent("flexbox", {
 
                 const inLineIndex = line.indexOf(growItem);
                 for (let i = inLineIndex + 1; i < line.length; i++) {
-                    if(this.data.direction === "row") {
+                    if(this.isDirectionRow()) {
                         line[i].object3D.position[GROW_DIMENSION] += freeSpacePerItem;
                     } else {
                         line[i].object3D.position[GROW_DIMENSION] -= freeSpacePerItem;
@@ -303,8 +303,8 @@ AFRAME.registerComponent("flexbox", {
 
     // Helper functions for justify-content
     getFreeSpaceForLine(line) {
-        const mainAxis = this.data.direction === "row" ? "x" : "y";
-        const mainAxisSize = this.data.direction === "row" ? "width" : "height";
+        const mainAxis = this.isDirectionRow() ? "x" : "y";
+        const mainAxisSize = this.isDirectionRow() ? "width" : "height";
 
         let usedSpace = this.data.gap[mainAxis] * (line.length - 1);
         line.forEach(item => usedSpace += this.getItemBboxSize(item)[mainAxis]);
@@ -313,13 +313,13 @@ AFRAME.registerComponent("flexbox", {
     },
 
     getLineStartPos(line) {
-        const mainAxis = this.data.direction === "row" ? "x" : "y";
+        const mainAxis = this.isDirectionRow() ? "x" : "y";
         return line[0].object3D.position[mainAxis] - this.getItemBboxSize(line[0])[mainAxis] / 2;
     },
 
     shiftLine(line, freeSpace, lineStart) {
         line.forEach(item => {
-            if(this.data.direction === "row") {
+            if(this.isDirectionRow()) {
                 item.object3D.position.x += freeSpace;
             } else {
                 item.object3D.position.y -= freeSpace;
@@ -331,7 +331,7 @@ AFRAME.registerComponent("flexbox", {
         const spacing = freeSpace / (line.length - 1);
 
         for (let i = 1; i < line.length; i++) {
-            if(this.data.direction === "row"){
+            if(this.isDirectionRow()){
                 line[i].object3D.position.x += spacing * i;
             } else {
                 line[i].object3D.position.y -= spacing * i;
@@ -343,7 +343,7 @@ AFRAME.registerComponent("flexbox", {
         const spacing = freeSpace / line.length;
 
         line.forEach((item, i) => {
-            if(this.data.direction === "row"){
+            if(this.isDirectionRow()){
                 item.object3D.position.x += spacing * (i + 0.5);
             } else {
                 item.object3D.position.y -= spacing * (i + 0.5);
@@ -353,8 +353,8 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyAlignItems() {
-        const CROSS_AXIS = this.data.direction === "row" ? "y" : "x";
-        const CROSS_DIRECTION = this.data.direction === "row" ? "height" : "width";
+        const CROSS_AXIS = this.isDirectionRow() ? "y" : "x";
+        const CROSS_DIRECTION = this.isDirectionRow() ? "height" : "width";
 
         this.lines.forEach((line) => {
             const maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
@@ -368,14 +368,14 @@ AFRAME.registerComponent("flexbox", {
                         offset = 0; // No adjustment needed
                         break;
                     case "center":
-                        if(this.data.direction === "row") {
+                        if(this.isDirectionRow()) {
                             offset = (itemCrossSize - maxCrossSize) / 2;
                         } else {
                             offset = -(itemCrossSize - maxCrossSize) / 2;
                         }
                         break;
                     case "end":
-                        if(this.data.direction === "row") {
+                        if(this.isDirectionRow()) {
                             offset = itemCrossSize === maxCrossSize ? 0 : (itemCrossSize - maxCrossSize);
                         }else {
                             offset = itemCrossSize === maxCrossSize ? 0 : -(itemCrossSize - maxCrossSize);
@@ -383,7 +383,7 @@ AFRAME.registerComponent("flexbox", {
                         break;
                 }
 
-                if (this.data.direction === "row") {
+                if (this.isDirectionRow()) {
                     item.object3D.position.y += offset;
                 } else {
                     item.object3D.position.x += offset;
@@ -412,5 +412,12 @@ AFRAME.registerComponent("flexbox", {
             .reduce((acc, val) => acc + val, 0)
             // Add gaps
             + (this.data.gap[axis] * (this.lines.length - 1));
+    },
+
+    /*
+     * Helper functions
+     */
+    isDirectionRow() {
+        return this.data.direction === "row";
     }
 })
