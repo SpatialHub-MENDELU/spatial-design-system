@@ -20,10 +20,10 @@ AFRAME.registerComponent("flexbox", {
         height: 0,
         depth: 0
     },
-    items: [],
-    lines: [],
-    MAIN_AXIS: "", // x/y
-    CROSS_AXIS: "", // y/x
+    items: [], // Array of children items of container
+    lines: [], // Array of lines, each line is an array of items which fit in one "line" in flexbox direction.
+    MAIN_AXIS: "", // x | y
+    CROSS_AXIS: "", // y | x
     MAIN_DIMENSION: "", // width | height
     CROSS_DIMENSION: "", // height | width
 
