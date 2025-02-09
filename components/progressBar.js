@@ -1,6 +1,6 @@
 import * as AFRAME from "aframe";
 import * as TWEEN from "@tweenjs/tween.js";
-import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR, SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, DISABLED_COLOR, BACKGROUND_COLOR} from "../utils/colors.js";
+import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR, SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, DISABLED_COLOR} from "../utils/colors.js";
 import { createRoundedRectShape, getContrast, setContrastColor} from "../utils/utils.js";
 
 AFRAME.registerComponent("progressBar", {
@@ -8,8 +8,7 @@ AFRAME.registerComponent("progressBar", {
         opacity: { type: "number", default: 1 },
         primary: { type: "string", default: PRIMARY_COLOR_DARK},
         variant: { type: "string", default: ""}, // light-dark
-        state: { type: "string", default: "standard"}, // standard-indiciting
-        condition: { type: "string", default: ""}, // error-success-warning-disabled
+        state: { type: "string", default: ""}, // error-success-warning-disabled-indiciting
         value: { type: "number", default: 100 },
         textvisibility: {type: "boolean", default: false},
         textcolor: { type: "string", default: "black"},
@@ -23,7 +22,6 @@ AFRAME.registerComponent("progressBar", {
         this.setContent()
         this.setVariant()
         this.setState()
-        this.setCondition()
     },
 
     update(oldData) {
@@ -43,17 +41,20 @@ AFRAME.registerComponent("progressBar", {
                 case 'rounded':
                     this.setContent();
                     break;
+                case 'value':
+                    this.setContent();
+                    break;
                 case 'textcolor':
                     this.updateTextColor();
+                    break;
+                case 'textvisibility':
+                    this.updateTextVisibility();
                     break;
                 case 'variant':
                     this.setVariant();
                     break;
                 case 'state':
-                    this.updateProgressBarState();
-                    break;
-                case 'condition':
-                    this.setCondition();
+                    this.setState();
                     break;
                 case 'primary':
                     this.updateProgressBarColor();
@@ -67,54 +68,60 @@ AFRAME.registerComponent("progressBar", {
         });
     },
 
-    updateProgressBarColor() {
-        this.progressBarMesh.material.color.set(this.data.primary);
-        
+    updateProgressBarColor() {        
         if (this.shadowMesh) {
-            if (this.data.variant != "" && this.data.condition != "" && this.data.primary) {
+            if (this.data.variant != "" || this.data.state != "") {
                 this.shadowMesh.material.color.set(this.data.primary);
-            } else if (this.data.condition === "") {
-                if (this.data.primary === "") {
-                    this.shadowMesh.material.color.set(this.data.primary);
-                } else  {
-                    this.shadowMesh.material.color.set(BACKGROUND_COLOR);
-                }
+            } else if (this.data.primary != PRIMARY_COLOR_DARK) {
+                this.progressBarMesh.material.color.set(this.data.primary);
+                this.shadowMesh.material.color.set("#000");
+            } else {
+                this.data.primary = PRIMARY_COLOR_DARK;
+                this.shadowMesh.material.color.set("#000");
             }
         } 
+        this.progressBarMesh.material.color.set(this.data.primary);
+        this.updateProgressBarOpacity();
     },
 
     updateProgressBarOpacity() {
         const opacityValue = this.data.opacity;
         this.progressBarMesh.material.opacity = opacityValue;
-        if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.6;
-    },
-
-    updateProgressBarState() {
-
+        if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.65;
     },
 
     updateTextColor() {
         // If variant will be used, ignore the textcolor
-        if ((this.data.variant === 'light' || this.data.variant === 'dark') 
-            && this.data.primary === PRIMARY_COLOR_DARK) return;
-        // If condition is set, the condition is used, it has highest priority
-        if (this.data.condition !== "default") return;
-    
-            const progressBarColorHex = `#${this.progressBarMesh.material.color.getHexString()}`
-            let textcolor = this.data.textcolor
-    
-            // If the contrast is not high enough, set the textcolor to white/black
-            if (getContrast(textcolor, progressBarColorHex) <= 60){
-                textcolor = setContrastColor(progressBarColorHex);
-                this.data.textcolor = textcolor;
-                alert(`The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`);
+        if (this.data.variant === 'light' || this.data.variant === 'dark') return;
+
+        if (this.data.primary === PRIMARY_COLOR_DARK) {
+            if (this.data.value < 20) {
+                this.data.textcolor = "#FFF"
             }
-            const textEl = this.el.querySelector("a-text");
-            if (textEl) {
-                textEl.setAttribute("color", textcolor);
-            }
+        }
+
+        const progressBarColorHex = `#${this.progressBarMesh.material.color.getHexString()}`
+        let textcolor = this.data.textcolor
+
+        // If the contrast is not high enough, set the textcolor to white/black
+        if (getContrast(textcolor, progressBarColorHex) <= 60){
+            textcolor = setContrastColor(progressBarColorHex);
+            this.data.textcolor = textcolor;
+            alert(`The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`);
+        }
+        const textEl = this.el.querySelector("a-text");
+        if (textEl) {
+            textEl.setAttribute("color", textcolor);
+        }
     },
 
+    updateTextVisibility() {
+        const textEl = this.el.querySelector("a-text");
+        let visibility = this.data.textvisibility;
+        if (textEl) {
+            textEl.setAttribute("visible", visibility);
+        }
+    },
 
     setSize() {
         let sizeCoef = 1
@@ -148,7 +155,7 @@ AFRAME.registerComponent("progressBar", {
         if (this.data.value > 100){
             width = max_width;
             this.data.value = 100;
-            alert(`The value can't be more then 100, so it was set to maximum one hundred percent.`);
+            alert(`The value can't be more then 100, so it was set to maximum of one hundred percent.`);
         }
 
         if (this.data.rounded) {
@@ -180,7 +187,6 @@ AFRAME.registerComponent("progressBar", {
 
         this.progressBarMesh = progressBarMesh
 
-
         group.add(progressBarMesh);
 
 
@@ -192,8 +198,8 @@ AFRAME.registerComponent("progressBar", {
         const shadowShape = createRoundedRectShape(shadowWidth, shadowHeight, shadowBorderRadius);
         const shadowGeometry = new AFRAME.THREE.ShapeGeometry(shadowShape);
         const shadowMaterial = new AFRAME.THREE.MeshBasicMaterial({
-            color: BACKGROUND_COLOR,
-            opacity: opacityValue,
+            color:'#000',
+            opacity: opacityValue * 0.65,
             transparent: true
         });
 
@@ -227,6 +233,12 @@ AFRAME.registerComponent("progressBar", {
         if (this.data.value > 100) {
             text = "100 %"
         }
+
+        if (this.data.rounded && this.data.value < 10) {
+            this.data.rounded = false;
+            alert(`The progress bar can't be rounded, if the value of progression is less than 10`);
+        }
+
         const sizeCoef = this.el.getAttribute('sizeCoef')
         let reversed = this.data.reversed
 
@@ -265,7 +277,6 @@ AFRAME.registerComponent("progressBar", {
         textEl.setAttribute("position", { x: x_axis, y: 0, z: 0.05 });
 
         this.reverseProgressBar()
- 
 
         this.el.appendChild(textEl)
 
@@ -275,8 +286,8 @@ AFRAME.registerComponent("progressBar", {
 
     setVariant() {
         const shadowMesh = this.shadowMesh;
-
-        // If primary is set, ignore the variant
+        
+        //If primary is set ignore the variant
         if (this.data.primary !== PRIMARY_COLOR_DARK) {
             return;
         }
@@ -289,57 +300,38 @@ AFRAME.registerComponent("progressBar", {
                 this.data.primary = VARIANT_LIGHT_COLOR
                 if (shadowMesh) {
                     shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
-                    shadowMesh.material.opacity = 1 * 0.66;
+                    shadowMesh.material.opacity = 0.65;
                     // Make sure material is transparent to display opacity
                     shadowMesh.material.transparent = true;
                 }
                 break;
             case "dark":
-                    this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
-                    this.el.querySelector("a-text").setAttribute("color", "white");
-                    // Adjust primary color to match the variant
-                    this.data.primary = VARIANT_DARK_COLOR;
-                    if (shadowMesh) {
-                        shadowMesh.material.color.set(VARIANT_DARK_COLOR);
-                        shadowMesh.material.opacity = 1 * 0.66;
-                        // Make sure material is transparent to display opacity
-                        shadowMesh.material.transparent = true;
-                    }
-                    break;
+                this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
+                this.el.querySelector("a-text").setAttribute("color", "white");
+                // Adjust primary color to match the variant
+                this.data.primary = VARIANT_DARK_COLOR;
+                if (shadowMesh) {
+                    shadowMesh.material.color.set(VARIANT_DARK_COLOR);
+                    shadowMesh.material.opacity = 0.65;
+                    // Make sure material is transparent to display opacity
+                    shadowMesh.material.transparent = true;
+                }
+                break;
             default:
-                return; // Exit if no valid variant is provided
+                break;
         }
 
-        // Update ProgressBar color after the variant color has been set
+        // Update progress bar color after the variant color has been set
         this.updateProgressBarColor();
     },
 
-    
+
     setState() {
-        // State does not effect variant or primary
-        // it just determinates wherther the bar is static or indicating
-        // Not implemented in this version, determined for further development
+        const shadowMesh = this.shadowMesh;
+        // If state is set, ignore primary and variant
+        // Priority(lowet -> highest): variant -> primary -> state
 
         switch (this.data.state) {
-            case "standard":
-
-                break;
-            case "indicating":
-
-            default:
-                break;
-        }
-
-        this.updateProgressBarState();
-    },
-
-    setCondition() {
-        const shadowMesh = this.shadowMesh;
-        let textColor; // Define text color based on the variant
-        // If condition is set, ignore primary and variant
-        // Priority(lowet -> highest): variant -> primary -> condition
-
-        switch (this.data.condition) {
             case "success":
                 this.el.setAttribute("material", { color: SUCCESS_COLOR, opacity: 1 })
                 this.el.querySelector("a-text").setAttribute("color", "white")
@@ -347,7 +339,7 @@ AFRAME.registerComponent("progressBar", {
                 this.data.primary = SUCCESS_COLOR
                 if (shadowMesh) {
                     shadowMesh.material.color.set(SUCCESS_COLOR);
-                    shadowMesh.material.opacity = 1 * 0.66;
+                    shadowMesh.material.opacity = 0.65
                     // Make sure material is transparent to display opacity
                     shadowMesh.material.transparent = true;
                 }
@@ -359,7 +351,7 @@ AFRAME.registerComponent("progressBar", {
                 this.data.primary = WARNING_COLOR
                 if (shadowMesh) {
                     shadowMesh.material.color.set(WARNING_COLOR);
-                    shadowMesh.material.opacity = 1 * 0.66;
+                    shadowMesh.material.opacity = 0.65;
                     // Make sure material is transparent to display opacity
                     shadowMesh.material.transparent = true;
                 }
@@ -371,7 +363,7 @@ AFRAME.registerComponent("progressBar", {
                 this.data.primary = ERROR_COLOR
                 if (shadowMesh) {
                     shadowMesh.material.color.set(ERROR_COLOR);
-                    shadowMesh.material.opacity = 1 * 0.66;
+                    shadowMesh.material.opacity = 0.65;
                     // Make sure material is transparent to display opacity
                     shadowMesh.material.transparent = true;
                 }
@@ -383,10 +375,13 @@ AFRAME.registerComponent("progressBar", {
                 this.data.primary = DISABLED_COLOR
                 if (shadowMesh) {
                     shadowMesh.material.color.set(DISABLED_COLOR);
-                    shadowMesh.material.opacity = 1 * 0.66;
+                    shadowMesh.material.opacity = 0.65;
                     // Make sure material is transparent to display opacity
                     shadowMesh.material.transparent = true;
                 }
+                break;
+            case "indicating":
+                // left for further development
                 break;
             default:
                 break;

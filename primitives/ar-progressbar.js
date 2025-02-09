@@ -12,7 +12,6 @@ AFRAME.registerPrimitive('a-ar-progressbar', {
         primary: 'progressBar.primary',
         variant: 'progressBar.variant',
         state: 'progressBar.state',
-        condition: 'progressBar.condition',
         size: 'progressBar.size',
         value: 'progressBar.value',
         textvisibility: 'progressBar.textvisibility',

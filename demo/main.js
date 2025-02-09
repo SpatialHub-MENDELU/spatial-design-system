@@ -1,16 +1,19 @@
 import "../primitives/ar-button.js";
-import "../primitives/ar-progressbar.js"
 import "../components/position.js";
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
 
 scene.innerHTML = `
-<a-ar-progressbar
+<a-ar-button
     position="0 1.6 -3"
-    value="60"
-    textvisibility="true"
-></a-ar-progressbar>
+    size="medium"
+    content="Click me"
+    uppercase=true
+    rounded=true
+    outlined=true
+    billboard
+></a-ar-button>
 `;
 
 app.appendChild(scene);
