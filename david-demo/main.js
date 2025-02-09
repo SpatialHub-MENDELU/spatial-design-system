@@ -62,12 +62,12 @@ const createFlexChildren = (count) => {
 // Layout configurations
 const layouts = {
     justify: {
-        row: ['start', 'end', 'center', 'between', 'around'],
-        col: ['start', 'end', 'center', 'between', 'around']
+        row: ['start', 'center', 'end', 'between', 'around'],
+        col: ['start', 'center', 'end', 'between', 'around']
     },
     align: {
-        row: ['start', 'end', 'center'],
-        col: ['start', 'end', 'center']
+        row: ['start', 'center', 'end'],
+        col: ['start', 'center', 'end']
     }
 };
 
