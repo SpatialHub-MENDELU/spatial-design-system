@@ -121,5 +121,39 @@ let sceneHTML = `
     });
 });
 
+// Generate combination section
+sceneHTML += `
+  ${createText('combinations', { x: 10, y: 18.5 }, 4)}
+`;
+
+['row', 'col'].forEach((direction, dirIndex) => {
+    const baseX =  10 + (dirIndex * 6);
+
+    layouts.justify[direction].forEach((justify, justifyIndex) => {
+        layouts.align[direction].forEach((items, itemsIndex) => {
+            const y = 13.5 - (justifyIndex * 6); // Position rows dynamically
+            const x = baseX + (itemsIndex * 12); // Position columns dynamically
+
+            // Add labels for combination
+            sceneHTML += `
+        ${createText(`[${direction[0]}] justify-${justify[0]} + items-${items[0]}`, { x, y: y + 3 })}
+      `;
+
+            // Add the combination flex container
+            sceneHTML += `
+        ${createFlexContainer({
+                position: { x, y: y },
+                direction,
+                justify,
+                items,
+                childrenCount: 5,
+            })}
+      `;
+        });
+    });
+
+
+});
+
 scene.innerHTML = sceneHTML;
 app.appendChild(scene);
