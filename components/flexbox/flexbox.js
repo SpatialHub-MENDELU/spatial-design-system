@@ -93,7 +93,6 @@ AFRAME.registerComponent("flexbox", {
         this.el.object3D.rotation.set(0, 0, 0);
         this.el.object3D.updateMatrixWorld(true);
 
-        this.setGap(this.data.gap.x, this.data.gap.y);
         this.setItemsLayout();
 
         this.el.object3D.rotation.copy(originalRotation);
