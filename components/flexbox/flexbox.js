@@ -351,11 +351,6 @@ AFRAME.registerComponent("flexbox", {
             const freeSpace = this.getFreeSpaceForLineItems(line);
             const maxCrossSizeInLine = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
 
-            if(this.data.items === "center") {
-                console.log(this.data.direction, this.data.items)
-                console.log("freeSpace", freeSpace);
-            }
-
             switch (this.data.items) {
                 case "start":
                     // No adjustment needed
