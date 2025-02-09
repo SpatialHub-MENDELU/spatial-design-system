@@ -96,14 +96,15 @@ AFRAME.registerComponent("flexbox", {
         // SetTimeout is necessary to wait for grow to be applied for further size calculations
         setTimeout(
             () => {
-                this.applyAlignItems()
                 this.applyJustifyContent()
+                this.applyAlignItems()
             },
             0
         )
     },
 
     setRowItemsLayout() {
+        const lines = [[]]; // Initialize lines array
         let xPos = -this.container.width / 2;
 
         for (let i = 0; i < this.items.length; i++) {
@@ -120,10 +121,12 @@ AFRAME.registerComponent("flexbox", {
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01 // Keep the z-offset for consistency
             );
             xPos += (itemBboxSize.x / 2) + this.data.gap.x; // Move xPos for the next item + gap
+            lines[0].push(item);
         }
     },
 
     setColItemsLayout() {
+        const lines = [[]]; // Initialize lines array
         let yPos = this.container.height / 2; // Start at the top
 
         for (let i = 0; i < this.items.length; i++) {
@@ -140,6 +143,7 @@ AFRAME.registerComponent("flexbox", {
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
             );
             yPos -= (itemBboxSize.y / 2) + this.data.gap.y;
+            lines[0].push(item);
         }
     },
 
@@ -159,8 +163,8 @@ AFRAME.registerComponent("flexbox", {
 
             xPos += itemBboxSize.x / 2;
 
-            const doesItemNotFit = xPos + itemBboxSize.x / 2 > this.container.width / 2
-            if (doesItemNotFit) {
+            const itemDoesNotFit = xPos + itemBboxSize.x / 2 > this.container.width / 2
+            if (itemDoesNotFit) {
                 // Move to the next line
                 xPos = -this.container.width / 2 + itemBboxSize.x / 2;
                 yPos -= currentLineHeight + this.data.gap.y;
@@ -293,13 +297,6 @@ AFRAME.registerComponent("flexbox", {
             }
         });
     },
-    getItemBboxSize(item) {
-        const itemBbox = computeBbox(item);
-
-        return itemBbox
-            .getSize(new AFRAME.THREE.Vector3())
-            .divide(this.el.object3D.scale);
-    },
 
     // Helper functions for justify-content
     getFreeSpaceForLine(line) {
@@ -357,7 +354,8 @@ AFRAME.registerComponent("flexbox", {
         const CROSS_DIRECTION = this.isDirectionRow() ? "height" : "width";
 
         this.lines.forEach((line) => {
-            const maxCrossSize = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+            const maxCrossSizeInLine = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+
 
             line.forEach(item => {
                 const itemCrossSize = this.getItemBboxSize(item)[CROSS_AXIS];
@@ -369,16 +367,16 @@ AFRAME.registerComponent("flexbox", {
                         break;
                     case "center":
                         if(this.isDirectionRow()) {
-                            offset = (itemCrossSize - maxCrossSize) / 2;
+                            offset = (itemCrossSize - maxCrossSizeInLine) / 2;
                         } else {
-                            offset = -(itemCrossSize - maxCrossSize) / 2;
+                            offset = -(itemCrossSize - maxCrossSizeInLine) / 2;
                         }
                         break;
                     case "end":
                         if(this.isDirectionRow()) {
-                            offset = itemCrossSize === maxCrossSize ? 0 : (itemCrossSize - maxCrossSize);
+                            offset = itemCrossSize === maxCrossSizeInLine ? 0 : (itemCrossSize - maxCrossSizeInLine);
                         }else {
-                            offset = itemCrossSize === maxCrossSize ? 0 : -(itemCrossSize - maxCrossSize);
+                            offset = itemCrossSize === maxCrossSizeInLine ? 0 : -(itemCrossSize - maxCrossSizeInLine);
                         }
                         break;
                 }
@@ -419,5 +417,13 @@ AFRAME.registerComponent("flexbox", {
      */
     isDirectionRow() {
         return this.data.direction === "row";
-    }
+    },
+
+    getItemBboxSize(item) {
+        const itemBbox = computeBbox(item);
+
+        return itemBbox
+            .getSize(new AFRAME.THREE.Vector3())
+            .divide(this.el.object3D.scale);
+    },
 })
