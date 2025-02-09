@@ -136,7 +136,7 @@ sceneHTML += `
 
             // Add labels for combination
             sceneHTML += `
-        ${createText(`[${direction[0]}] justify-${justify[0]} + items-${items[0]}`, { x, y: y + 3 })}
+        ${createText(`[${direction[0]}] j-${justify} + i-${items}`, { x, y: y + 3 })}
       `;
 
             // Add the combination flex container
