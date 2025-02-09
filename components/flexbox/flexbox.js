@@ -7,9 +7,9 @@ import {
 
 AFRAME.registerComponent("flexbox", {
     schema: {
-        justify: { default: "start" }, // start | end | center | between | around
-        items: { default: "start" }, // start | end | center
-        direction: { default: "row" }, // row | col
+        direction: { default: "row" },  // row | col
+        justify: { default: "start" },  // start | end | center | between | around
+        items: { default: "start" },    // start | end | center
         wrap: { default: false },
         gap: { type: "vec2", default: { x: 0, y: 0 } }
     },
@@ -77,7 +77,7 @@ AFRAME.registerComponent("flexbox", {
         parent.add(this.el.object3D);
     },
 
-    setItemsLayout() {
+    async setItemsLayout() {
         if(this.isDirectionRow()){
             if(this.data.wrap) {
                 this.setRowItemsLayoutWrap()
@@ -91,16 +91,15 @@ AFRAME.registerComponent("flexbox", {
                 this.setColItemsLayout()
             }
         }
-        this.applyGrow()
+        // It is necessary to wait for grow to be applied for further size calculations
+        Promise.resolve().then(() => {
+            this.applyGrow()
 
-        // SetTimeout is necessary to wait for grow to be applied for further size calculations
-        setTimeout(
-            () => {
+            Promise.resolve().then(() => {
                 this.applyJustifyContent()
                 this.applyAlignItems()
-            },
-            0
-        )
+            })
+        })
     },
 
     setRowItemsLayout() {
