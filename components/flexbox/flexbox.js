@@ -22,41 +22,64 @@ AFRAME.registerComponent("flexbox", {
     lines: [],
 
     init() {
-        onSceneLoaded(this.el.sceneEl, () => {
-            const bbox = computeBbox(this.el);
-            if (bbox.isEmpty() || this.el.children.length === 0) {
-                console.warn("Warning flexbox: the container has invalid bounding box or has no children");
-                return;
-            }
+        onSceneLoaded(this.el.sceneEl, () => this.handleSceneLoaded());
+    },
 
-            const bboxSizeWithoutScale = bbox
-                .getSize(new AFRAME.THREE.Vector3())
-                .divide(this.el.object3D.scale); // clean dims of the parent
+    handleSceneLoaded() {
+        if (!this.validateContainer()) {
+            return;
+        }
 
-            this.container = {
-                width: bboxSizeWithoutScale.x,
-                height: bboxSizeWithoutScale.y,
-                depth: bboxSizeWithoutScale.z
-            };
+        this.initializeContainer();
+        this.handleModels();
+    },
 
-            this.items = this.el.children;
+    validateContainer() {
+        const bbox = computeBbox(this.el);
+        if (bbox.isEmpty() || this.el.children.length === 0) {
+            console.warn("Warning flexbox: the container has invalid bounding box or has no children");
 
-            const gltfModels = this.el.querySelectorAll("[gltf-model]");
+            return false;
+        }
 
-            if (gltfModels.length === 0) {
-                this.setItemsLayout();
-            } else {
-                let gltfModelsCount = gltfModels.length; // Initialize with the number of gltf models
+        return true;
+    },
 
-                this.el.addEventListener("model-loaded", (e) => {
-                    gltfModelsCount--;
+    initializeContainer() {
+        const bbox = computeBbox(this.el);
+        const bboxSizeWithoutScale = bbox
+            .getSize(new AFRAME.THREE.Vector3())
+            .divide(this.el.object3D.scale);
 
-                    center3DModelGeometry(e.target);
+        this.container = {
+            width: bboxSizeWithoutScale.x,
+            height: bboxSizeWithoutScale.y,
+            depth: bboxSizeWithoutScale.z
+        };
+        this.items = this.el.children;
+    },
 
-                    if (gltfModelsCount === 0) {
-                        this.applyLayoutWithRotationFix();
-                    }
-                });
+
+    handleModels() {
+        const gltfModels = this.el.querySelectorAll("[gltf-model]");
+
+        if (gltfModels.length === 0) {
+            this.setItemsLayout();
+            return;
+        }
+
+        this.setupModelLoadTracking(gltfModels.length);
+    },
+
+    setupModelLoadTracking(totalModels) {
+        let loadedModels = 0;
+
+        this.el.addEventListener("model-loaded", (e) => {
+            loadedModels++;
+            center3DModelGeometry(e.target);
+
+            if (loadedModels === totalModels) {
+                this.applyLayoutWithRotationFix();
             }
         });
     },
