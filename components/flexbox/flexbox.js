@@ -5,11 +5,13 @@ import {
     onSceneLoaded,
 } from "../../utils/utils.js";
 
+import {DIRECTION, ITEMS, JUSTIFY} from "./constants/constants.js";
+
 AFRAME.registerComponent("flexbox", {
     schema: {
-        direction: { default: "row" },  // row | col
-        justify: { default: "start" },  // start | end | center | between | around
-        items: { default: "start" },    // start | end | center
+        direction: { default: DIRECTION.ROW },     // row | col
+        justify: { default: JUSTIFY.START },    // start | end | center | between | around
+        items: { default: ITEMS.START },        // start | end | center
         wrap: { default: false },
         gap: { type: "vec2", default: { x: 0, y: 0 } }
     },
@@ -20,6 +22,10 @@ AFRAME.registerComponent("flexbox", {
     },
     items: [],
     lines: [],
+    MAIN_AXIS: "", // x/y
+    CROSS_AXIS: "", // y/x
+    MAIN_DIMENSION: "", // width | height
+    CROSS_DIMENSION: "", // height | width
 
     init() {
         onSceneLoaded(this.el.sceneEl, () => this.handleSceneLoaded());
@@ -57,6 +63,20 @@ AFRAME.registerComponent("flexbox", {
             depth: bboxSizeWithoutScale.z
         };
         this.items = this.el.children;
+
+        switch(this.isDirectionRow()) {
+            case true:
+                this.MAIN_AXIS = "x";
+                this.CROSS_AXIS = "y";
+                this.MAIN_DIMENSION = "width";
+                this.CROSS_DIMENSION = "height";
+                break;
+            case false:
+                this.MAIN_AXIS = "y";
+                this.CROSS_AXIS = "x";
+                this.MAIN_DIMENSION = "height";
+                this.CROSS_DIMENSION = "width";
+        }
     },
 
 
@@ -245,11 +265,8 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyGrow() {
-        const GROW_DIRECTION = this.isDirectionRow() ? "width" : "height";
-        const GROW_DIMENSION = this.isDirectionRow() ? "x" : "y";
-
         this.lines.forEach(line => {
-            let freeSpace = this.container[GROW_DIRECTION] - this.data.gap[GROW_DIMENSION] * (line.length - 1);
+            let freeSpace = this.container[this.MAIN_DIMENSION] - this.data.gap[this.MAIN_AXIS] * (line.length - 1);
 
             line.forEach(item => {
                 const itemBbox = computeBbox(item);
@@ -257,7 +274,7 @@ AFRAME.registerComponent("flexbox", {
                     .getSize(new AFRAME.THREE.Vector3())
                     .divide(this.el.object3D.scale);
 
-                freeSpace -= itemBboxSize[GROW_DIMENSION];
+                freeSpace -= itemBboxSize[this.MAIN_AXIS];
             })
 
             const growItems = line.filter(item => (
@@ -266,28 +283,28 @@ AFRAME.registerComponent("flexbox", {
             ));
             const freeSpacePerItem = freeSpace / growItems.length;
 
-            const ORIGINAL_DIRECTION_ATTRIBUTE = `original-${GROW_DIRECTION}`;
+            const ORIGINAL_DIRECTION_ATTRIBUTE = `original-${this.MAIN_DIMENSION}`;
 
             growItems.forEach(growItem => {
                 if(!growItem.hasAttribute(ORIGINAL_DIRECTION_ATTRIBUTE)) {
-                    growItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, growItem.getAttribute(GROW_DIRECTION) || '1');
+                    growItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, growItem.getAttribute(this.MAIN_DIMENSION) || '1');
                 }
 
-                growItem.setAttribute(GROW_DIRECTION, +growItem.getAttribute(ORIGINAL_DIRECTION_ATTRIBUTE) + freeSpacePerItem);
+                growItem.setAttribute(this.MAIN_DIMENSION, +growItem.getAttribute(ORIGINAL_DIRECTION_ATTRIBUTE) + freeSpacePerItem);
 
                 if(this.isDirectionRow()) {
-                    growItem.object3D.position[GROW_DIMENSION] += freeSpacePerItem / 2;
+                    growItem.object3D.position[this.MAIN_AXIS] += freeSpacePerItem / 2;
                 } else {
-                    growItem.object3D.position[GROW_DIMENSION] -= freeSpacePerItem / 2;
+                    growItem.object3D.position[this.MAIN_AXIS] -= freeSpacePerItem / 2;
                 }
 
 
                 const inLineIndex = line.indexOf(growItem);
                 for (let i = inLineIndex + 1; i < line.length; i++) {
                     if(this.isDirectionRow()) {
-                        line[i].object3D.position[GROW_DIMENSION] += freeSpacePerItem;
+                        line[i].object3D.position[this.MAIN_AXIS] += freeSpacePerItem;
                     } else {
-                        line[i].object3D.position[GROW_DIMENSION] -= freeSpacePerItem;
+                        line[i].object3D.position[this.MAIN_AXIS] -= freeSpacePerItem;
                     }
                 }
             })
@@ -299,19 +316,19 @@ AFRAME.registerComponent("flexbox", {
             const freeSpace = this.getFreeSpaceForLineJustify(line);
 
             switch (this.data.justify) {
-                case "start":
+                case JUSTIFY.START:
                     // No action needed, items are already at the start
                     break;
-                case "end":
+                case JUSTIFY.END:
                     this.shiftJustifiedLine(line, freeSpace);
                     break;
-                case "center":
+                case JUSTIFY.CENTER:
                     this.shiftJustifiedLine(line, freeSpace / 2);
                     break;
-                case "between":
+                case JUSTIFY.BETWEEN:
                     this.distributeSpaceBetween(line, freeSpace);
                     break;
-                case "around":
+                case JUSTIFY.AROUND:
                     this.distributeSpaceAround(line, freeSpace);
                     break;
             }
@@ -320,13 +337,10 @@ AFRAME.registerComponent("flexbox", {
 
     // Helper functions for justify-content
     getFreeSpaceForLineJustify(line) {
-        const mainAxis = this.isDirectionRow() ? "x" : "y";
-        const mainAxisSize = this.isDirectionRow() ? "width" : "height";
+        let usedSpace = this.data.gap[this.MAIN_AXIS] * (line.length - 1);
+        line.forEach(item => usedSpace += this.getItemBboxSize(item)[this.MAIN_AXIS]);
 
-        let usedSpace = this.data.gap[mainAxis] * (line.length - 1);
-        line.forEach(item => usedSpace += this.getItemBboxSize(item)[mainAxis]);
-
-        return this.container[mainAxisSize] - usedSpace;
+        return this.container[this.MAIN_DIMENSION] - usedSpace;
     },
 
     shiftJustifiedLine(line, freeSpace) {
@@ -365,36 +379,34 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyAlignItems() {
-        const CROSS_AXIS = this.isDirectionRow() ? "y" : "x";
         const freeSpace = this.getFreeSpaceForLineItems(this.lines[0]);
 
         this.lines.forEach((line) => {
-
-            const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, CROSS_AXIS);
+            const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, this.CROSS_AXIS);
 
             switch (this.data.items) {
-                case "start":
+                case ITEMS.START:
                     // No adjustment needed
                     break;
-                case "center":
+                case ITEMS.CENTER:
                     line.forEach(item => {
                         if(this.isDirectionRow()) {
                             item.object3D.position.y -= (freeSpace/2);
-                            item.object3D.position.y -= (maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]) / 2;
+                            item.object3D.position.y -= (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]) / 2;
                         } else {
                             item.object3D.position.x += (freeSpace/2);
-                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]) / 2
+                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]) / 2
                         }
                     });
                     break;
-                case "end":
+                case ITEMS.END:
                     line.forEach(item => {
                         if(this.isDirectionRow()) {
                             item.object3D.position.y -= (freeSpace);
-                            item.object3D.position.y -= ((maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]));
+                            item.object3D.position.y -= ((maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]));
                         } else {
                             item.object3D.position.x += (freeSpace);
-                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]);
+                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]);
                         }
                     });
                     break;
@@ -403,51 +415,26 @@ AFRAME.registerComponent("flexbox", {
     },
 
     getFreeSpaceForLineItems(line) {
-        const CROSS_AXIS = this.isDirectionRow() ?  "y" : "x";
-        const CROSS_AXIS_SIZE = this.isDirectionRow() ? "height" : "width";
+        let usedSpace = this.data.gap[this.CROSS_AXIS] * (line.length - 1);
 
-        let usedSpace = this.data.gap[CROSS_AXIS] * (line.length - 1);
-
-        const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, CROSS_AXIS);
+        const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, this.CROSS_AXIS);
         usedSpace += maxCrossSizeInLine;
 
         // Add size of next lines
         const lineIndex = this.lines.indexOf(line);
         for(let i = lineIndex + 1; i < this.lines.length; i++) {
-            const maxCrossSizeInNextLine = Math.max(...this.lines[i].map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+            const maxCrossSizeInNextLine = Math.max(...this.lines[i].map(item => this.getItemBboxSize(item)[this.CROSS_AXIS]));
             usedSpace += maxCrossSizeInNextLine;
         }
 
-        return this.container[CROSS_AXIS_SIZE] - usedSpace;
-    },
-
-    /**
-     * Calculates the total size of the content along the specified axis.
-     *
-     * @param {string} axis - The axis to calculate the content size for ('x' or 'y').
-     * @returns {number} - The total size of the content along the specified axis.
-     */
-    getContentSize(axis) {
-        return this.lines
-            .map(line => {
-                let lineSize = 0;
-
-                line.forEach(item => {
-                    lineSize = Math.max(this.getItemBboxSize(item)[axis], lineSize)
-                });
-
-                return lineSize
-            })
-            .reduce((acc, val) => acc + val, 0)
-            // Add gaps
-            + (this.data.gap[axis] * (this.lines.length - 1));
+        return this.container[this.CROSS_DIMENSION] - usedSpace;
     },
 
     /*
      * Helper functions
      */
     isDirectionRow() {
-        return this.data.direction === "row";
+        return this.data.direction === DIRECTION.ROW;
     },
 
     getItemBboxSize(item) {
@@ -462,17 +449,25 @@ AFRAME.registerComponent("flexbox", {
         return Math.max(...line.map(item => this.getItemBboxSize(item)[axis]))
     },
 
-    getLinesPositionsInIndexRange(a, b) {
-        const start = {
-            x: Math.min(...this.lines[a].map(item => item.object3D.position.x)),
-            y: Math.max(...this.lines[a].map(item => item.object3D.position.y)),
-        }
+    /**
+     * Calculates the total size of the content along the specified axis.
+     *
+     * @param {string} axis - The axis to calculate the content size for ('x' or 'y').
+     * @returns {number} - The total size of the content along the specified axis.
+     */
+    getContentSize(axis) {
+        return this.lines
+                .map(line => {
+                    let lineSize = 0;
 
-        const end = {
-            x: Math.max(...this.lines[b].map(item => item.object3D.position.x)),
-            y: Math.min(...this.lines[b].map(item => item.object3D.position.y)),
-        }
+                    line.forEach(item => {
+                        lineSize = Math.max(this.getItemBboxSize(item)[axis], lineSize)
+                    });
 
-        return { start, end }
+                    return lineSize
+                })
+                .reduce((acc, val) => acc + val, 0)
+            // Add gaps
+            + (this.data.gap[axis] * (this.lines.length - 1));
     },
 })
