@@ -275,31 +275,30 @@ AFRAME.registerComponent("flexbox", {
 
     applyJustifyContent() {
         this.lines.forEach(line => {
-            const freeSpace = this.getFreeSpaceForLine(line);
-            const lineStart = this.getLineStartPos(line);
+            const freeSpace = this.getFreeSpaceForLineJustify(line);
 
             switch (this.data.justify) {
                 case "start":
                     // No action needed, items are already at the start
                     break;
                 case "end":
-                    this.shiftLine(line, freeSpace, lineStart);
+                    this.shiftJustifiedLine(line, freeSpace);
                     break;
                 case "center":
-                    this.shiftLine(line, freeSpace / 2, lineStart);
+                    this.shiftJustifiedLine(line, freeSpace / 2);
                     break;
                 case "between":
-                    this.distributeSpaceBetween(line, freeSpace, lineStart);
+                    this.distributeSpaceBetween(line, freeSpace);
                     break;
                 case "around":
-                    this.distributeSpaceAround(line, freeSpace, lineStart);
+                    this.distributeSpaceAround(line, freeSpace);
                     break;
             }
         });
     },
 
     // Helper functions for justify-content
-    getFreeSpaceForLine(line) {
+    getFreeSpaceForLineJustify(line) {
         const mainAxis = this.isDirectionRow() ? "x" : "y";
         const mainAxisSize = this.isDirectionRow() ? "width" : "height";
 
@@ -309,12 +308,7 @@ AFRAME.registerComponent("flexbox", {
         return this.container[mainAxisSize] - usedSpace;
     },
 
-    getLineStartPos(line) {
-        const mainAxis = this.isDirectionRow() ? "x" : "y";
-        return line[0].object3D.position[mainAxis] - this.getItemBboxSize(line[0])[mainAxis] / 2;
-    },
-
-    shiftLine(line, freeSpace, lineStart) {
+    shiftJustifiedLine(line, freeSpace) {
         line.forEach(item => {
             if(this.isDirectionRow()) {
                 item.object3D.position.x += freeSpace;
@@ -324,7 +318,7 @@ AFRAME.registerComponent("flexbox", {
         });
     },
 
-    distributeSpaceBetween(line, freeSpace, lineStart) {
+    distributeSpaceBetween(line, freeSpace) {
         const spacing = freeSpace / (line.length - 1);
 
         for (let i = 1; i < line.length; i++) {
@@ -336,7 +330,7 @@ AFRAME.registerComponent("flexbox", {
         }
     },
 
-    distributeSpaceAround(line, freeSpace, lineStart) {
+    distributeSpaceAround(line, freeSpace) {
         const spacing = freeSpace / line.length;
 
         line.forEach((item, i) => {
@@ -354,40 +348,54 @@ AFRAME.registerComponent("flexbox", {
         const CROSS_DIRECTION = this.isDirectionRow() ? "height" : "width";
 
         this.lines.forEach((line) => {
+            const freeSpace = this.getFreeSpaceForLineItems(line);
             const maxCrossSizeInLine = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
 
+            if(this.data.items === "center") {
+                console.log(this.data.direction, this.data.items)
+                console.log("freeSpace", freeSpace);
+            }
 
-            line.forEach(item => {
-                const itemCrossSize = this.getItemBboxSize(item)[CROSS_AXIS];
-                let offset = 0;
-
-                switch (this.data.items) {
-                    case "start":
-                        offset = 0; // No adjustment needed
-                        break;
-                    case "center":
+            switch (this.data.items) {
+                case "start":
+                    // No adjustment needed
+                    break;
+                case "center":
+                    line.forEach(item => {
                         if(this.isDirectionRow()) {
-                            offset = (itemCrossSize - maxCrossSizeInLine) / 2;
+                            item.object3D.position.y -= (freeSpace/2);
+                            item.object3D.position.y -= (maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]) / 2;
                         } else {
-                            offset = -(itemCrossSize - maxCrossSizeInLine) / 2;
+                            item.object3D.position.x += (freeSpace/2);
+                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]) / 2
                         }
-                        break;
-                    case "end":
+                    });
+                    break;
+                case "end":
+                    line.forEach(item => {
                         if(this.isDirectionRow()) {
-                            offset = itemCrossSize === maxCrossSizeInLine ? 0 : (itemCrossSize - maxCrossSizeInLine);
-                        }else {
-                            offset = itemCrossSize === maxCrossSizeInLine ? 0 : -(itemCrossSize - maxCrossSizeInLine);
+                            item.object3D.position.y -= (freeSpace);
+                            item.object3D.position.y -= ((maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]));
+                        } else {
+                            item.object3D.position.x += (freeSpace);
+                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[CROSS_AXIS]);
                         }
-                        break;
-                }
-
-                if (this.isDirectionRow()) {
-                    item.object3D.position.y += offset;
-                } else {
-                    item.object3D.position.x += offset;
-                }
-            });
+                    });
+                    break;
+            }
         });
+    },
+
+    getFreeSpaceForLineItems(line) {
+        const CROSS_AXIS = this.isDirectionRow() ?  "y" : "x";
+        const CROSS_AXIS_SIZE = this.isDirectionRow() ? "height" : "width";
+
+        let usedSpace = this.data.gap[CROSS_AXIS] * (line.length - 1);
+
+        const maxCrossSizeInLine = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+        usedSpace += maxCrossSizeInLine;
+
+        return this.container[CROSS_AXIS_SIZE] - usedSpace;
     },
 
     /**
