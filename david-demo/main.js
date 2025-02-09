@@ -151,8 +151,6 @@ sceneHTML += `
       `;
         });
     });
-
-
 });
 
 scene.innerHTML = sceneHTML;
