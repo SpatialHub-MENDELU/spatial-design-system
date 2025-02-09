@@ -345,11 +345,11 @@ AFRAME.registerComponent("flexbox", {
 
     applyAlignItems() {
         const CROSS_AXIS = this.isDirectionRow() ? "y" : "x";
-        const CROSS_DIRECTION = this.isDirectionRow() ? "height" : "width";
+        const freeSpace = this.getFreeSpaceForLineItems(this.lines[0]);
 
         this.lines.forEach((line) => {
-            const freeSpace = this.getFreeSpaceForLineItems(line);
-            const maxCrossSizeInLine = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+
+            const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, CROSS_AXIS);
 
             switch (this.data.items) {
                 case "start":
@@ -387,8 +387,15 @@ AFRAME.registerComponent("flexbox", {
 
         let usedSpace = this.data.gap[CROSS_AXIS] * (line.length - 1);
 
-        const maxCrossSizeInLine = Math.max(...line.map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+        const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, CROSS_AXIS);
         usedSpace += maxCrossSizeInLine;
+
+        // Add size of next lines
+        const lineIndex = this.lines.indexOf(line);
+        for(let i = lineIndex + 1; i < this.lines.length; i++) {
+            const maxCrossSizeInNextLine = Math.max(...this.lines[i].map(item => this.getItemBboxSize(item)[CROSS_AXIS]));
+            usedSpace += maxCrossSizeInNextLine;
+        }
 
         return this.container[CROSS_AXIS_SIZE] - usedSpace;
     },
@@ -428,5 +435,23 @@ AFRAME.registerComponent("flexbox", {
         return itemBbox
             .getSize(new AFRAME.THREE.Vector3())
             .divide(this.el.object3D.scale);
+    },
+
+    getMaxLineSizeInAxis(line, axis) {
+        return Math.max(...line.map(item => this.getItemBboxSize(item)[axis]))
+    },
+
+    getLinesPositionsInIndexRange(a, b) {
+        const start = {
+            x: Math.min(...this.lines[a].map(item => item.object3D.position.x)),
+            y: Math.max(...this.lines[a].map(item => item.object3D.position.y)),
+        }
+
+        const end = {
+            x: Math.max(...this.lines[b].map(item => item.object3D.position.x)),
+            y: Math.min(...this.lines[b].map(item => item.object3D.position.y)),
+        }
+
+        return { start, end }
     },
 })
