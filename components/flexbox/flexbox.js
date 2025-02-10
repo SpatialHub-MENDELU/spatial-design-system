@@ -22,10 +22,14 @@ AFRAME.registerComponent("flexbox", {
     },
     items: [], // Array of children items of container
     lines: [], // Array of lines, each line is an array of items which fit in one "line" in flexbox direction.
-    MAIN_AXIS: "", // x | y
-    CROSS_AXIS: "", // y | x
-    MAIN_DIMENSION: "", // width | height
-    CROSS_DIMENSION: "", // height | width
+    // x | y
+    MAIN_AXIS: "",
+    // y | x
+    CROSS_AXIS: "",
+    // width | height
+    MAIN_DIMENSION: "",
+    // height | width
+    CROSS_DIMENSION: "",
 
     init() {
         onSceneLoaded(this.el.sceneEl, () => this.handleSceneLoaded());
@@ -135,13 +139,17 @@ AFRAME.registerComponent("flexbox", {
         }
         // It is necessary to wait for grow to be applied for further size calculations
         Promise.resolve().then(() => {
-            this.applyGrow()
-
+            this.applyBootstrapGrid()
             Promise.resolve().then(() => {
-                this.applyJustifyContent()
-                this.applyAlignItems()
+                this.applyGrow()
+
+                Promise.resolve().then(() => {
+                    this.applyJustifyContent()
+                    this.applyAlignItems()
+                })
             })
         })
+
     },
 
     setRowItemsLayout() {
@@ -263,10 +271,7 @@ AFRAME.registerComponent("flexbox", {
             let freeSpace = this.container[this.MAIN_DIMENSION] - this.data.gap[this.MAIN_AXIS] * (line.length - 1);
 
             line.forEach(item => {
-                const itemBbox = computeBbox(item);
-                const itemBboxSize = itemBbox
-                    .getSize(new AFRAME.THREE.Vector3())
-                    .divide(this.el.object3D.scale);
+                const itemBboxSize = this.getItemBboxSize(item)
 
                 freeSpace -= itemBboxSize[this.MAIN_AXIS];
             })
@@ -303,6 +308,61 @@ AFRAME.registerComponent("flexbox", {
                 }
             })
         })
+    },
+
+    applyBootstrapGrid() {
+        this.lines.forEach(line => {
+            let freeSpace = this.container[this.MAIN_DIMENSION] - this.data.gap[this.MAIN_AXIS] * (line.length - 1);
+
+            line.forEach(item => {
+                const itemBboxSize = this.getItemBboxSize(item)
+
+                freeSpace -= itemBboxSize[this.MAIN_AXIS];
+            })
+
+            const colItems = line.filter(item => (
+                item.getAttribute("flex-col") !== null
+            ));
+
+            const ORIGINAL_DIRECTION_ATTRIBUTE = `original-${this.MAIN_DIMENSION}`;
+
+            colItems.forEach(colItem => {
+                const originalDimensionSize = colItem.getAttribute(this.MAIN_DIMENSION) || '1';
+                const colValue = colItem.components['flex-col'].getCurrentColumn();
+                const newDimensionSize = (this.container[this.MAIN_DIMENSION]/12) * +colValue;
+
+                if(!colItem.hasAttribute(ORIGINAL_DIRECTION_ATTRIBUTE)) {
+                    colItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, originalDimensionSize);
+                }
+
+                colItem.setAttribute(this.MAIN_DIMENSION, newDimensionSize);
+
+                const sizeDiff = newDimensionSize - originalDimensionSize
+                if(this.isDirectionRow()) {
+                    colItem.object3D.position[this.MAIN_AXIS] += sizeDiff / 2;
+                } else {
+                    colItem.object3D.position[this.MAIN_AXIS] -= sizeDiff / 2;
+                }
+
+
+                const inLineIndex = line.indexOf(colItem);
+                for (let i = inLineIndex + 1; i < line.length; i++) {
+                    if(this.isDirectionRow()) {
+                        line[i].object3D.position[this.MAIN_AXIS] += sizeDiff;
+                    } else {
+                        line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
+                    }
+                }
+            })
+        })
+    },
+
+    handleColumnBreakpoint() {
+        this.el.addEventListener('breakpoint-changed', () => {
+            this.initializeContainer();
+            // this.applyColumnWidths();
+            this.setItemsLayout();
+        });
     },
 
     applyJustifyContent() {

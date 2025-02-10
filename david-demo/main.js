@@ -1,4 +1,5 @@
 import "../components/flexbox/flexbox.js";
+import "../components/flexbox/Properties/flex-col.js";
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
@@ -152,6 +153,34 @@ sceneHTML += `
         });
     });
 });
+
+sceneHTML += `
+  <a-plane 
+    position="0 0 -5" 
+    width="4"
+    height="4"
+    material="color: ${CONFIG.colors.background}"
+    flexbox="
+      direction: row;
+      wrap: true;
+      justify: center;
+      items: center;
+    "
+  >
+     <a-plane 
+      color="blue" 
+      text="value: ${1}; color: white; align: center; width: 12; font: kelsonsans;"
+      flex-col="
+        xs: 6;
+        sm: 6;
+        md: 12;
+        lg: 6;
+        xl: 6;
+        '2xl': 6;
+      "
+    ></a-plane>
+  </a-plane>
+`
 
 scene.innerHTML = sceneHTML;
 app.appendChild(scene);
