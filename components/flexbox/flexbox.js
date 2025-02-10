@@ -146,29 +146,26 @@ AFRAME.registerComponent("flexbox", {
 
     setRowItemsLayout() {
         const lines = [[]]; // Initialize lines array
-        let xPos = -this.container.width / 2;
+        let currentX = -this.container.width / 2;
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemBbox = computeBbox(item);
-            const itemBboxSize = itemBbox
-                .getSize(new AFRAME.THREE.Vector3())
-                .divide(this.el.object3D.scale);
+            const itemBboxSize = this.getItemBboxSize(item)
 
-            xPos += itemBboxSize.x / 2; // Start position + half of the item's width
+            currentX += itemBboxSize.x / 2; // Start position + half of the item's width
             item.object3D.position.set(
-                xPos,
+                currentX,
                 this.container.height / 2 - itemBboxSize.y / 2,
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01 // Keep the z-offset for consistency
             );
-            xPos += (itemBboxSize.x / 2) + this.data.gap.x; // Move xPos for the next item + gap
+            currentX += (itemBboxSize.x / 2) + this.data.gap.x; // Move currentX for the next item + gap
             lines[0].push(item);
         }
     },
 
     setColItemsLayout() {
         const lines = [[]]; // Initialize lines array
-        let yPos = this.container.height / 2; // Start at the top
+        let currentY = this.container.height / 2; // Start at the top
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
@@ -177,13 +174,13 @@ AFRAME.registerComponent("flexbox", {
                 .getSize(new AFRAME.THREE.Vector3())
                 .divide(this.el.object3D.scale);
 
-            yPos -= itemBboxSize.y / 2;
+            currentY -= itemBboxSize.y / 2;
             item.object3D.position.set(
                 -this.container.width / 2 + itemBboxSize.x / 2, // x-position: left-aligned
-                yPos,
+                currentY,
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
             );
-            yPos -= (itemBboxSize.y / 2) + this.data.gap.y;
+            currentY -= (itemBboxSize.y / 2) + this.data.gap.y;
             lines[0].push(item);
         }
     },
@@ -191,36 +188,33 @@ AFRAME.registerComponent("flexbox", {
     setRowItemsLayoutWrap() {
         this.lines = [[]]; // Initialize lines array
         let currentLine = this.lines[0];
-        let xPos = -this.container.width / 2;
-        let yPos = this.container.height / 2;
+        let currentX = -this.container.width / 2;
+        let currentY = this.container.height / 2;
         let currentLineHeight = 0;
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemBbox = computeBbox(item);
-            const itemBboxSize = itemBbox
-                .getSize(new AFRAME.THREE.Vector3())
-                .divide(this.el.object3D.scale);
+            const itemBboxSize = this.getItemBboxSize(item)
 
-            xPos += itemBboxSize.x / 2;
+            currentX += itemBboxSize.x / 2;
 
-            const itemDoesNotFit = xPos + itemBboxSize.x / 2 > this.container.width / 2
+            const itemDoesNotFit = currentX + itemBboxSize.x / 2 > this.container.width / 2
             if (itemDoesNotFit) {
                 // Move to the next line
-                xPos = -this.container.width / 2 + itemBboxSize.x / 2;
-                yPos -= currentLineHeight + this.data.gap.y;
+                currentX = -this.container.width / 2 + itemBboxSize.x / 2;
+                currentY -= currentLineHeight + this.data.gap.y;
                 currentLineHeight = 0; // Reset line height for the new line
                 currentLine = []; // Start a new line
                 this.lines.push(currentLine);
             }
 
             item.object3D.position.set(
-                xPos,
-                yPos - itemBboxSize.y / 2,
+                currentX,
+                currentY - itemBboxSize.y / 2,
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
             );
 
-            xPos += itemBboxSize.x / 2 + this.data.gap.x;
+            currentX += itemBboxSize.x / 2 + this.data.gap.x;
             currentLineHeight = Math.max(currentLineHeight, itemBboxSize.y); // Update line height
             currentLine.push(item); // Add item to the current line
         }
@@ -229,8 +223,8 @@ AFRAME.registerComponent("flexbox", {
     setColItemsLayoutWrap() {
         this.lines = [[]]; // Initialize lines array
         let currentLine = this.lines[0];
-        let xPos = -this.container.width / 2;
-        let yPos = this.container.height / 2;
+        let currentX = -this.container.width / 2;
+        let currentY = this.container.height / 2;
         let currentLineWidth = 0;
 
         for (let i = 0; i < this.items.length; i++) {
@@ -240,25 +234,25 @@ AFRAME.registerComponent("flexbox", {
                 .getSize(new AFRAME.THREE.Vector3())
                 .divide(this.el.object3D.scale);
 
-            yPos -= itemBboxSize.y / 2;
+            currentY -= itemBboxSize.y / 2;
 
-            const doesItemNotFit = yPos - itemBboxSize.y / 2 < -this.container.height / 2
+            const doesItemNotFit = currentY - itemBboxSize.y / 2 < -this.container.height / 2
             if (doesItemNotFit) {
                 // Move to the next column
-                yPos = this.container.height / 2 - itemBboxSize.y / 2;
-                xPos += currentLineWidth + this.data.gap.x;
+                currentY = this.container.height / 2 - itemBboxSize.y / 2;
+                currentX += currentLineWidth + this.data.gap.x;
                 currentLineWidth = 0; // Reset line width for the new column
                 currentLine = []; // Start a new column
                 this.lines.push(currentLine);
             }
 
             item.object3D.position.set(
-                xPos + itemBboxSize.x / 2,
-                yPos,
+                currentX + itemBboxSize.x / 2,
+                currentY,
                 this.container.depth / 2 + itemBboxSize.z / 2 + this.container.height * 0.01
             );
 
-            yPos -= itemBboxSize.y / 2 + this.data.gap.y;
+            currentY -= itemBboxSize.y / 2 + this.data.gap.y;
             currentLineWidth = Math.max(currentLineWidth, itemBboxSize.x); // Update column width
             currentLine.push(item); // Add item to the current column
         }
