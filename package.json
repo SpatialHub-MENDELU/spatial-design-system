@@ -1,12 +1,13 @@
 {
   "name": "spatial-design-system",
-  "version": "1.6.3",
+  "version": "1.6.9",
   "files": [
     "/components",
     "/primitives",
     "/public",
     "/utils",
-    "/.gitignore"
+    "/.gitignore",
+    "/umd"
   ],
   "scripts": {
     "demo": "vite demo",
@@ -18,6 +19,9 @@
     "aframe": "~1.5.0"
   },
   "devDependencies": {
-    "vite": "^5.3.4"
+    "vite": "^6.0.11"
+  },
+  "overrides": {
+    "three-bmfont-text": "@spatialhub/three-bmfont-text"
   }
 }
