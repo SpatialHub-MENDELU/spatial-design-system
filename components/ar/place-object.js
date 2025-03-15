@@ -1,10 +1,10 @@
 AFRAME.registerComponent("place-object", {
     schema: {
-        heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } }, // Min/max height in meters
-        surfaceTypes: { type: "array", default: ["horizontal"] },   // horizontal, wall, ceiling
-        adjustOrientation: { type: "boolean", default: true },      // Orient to surface
-        distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } }, // Min/max distance from camera
-        scale: { type: "number", default: 1.0 }                     // Scale of placed object
+        heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },     // Min/max height in meters
+        surfaceTypes: { type: "array", default: ["horizontal"] },       // horizontal, wall, ceiling
+        adjustOrientation: { type: "boolean", default: true },          // Orient to surface
+        distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },   // Min/max distance from camera
+        scale: { type: "number", default: 1.0 },                        // Scale of placed object
     },
 
     init() {
@@ -15,23 +15,8 @@ AFRAME.registerComponent("place-object", {
         // Bind methods
         this.onSelect = this.onSelect.bind(this);
 
-        // Add event listener for select event (tap in AR)
+        // select event = tap in AR
         this.controller.addEventListener("select", this.onSelect);
-
-        // const scene = document.querySelector('a-scene');
-        // const debugEntity = document.createElement('a-entity');
-        // debugEntity.setAttribute('follow-camera', 'angle: 0.001; distance: 1;')
-        // debugEntity.setAttribute('text', {
-        //     value: 'DEBUG INFO',
-        //     color: 'white',
-        //     width: 2,
-        //     align: 'center'
-        // });
-        // debugEntity.setAttribute('position', '0 0 -1');
-        // debugEntity.setAttribute('look-at', '[camera]');
-        // scene.appendChild(debugEntity);
-        //
-        // debugEntity.setAttribute('text', 'value', 'HELLOOO');
     },
 
     onSelect() {
