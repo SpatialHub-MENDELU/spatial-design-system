@@ -1,7 +1,7 @@
 AFRAME.registerComponent("place-object", {
     schema: {
         heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } }, // Min/max height in meters
-        surfaceTypes: { type: "array", default: ["horizontal"] },   // horizontal, vertical-x, vertical-z
+        surfaceTypes: { type: "array", default: ["horizontal"] },   // horizontal, wall, ceiling
         adjustOrientation: { type: "boolean", default: true },      // Orient to surface
         distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } }, // Min/max distance from camera
         scale: { type: "number", default: 1.0 }                     // Scale of placed object
@@ -52,40 +52,35 @@ AFRAME.registerComponent("place-object", {
     },
 
     isSurfaceValid(hitMesh) {
-        // Get surface orientation
-        const euler = new THREE.Euler().setFromQuaternion(hitMesh.quaternion);
-        const epsilon = 0.15; // Tolerance for rotation detection
-
-        // Check if surface matches requested types
+        const EPSILON = 0.15;
         const surfaceTypes = this.data.surfaceTypes;
 
-        // Check for horizontal surface (floor/table)
+        // Get surface normal from quaternion (up vector)
+        const normal = new THREE.Vector3(0, 1, 0)
+            .applyQuaternion(hitMesh.quaternion)
+            .normalize();
+
+        // Check horizontal surfaces (floor-like)
         if (surfaceTypes.includes("horizontal") &&
-            Math.abs(euler.x) < epsilon &&
-            Math.abs(euler.z) < epsilon) {
+            Math.abs(normal.y) > 1 - EPSILON) {
             return true;
         }
 
-        // Check for vertical-x surface (wall aligned with x-axis)
-        if (surfaceTypes.includes("vertical-x") &&
-            Math.abs(euler.z - Math.PI/2) < epsilon) {
+        // Check walls (vertical surfaces)
+        if (surfaceTypes.includes("wall") &&
+            Math.abs(normal.y) < EPSILON) {  // Normal is mostly horizontal
             return true;
         }
 
-        // Check for vertical-z surface (wall aligned with z-axis)
-        if (surfaceTypes.includes("vertical-z") &&
-            Math.abs(euler.x - Math.PI/2) < epsilon) {
-            return true;
-        }
-
-        // Check for ceiling
+        // Check ceiling (upside-down horizontal)
         if (surfaceTypes.includes("ceiling") &&
-            Math.abs(euler.x - Math.PI) < epsilon) {
+            normal.y < -1 + EPSILON) {
             return true;
         }
 
         return false;
     },
+
 
     isHeightValid(hitMesh) {
         const minHeight = this.data.heightRange.x;
