@@ -11,49 +11,133 @@ AFRAME.registerComponent("place-object-manager", {
     init() {
         this.scene = this.el.sceneEl;
         this.placedObjects = [];
-
-        // Create hit test marker (optional visualization)
-        if (this.data.showHitTestMarker) {
-            this.createHitTestMarker();
-        }
+        this.hitTestMarker = null;
 
         // Enable AR hit test
-        this.scene.setAttribute("ar-hit-test", "mapSize: 0.1 0.1");
+        this.scene.setAttribute("webxr", {
+            optionalFeatures: 'hit-test',
+            referenceSpaceType: 'local-floor'
+        });
+
+        this.createHitTestMarker()
+
+
+        // Event listeners
+        this.scene.addEventListener('ar-hit-test-achieved', this.updateMarkerPosition.bind(this))
 
         // Listen for placed objects
         this.el.addEventListener("object-placed", this.onObjectPlaced.bind(this));
     },
 
+    tick() {
+        if (!this.hitTestMarker || !this.scene.components['ar-hit-test']) return;
+
+        const hitTest = this.scene.components['ar-hit-test'];
+        if (hitTest.bboxMesh && this.hitTestMarker.object3D) {
+            this.hitTestMarker.object3D.position.copy(hitTest.bboxMesh.position);
+            this.hitTestMarker.object3D.quaternion.copy(hitTest.bboxMesh.quaternion);
+        }
+
+        // Create adjustment rotation (-90 degrees around X-axis)
+        const adjustRotation = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
+
+        // Combine hit-test rotation with adjustment
+        this.hitTestMarker.object3D.quaternion
+            .copy(hitTest.bboxMesh.quaternion)
+            .multiply(adjustRotation);
+    },
+
     createHitTestMarker() {
-        // Create a simple circular marker to show where objects will be placed
-        const marker = document.createElement("a-entity");
-        marker.setAttribute("geometry", "primitive: ring; radiusInner: 0.04; radiusOuter: 0.05");
-        marker.setAttribute("material", "color: white; opacity: 0.5; transparent: true");
-        marker.setAttribute("id", "hit-test-marker");
-        marker.setAttribute("visible", false);
+        // Use 3D object instead of 2D circle for better AR visibility
+        const MARKER_COLOR = '#ff0000'
+
+
+        const marker = document.createElement('a-entity');
+        marker.setAttribute('visible', true);
+        marker.setAttribute('position', '0 0 0');
+
+        const outerRing = document.createElement('a-entity');
+        outerRing.setAttribute('geometry', 'primitive: ring; radiusInner: 0.06; radiusOuter: 0.1');
+        outerRing.setAttribute('material', `color: ${MARKER_COLOR}; opacity: 0.8`);
+        marker.setAttribute('rotation', '0 -90 0');
+
+        // Central dot
+        const centerDot = document.createElement('a-circle');
+        centerDot.setAttribute('radius', 0.02);
+        centerDot.setAttribute('color', MARKER_COLOR);
+        centerDot.setAttribute('material', 'opacity: 0.9; side: double');
+        centerDot.setAttribute('position', '0 0.001 0'); // Z-offset to prevent z-fighting
+
+        marker.setAttribute('scale', '0.3 0.3 0.3');
+
+        marker.appendChild(outerRing);
+        marker.appendChild(centerDot);
+
         this.scene.appendChild(marker);
-
         this.hitTestMarker = marker;
+    },
 
-        // Update marker position on AR hit test
-        this.scene.addEventListener("ar-hit-test-ready", () => {
-            this.scene.addEventListener("ar-hit-test-update", (e) => {
-                if (this.data.enabled && this.hitTestMarker) {
-                    const hitPoint = e.detail.position;
-                    this.hitTestMarker.setAttribute("position", hitPoint);
-                    this.hitTestMarker.setAttribute("visible", true);
+    csreateHitTestMarker() {
+        // Create parent entity
+        const marker = document.createElement('a-entity');
+        marker.setAttribute('visible', false);
+        marker.setAttribute('position', '0 0 0');
 
-                    // Orient to surface
-                    if (e.detail.orientation) {
-                        this.hitTestMarker.setAttribute("rotation", {
-                            x: THREE.MathUtils.radToDeg(e.detail.orientation.x),
-                            y: THREE.MathUtils.radToDeg(e.detail.orientation.y),
-                            z: THREE.MathUtils.radToDeg(e.detail.orientation.z)
-                        });
-                    }
-                }
-            });
-        });
+        // Outer ring (main circle)
+        const outerRing = document.createElement('a-ring');
+        outerRing.setAttribute('radius-inner', 0.12);  // Width of the ring
+        outerRing.setAttribute('radius-outer', 0.2);
+        outerRing.setAttribute('color', '#ff0000');
+        outerRing.setAttribute('material', 'opacity: 0.8; side: double');
+        outerRing.setAttribute('rotation', '-90 0 0');
+
+        // Central dot
+        const centerDot = document.createElement('a-circle');
+        centerDot.setAttribute('radius', 0.03);
+        centerDot.setAttribute('color', '#ff0000');
+        centerDot.setAttribute('material', 'opacity: 0.9; side: double');
+        centerDot.setAttribute('position', '0 0.001 0'); // Z-offset to prevent z-fighting
+
+        // Add children to marker
+        marker.appendChild(outerRing);
+        marker.appendChild(centerDot);
+
+        // Add subtle animation
+        marker.setAttribute('animation', `
+        property: scale;
+        dur: 1200;
+        loop: true;
+        from: 0.9 0.9 0.9;
+        to: 1.1 1.1 1.1;
+        easing: easeInOutQuad
+    `);
+
+        this.scene.appendChild(marker);
+        this.hitTestMarker = marker;
+    },
+
+    updateMarkerPosition(evt) {
+        if (!this.hitTestMarker || !this.data.enabled) return;
+
+        const hitPose = evt.detail.position;
+        const orientation = evt.detail.orientation;
+
+        if (hitPose) {
+            this.hitTestMarker.setAttribute('position', hitPose);
+            this.hitTestMarker.setAttribute('visible', true);
+        }
+
+        if (orientation) {
+            // Use quaternion directly for more accurate rotation
+            this.hitTestMarker.object3D.quaternion.copy(orientation);
+
+            // Additional adjustment for vertical surfaces
+            const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(orientation);
+            if (Math.abs(normal.y) < 0.9) { // Vertical surface check
+                this.hitTestMarker.object3D.rotation.y += Math.PI;
+            }
+        }
     },
 
     onObjectPlaced(event) {
