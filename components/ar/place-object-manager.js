@@ -5,7 +5,8 @@ AFRAME.registerComponent("place-object-manager", {
         defaultHeightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },
         defaultSurfaceTypes: { type: "array", default: ["horizontal"] },
         defaultDistanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },
-        showHitTestMarker: { type: "boolean", default: true }
+        showHitTestMarker: { type: "boolean", default: true },
+        hitTestMarker: { type: "string", default: "#ar-hit-test-marker"}
     },
 
     init() {
@@ -49,9 +50,15 @@ AFRAME.registerComponent("place-object-manager", {
     },
 
     createHitTestMarker() {
+        // Check if marker already exists in DOM
+        const doesMarkerExist = document.querySelector(this.data.hitTestMarker);
+        if(doesMarkerExist) {
+            this.hitTestMarker = doesMarkerExist;
+            return;
+        }
+        
         // Use 3D object instead of 2D circle for better AR visibility
         const MARKER_COLOR = '#ff0000'
-
 
         const marker = document.createElement('a-entity');
         marker.setAttribute('visible', true);
