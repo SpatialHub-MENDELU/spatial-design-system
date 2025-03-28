@@ -1,4 +1,43 @@
 import * as AFRAME from "aframe"
+import { PRIMARY_COLOR_DARK } from "../utils/colors.js"
+
+// Lighten color in order to create suitable highlilighted color
+function lightenColor(color, percent) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = color; // Convert named colors to hex
+    const hex = ctx.fillStyle;
+
+    const [r, g, b] = [1, 3, 5].map(i => 
+        Math.min(255, parseInt(hex.slice(i, i + 2), 16) + Math.round((255 - parseInt(hex.slice(i, i + 2), 16)) * (percent / 100)))
+    );
+
+    return `#${[r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+// Darken color in order to create suitable highlilighted color
+function darkenColor(color, percent) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = color; // Convert named colors to hex
+    const hex = ctx.fillStyle;
+
+    const [r, g, b] = [1, 3, 5].map(i => 
+        Math.max(0, parseInt(hex.slice(i, i + 2), 16) - Math.round(parseInt(hex.slice(i, i + 2), 16) * (percent / 100)))
+    );
+
+    return `#${[r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+
+function getColorLightness(color) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = color; // Convert named colors to hex
+    const hex = ctx.fillStyle;
+
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+
+    // Calculate relative luminance (perceived lightness)
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 * 100; // Return as percentage
+}
 
 AFRAME.registerComponent("menu", {
     schema: { 
@@ -6,9 +45,8 @@ AFRAME.registerComponent("menu", {
         items: { type: "string", default: "" },
         itemsopacity: { type: "number", default: 1 },
         menuopacity: { type: "number", default: 1 },
-        primary: {type: "color", default: "#0091E3"},
+        color: {type: "string", default: PRIMARY_COLOR_DARK},
         highlight: {type: "boolean", default: true},
-        highlighted: {type: "color", default: "#C1080C"},
         variant: { type: "string", default: "filled" },
         layout: { type: "string", default: "grid" },
         spacing: { type: "number", default: 0.1 },
@@ -27,7 +65,7 @@ AFRAME.registerComponent("menu", {
         this.originalScale = this.el.object3D.scale.clone()
 
         // this.el.setAttribute("material", {color: this.data.primary, opacity: this.data.variant === "transparent" ? 0.1 : 0.35})
-        this.el.setAttribute("material", {color: this.data.primary, opacity: this.data.menuopacity})
+        this.el.setAttribute("material", {color: this.data.color, opacity: this.data.menuopacity})
         this.setSize()
 
         this.el.classList.add("clickable")
@@ -114,43 +152,68 @@ AFRAME.registerComponent("menu", {
     },
 
     update(oldData) {
-        this.replaceItemsIfChanged(oldData.items)
+        // Update the background color if the `color` property changes
+        if (oldData.color !== this.data.color) {
+            this.el.setAttribute("material", { color: this.data.color });
+
+            // Update the color of already selected items
+            document
+                .querySelectorAll(".menu-item")
+                .forEach((item, index) => {
+                    if (this.selected[index]) {
+                        const colorLightness = getColorLightness(this.data.color);
+                        let difference = 30; // Default difference
+
+                        // Adjust difference for very light or very dark colors
+                        if (colorLightness >= 90 || colorLightness <= 10) {
+                            difference = 40;
+                        }
+
+                        const highlightedColor = colorLightness <= 50
+                            ? lightenColor(this.data.color, difference) // Lighter for dark colors
+                            : darkenColor(this.data.color, difference); // Darker for light colors
+
+                        item.setAttribute("material", { color: highlightedColor });
+                    }
+                });
+        }
+
+        this.replaceItemsIfChanged(oldData.items);
 
         document
             .querySelectorAll(".menu-item")
-            .forEach(e => e.setAttribute("material", {opacity: this.data.itemsopacity}))
+            .forEach(e => e.setAttribute("material", { opacity: this.data.itemsopacity }));
 
-        const circleRadius = this.el.getAttribute("geometry").radius
+        const circleRadius = this.el.getAttribute("geometry").radius;
         document
             .querySelectorAll(".menu-item a-text")
-            .forEach(e =>{
-                e.setAttribute('width', 1.5 * circleRadius * this.data.textsize)
-                e.setAttribute('visible', this.data.showtext)
-            })
+            .forEach(e => {
+                e.setAttribute('width', 1.5 * circleRadius * this.data.textsize);
+                e.setAttribute('visible', this.data.showtext);
+            });
 
-        let iconSize = 0.25 * circleRadius * this.data.iconsize
-        let isTextVisibleCoef = 1
-        if(!this.data.showtext){
-            iconSize *= 1.6
-            isTextVisibleCoef = 0.1
+        let iconSize = 0.25 * circleRadius * this.data.iconsize;
+        let isTextVisibleCoef = 1;
+        if (!this.data.showtext) {
+            iconSize *= 1.6;
+            isTextVisibleCoef = 0.1;
         }
         document
             .querySelectorAll(".menu-item a-image")
             .forEach(e => {
-                e.setAttribute('height', iconSize)
-                e.setAttribute('width', iconSize)
-                e.setAttribute("position", `0 ${(this.data.textsize - 1) * 0.1 * isTextVisibleCoef} 0`)
-            })
+                e.setAttribute('height', iconSize);
+                e.setAttribute('width', iconSize);
+                e.setAttribute("position", `0 ${(this.data.textsize - 1) * 0.1 * isTextVisibleCoef} 0`);
+            });
 
         document
             .querySelectorAll("a-ring")
             .forEach(e => {
-                e.setAttribute("radius-outer", circleRadius )
-                e.setAttribute("radius-inner", circleRadius * 0.974)
-                e.setAttribute("material", {color: this.data.primary, opacity: this.data.itemsopacity})
-                e.setAttribute("geometry", {segmentsTheta: 64})
-            })
-
+                e.setAttribute("radius-outer", circleRadius);
+                e.setAttribute("radius-inner", circleRadius * 0.974);
+                e.setAttribute("material", { color: this.data.color, opacity: this.data.itemsopacity });
+                e.setAttribute("geometry", { segmentsTheta: 64 });
+            });
     },
 
     setSize() {
@@ -240,7 +303,7 @@ AFRAME.registerComponent("menu", {
             const content = document.createElement("a-entity")
 
             const text = document.createElement("a-text")
-            const textColor = parsedItem.textColor ?? this.data.primary
+            const textColor = parsedItem.textColor ?? this.data.color
             text.setAttribute("visible", this.data.showtext)
             text.setAttribute("value", parsedItem.title === undefined ? "" : parsedItem.title)
             text.setAttribute("align", "center")
@@ -274,18 +337,36 @@ AFRAME.registerComponent("menu", {
                 if (this.data.highlight) {
                     this.selected[index] = !this.selected[index];
 
+                    const colorLightness = getColorLightness(this.data.color);
+                    let difference = 30; // Default difference
+
+                    // Adjust difference for very light or very dark colors
+                    if (colorLightness >= 90 || colorLightness <= 10) {
+                        difference = 40;
+                    }
+
+                    // Calculate suitable highlighted color based on color lightness
+                    const highlightedColor = colorLightness <= 50
+                        ? lightenColor(this.data.color, difference) // Lighter for dark colors
+                        : darkenColor(this.data.color, difference); // Darker for light colors
+
                     item.setAttribute("material", {
-                        color: this.selected[index] ? `${this.data.highlighted}` : `${parsedItem.color}`
-                    })
+                        color: this.selected[index] ? highlightedColor : `${parsedItem.color}`
+                    });
                     text.setAttribute("color", this.selected[index] ? `white` : `${textColor}`);
 
-                    const iconSrc = this.selected[index] && !parsedItem.icon.includes("-white") ? `${parsedItem.icon}-white.png` : `${parsedItem.icon}.png`
-                    icon?.setAttribute("src", iconSrc)
+                    const iconSrc = this.selected[index] 
+                        ? `${parsedItem.icon}-white.png` 
+                        : `${parsedItem.icon}.png`;
+
+                    // Check if the `-white` version exists, fallback to the original if not
+                    const img = new Image();
+                    img.src = iconSrc;
+                    img.onload = () => icon?.setAttribute("src", iconSrc);
+                    img.onerror = () => icon?.setAttribute("src", `${parsedItem.icon}.png`);
                 }
 
-                // const itemPosition = item.getAttribute("position")
-                // item.setAttribute("position", {x: itemPosition.x, y: itemPosition.y, z: itemPosition.z === 0.01 ? 0.06 : 0.01})
-                item.parentElement.emit('select', {item: parsedItem})
+                item.parentElement.emit('select', {item: parsedItem});
             })
 
             item.appendChild(content)
@@ -299,7 +380,7 @@ AFRAME.registerComponent("menu", {
             this.el.setAttribute("circle", {
                 spacing: this.el.spacing,
                 radius: this.el.getAttribute("geometry").radius * 0.87,
-                primary: this.data.primary,
+                color: this.data.color,
                 opacity: this.data.itemsopacity,
             })
         } else {
@@ -323,7 +404,7 @@ AFRAME.registerComponent("menu", {
 
         border.setAttribute("radius-outer", circleRadius * 1.15)
         border.setAttribute("radius-inner", circleRadius * 1.12)
-        border.setAttribute("material", {color: this.data.primary, opacity: this.data.opacity})
+        border.setAttribute("material", {color: this.data.color, opacity: this.data.opacity})
         border.setAttribute("geometry", {segmentsTheta: 64})
         
         supportElementsContainer.appendChild(border)
@@ -331,7 +412,7 @@ AFRAME.registerComponent("menu", {
         if(this.data.backbutton){
         const arrowback = document.createElement("a-circle")
         arrowback.setAttribute("radius", 0.2 * circleRadius)
-        arrowback.setAttribute("material", {color: this.data.primary, opacity: 1 })
+        arrowback.setAttribute("material", {color: this.data.color, opacity: 1 })
         arrowback.setAttribute("position", `0 0 0.02`)
         arrowback.setAttribute("class", "back-button clickable")
 
@@ -353,7 +434,7 @@ AFRAME.registerComponent("menu", {
             const logo = document.createElement("a-circle")
             logo.classList.add("center-logo-icon")
             logo.setAttribute("radius", 0.2 * circleRadius)
-            logo.setAttribute("material", {color: this.data.primary, opacity: 1 })
+            logo.setAttribute("material", {color: this.data.color, opacity: 1 })
             logo.setAttribute("position", "0 0 0.02")
 
             if(icon !== "" && icon !== undefined) {
@@ -403,7 +484,7 @@ AFRAME.registerComponent("menu", {
                 const icon = item.querySelector("a-image")
 
                 item.setAttribute("material", {color: parsedItem.color})
-                text.setAttribute("color", parsedItem.textColor ?? this.data.primary);
+                text.setAttribute("color", parsedItem.textColor ?? this.data.color);
                 icon?.setAttribute("src", `${parsedItem.icon}.png`)
             })
         this.selected = []
@@ -492,7 +573,7 @@ AFRAME.registerComponent('circle', {
     schema: {
         radius: { type: "number", default: 1 },
         spacing: { type: "number", default: 0.1 },
-        primary: { type: "color", default: "blue" },
+        color: { type: "color", default: "blue" },
         opacity: { type: "number", default: 1 }
       },
   

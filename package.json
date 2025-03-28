@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@tweenjs/tween.js": "^23.1.1",
-    "aframe": "~1.5.0"
+    "aframe": "~1.5.0",
+    "spatial-design-system": "^1.6.3"
   },
   "devDependencies": {
     "vite": "^6.0.11"
