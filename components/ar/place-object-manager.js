@@ -6,7 +6,8 @@ AFRAME.registerComponent("place-object-manager", {
         defaultSurfaceTypes: { type: "array", default: ["horizontal"] },
         defaultDistanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },
         showHitTestMarker: { type: "boolean", default: true },
-        hitTestMarker: { type: "string", default: "#ar-hit-test-marker"}
+        hitTestMarker: { type: "string", default: "#ar-hit-test-marker"},
+        showPreview: { type: "boolean", default: true }, // Show preview of object before placing
     },
 
     init() {
@@ -21,7 +22,6 @@ AFRAME.registerComponent("place-object-manager", {
         });
 
         this.createHitTestMarker()
-
 
         // Event listeners
         this.scene.addEventListener('ar-hit-test-achieved', this.updateMarkerPosition.bind(this))
@@ -47,6 +47,38 @@ AFRAME.registerComponent("place-object-manager", {
         this.hitTestMarker.object3D.quaternion
             .copy(hitTest.bboxMesh.quaternion)
             .multiply(adjustRotation);
+
+
+        if(this.data.showPreview) {
+            const object = this.scene.querySelector('[place-object]');
+            const previewObject = document.getElementById('place-object-preview') ?? this.createObjectGhostCopy(object);
+
+            if (hitTest.bboxMesh && this.hitTestMarker.object3D) {
+                previewObject.object3D.position.copy(hitTest.bboxMesh.position);
+                previewObject.object3D.quaternion.copy(hitTest.bboxMesh.quaternion);
+            }
+
+            const euler = new THREE.Euler().setFromQuaternion(hitTest.bboxMesh.quaternion);
+            if (Math.abs(euler.x - Math.PI/2) < 0.15 || Math.abs(euler.z - Math.PI/2) < 0.15) {
+                // This is a vertical surface, rotate the object to face outward
+                previewObject.object3D.rotateY(Math.PI);
+            }
+
+            // const scale = object.components['place-object'].data.scale;
+            previewObject.object3D.scale.set(0.1, 0.1, 0.1);
+        }
+    },
+
+    createObjectGhostCopy(el) {
+        const entityCopy = el.cloneNode(true)
+        entityCopy.removeAttribute('visible')
+        entityCopy.removeAttribute('id')
+        entityCopy.removeAttribute('place-object');
+        entityCopy.setAttribute('id', 'place-object-preview');
+        
+        this.scene.appendChild(entityCopy);
+
+        return entityCopy;
     },
 
     createHitTestMarker() {
@@ -56,7 +88,7 @@ AFRAME.registerComponent("place-object-manager", {
             this.hitTestMarker = doesMarkerExist;
             return;
         }
-        
+
         // Use 3D object instead of 2D circle for better AR visibility
         const MARKER_COLOR = '#ff0000'
 
