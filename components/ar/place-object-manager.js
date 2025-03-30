@@ -1,3 +1,5 @@
+import "./ar-placement-utils.js";
+
 AFRAME.registerComponent("place-object-manager", {
     schema: {
         enabled: { type: "boolean", default: true },
@@ -30,6 +32,7 @@ AFRAME.registerComponent("place-object-manager", {
         this.el.addEventListener("object-placed", this.onObjectPlaced.bind(this));
     },
 
+// In place-object-manager.js
     tick() {
         if (!this.hitTestMarker || !this.scene.components['ar-hit-test']) return;
 
@@ -48,38 +51,58 @@ AFRAME.registerComponent("place-object-manager", {
             .copy(hitTest.bboxMesh.quaternion)
             .multiply(adjustRotation);
 
+        // Show preview if enabled
+        if (this.data.showPreview) {
+            const objectToPlace = this.scene.querySelector('[place-object]');
+            if (!objectToPlace) return;
 
-        if(this.data.showPreview) {
-            const object = this.scene.querySelector('[place-object]');
-            const previewObject = document.getElementById('place-object-preview') ?? this.createObjectGhostCopy(object);
+            // Get or create the preview object
+            const previewObject = document.getElementById('place-object-preview') ||
+                this.createObjectGhostCopy(objectToPlace);
 
-            if (hitTest.bboxMesh && this.hitTestMarker.object3D) {
-                previewObject.object3D.position.copy(hitTest.bboxMesh.position);
-                previewObject.object3D.quaternion.copy(hitTest.bboxMesh.quaternion);
+            // Get configuration from the place-object component
+            const placeObjectComp = objectToPlace.components['place-object'];
+            if (placeObjectComp) {
+                // Use the shared placement utility for consistent preview
+                ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
+                    isPoster: placeObjectComp.data.isPoster,
+                    adjustOrientation: placeObjectComp.data.adjustOrientation,
+                    scale: placeObjectComp.data.scale,
+                    camera: this.camera
+                });
+            } else {
+                // Default fallback if no place-object component is found
+                ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
+                    scale: 0.1,
+                    camera: this.camera
+                });
             }
-
-            const euler = new THREE.Euler().setFromQuaternion(hitTest.bboxMesh.quaternion);
-            if (Math.abs(euler.x - Math.PI/2) < 0.15 || Math.abs(euler.z - Math.PI/2) < 0.15) {
-                // This is a vertical surface, rotate the object to face outward
-                previewObject.object3D.rotateY(Math.PI);
-            }
-
-            // const scale = object.components['place-object'].data.scale;
-            previewObject.object3D.scale.set(0.1, 0.1, 0.1);
         }
     },
 
     createObjectGhostCopy(el) {
-        const entityCopy = el.cloneNode(true)
-        entityCopy.removeAttribute('visible')
-        entityCopy.removeAttribute('id')
+        const entityCopy = el.cloneNode(true);
+        entityCopy.removeAttribute('visible');
+        entityCopy.removeAttribute('id');
         entityCopy.removeAttribute('place-object');
         entityCopy.setAttribute('id', 'place-object-preview');
-        
-        this.scene.appendChild(entityCopy);
+        entityCopy.setAttribute('visible', true);
 
+        // Make the preview semi-transparent
+        const materials = entityCopy.querySelectorAll('[material]');
+        if (materials.length > 0) {
+            materials.forEach(mat => {
+                const matData = mat.getAttribute('material');
+                mat.setAttribute('material', Object.assign({}, matData, { opacity: 0.5 }));
+            });
+        } else {
+            entityCopy.setAttribute('material', 'opacity: 0.5');
+        }
+
+        this.scene.appendChild(entityCopy);
         return entityCopy;
     },
+
 
     createHitTestMarker() {
         // Check if marker already exists in DOM
