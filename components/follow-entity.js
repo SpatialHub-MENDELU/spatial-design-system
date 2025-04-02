@@ -5,7 +5,7 @@ AFRAME.registerComponent('follow-entity', {
         place: { type: 'vec3', default: {x: 1, y: 0, z: 0} }, // Values: -1, 0, 1
         offset: { type: 'number', default: 1 },             // Distance from target's border
         target: { type: 'selector' },                         // Target entity to follow
-        duration: { type: 'number', default: 300 }            // Animation duration
+        duration: { type: 'number', default: 0 }            // Animation duration
     },
 
     init() {
