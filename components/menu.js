@@ -39,6 +39,21 @@ function getColorLightness(color) {
     return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 * 100; // Return as percentage
 }
 
+function determineHighlightedColor(color) {
+    const colorLightness = getColorLightness(color);
+    let difference = 30; // Default difference
+
+    // Adjust difference for very light or very dark colors
+    if (colorLightness >= 90 || colorLightness <= 10) {
+        difference = 40;
+    }
+
+    // Calculate suitable highlighted color based on color lightness
+    return colorLightness <= 50
+        ? lightenColor(color, difference) // Lighter for dark colors
+        : darkenColor(color, difference); // Darker for light colors
+}
+
 AFRAME.registerComponent("menu", {
     schema: { 
         size: { type: "string", default: "medium" },
@@ -161,18 +176,7 @@ AFRAME.registerComponent("menu", {
                 .querySelectorAll(".menu-item")
                 .forEach((item, index) => {
                     if (this.selected[index]) {
-                        const colorLightness = getColorLightness(this.data.color);
-                        let difference = 30; // Default difference
-
-                        // Adjust difference for very light or very dark colors
-                        if (colorLightness >= 90 || colorLightness <= 10) {
-                            difference = 40;
-                        }
-
-                        const highlightedColor = colorLightness <= 50
-                            ? lightenColor(this.data.color, difference) // Lighter for dark colors
-                            : darkenColor(this.data.color, difference); // Darker for light colors
-
+                        const highlightedColor = determineHighlightedColor(this.data.color);
                         item.setAttribute("material", { color: highlightedColor });
                     }
                 });
@@ -337,18 +341,8 @@ AFRAME.registerComponent("menu", {
                 if (this.data.highlight) {
                     this.selected[index] = !this.selected[index];
 
-                    const colorLightness = getColorLightness(this.data.color);
-                    let difference = 30; // Default difference
-
-                    // Adjust difference for very light or very dark colors
-                    if (colorLightness >= 90 || colorLightness <= 10) {
-                        difference = 40;
-                    }
-
                     // Calculate suitable highlighted color based on color lightness
-                    const highlightedColor = colorLightness <= 50
-                        ? lightenColor(this.data.color, difference) // Lighter for dark colors
-                        : darkenColor(this.data.color, difference); // Darker for light colors
+                    const highlightedColor = determineHighlightedColor(this.data.color);
 
                     item.setAttribute("material", {
                         color: this.selected[index] ? highlightedColor : `${parsedItem.color}`
