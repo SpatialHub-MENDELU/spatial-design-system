@@ -18,11 +18,11 @@ AFRAME.registerComponent("progressBar", {
     },
 
     init() {
+        this.finalColor = this.data.color;
         this.setSize()
         this.setContent()
         this.setMode()
         this.setState()
-        this.finalColor = PRIMARY_COLOR_DARK;
     },
 
     update(oldData) {
@@ -44,6 +44,7 @@ AFRAME.registerComponent("progressBar", {
                     break;
                 case 'value':
                     this.setContent();
+                    this.updateProgressBarColor();
                     break;
                 case 'textcolor':
                     this.updateTextColor();
@@ -53,6 +54,7 @@ AFRAME.registerComponent("progressBar", {
                     break;
                 case 'mode':
                     this.setMode();
+                    this.updateProgressBarColor();
                     break;
                 case 'state':
                     this.setState();
@@ -71,16 +73,17 @@ AFRAME.registerComponent("progressBar", {
 
     updateProgressBarColor() {        
         if (this.shadowMesh) {
-            if (this.data.state != "") {
+            if (this.data.state !== "") {
                 this.shadowMesh.material.color.set(this.finalColor);
-            } else if (this.data.mode != "") {
-                if (this.data.color != PRIMARY_COLOR_DARK) {
+            } else if (this.data.mode !== "") {
+                if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
                     this.finalColor = this.data.color;
                     this.shadowMesh.material.color.set("#000");
                 } else {
+                    this.setMode();
                     this.shadowMesh.material.color.set(this.finalColor);
                 }
-            } else if (this.data.color != PRIMARY_COLOR_DARK) {
+            } else if (this.data.color !== PRIMARY_COLOR_DARK) {
                 this.finalColor = this.data.color;
                 this.shadowMesh.material.color.set("#000");
             } else {
@@ -90,6 +93,9 @@ AFRAME.registerComponent("progressBar", {
         } 
         this.progressBarMesh.material.color.set(this.finalColor);
         this.updateProgressBarOpacity();
+
+        // Re-evaluate the text color based on the new background color
+        this.updateTextColor();
     },
 
     updateProgressBarOpacity() {
@@ -99,22 +105,33 @@ AFRAME.registerComponent("progressBar", {
     },
 
     updateTextColor() {
-        // If mode will be used, ignore the textcolor
-        if (this.data.mode === 'light' || this.data.mode === 'dark') return;
+        // If the mode or state are used, ignore the text color
+        if ((this.data.state !== "") || ((this.data.mode === 'light' || this.data.mode === 'dark') &&
+            (this.data.color === PRIMARY_COLOR_DARK || this.data.color === ""))) return;
 
-        const progressBarColorHex = `#${this.progressBarMesh.material.color.getHexString()}`
-        const shadowColorHex = `#${this.shadowMesh.material.color.getHexString()}`
-        let textcolor = this.data.textcolor
-        // if value is less than 20 text will not be on the bar but on the background
-        // that's way we need the contrast with shadow
-        let contrast = this.data.value < 20 ? getContrast(textcolor, shadowColorHex) : getContrast(textcolor, progressBarColorHex)
+        const progressBarColorHex = `#${this.progressBarMesh.material.color.getHexString()}`;
+        const shadowColorHex = `#${this.shadowMesh.material.color.getHexString()}`;
+        let textcolor = this.data.textcolor;
 
-        // If the contrast is not high enough, set the textcolor to white/black
-        if (contrast <= 60){
-            textcolor = setContrastColor(contrast);
-            this.data.textcolor = textcolor;
-            alert(`The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`);
+        // Determine the background color based on the value
+        const backgroundColorHex = this.data.value < 20 ? shadowColorHex : progressBarColorHex;
+
+        // Calculate contrast
+        const contrast = getContrast(textcolor, backgroundColorHex);
+
+        // If the contrast is not high enough, adjust the text color
+        if (contrast <= 60) {
+            const newTextColor = setContrastColor(backgroundColorHex);
+
+            // Only update and alert if the color actually changes
+            if (newTextColor !== textcolor) {
+                textcolor = newTextColor;
+                this.data.textcolor = textcolor;
+                console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
+            }
         }
+
+        // Update the text element's color
         const textEl = this.el.querySelector("a-text");
         if (textEl) {
             textEl.setAttribute("color", textcolor);
@@ -161,7 +178,7 @@ AFRAME.registerComponent("progressBar", {
         if (this.data.value > 100){
             width = max_width;
             this.data.value = 100;
-            alert(`The value can't be more then 100, so it was set to maximum of one hundred percent.`);
+            console.log("The value can't be more then 100, so it was set to maximum of one hundred percent.");
         }
 
         if (this.data.rounded) {
@@ -218,7 +235,7 @@ AFRAME.registerComponent("progressBar", {
         this.el.setObject3D('mesh', group);
     },
 
-    reverseProgressBar() {
+     reverseProgressBar() {
         const sizeCoef = this.el.getAttribute('sizeCoef')
         let reversed = this.data.reversed
         const max_width = 4 * sizeCoef;
@@ -242,7 +259,7 @@ AFRAME.registerComponent("progressBar", {
 
         if (this.data.rounded && this.data.value < 10) {
             this.data.rounded = false;
-            alert(`The progress bar can't be rounded, if the value of progression is less than 10`);
+            console.log("The progress bar can't be rounded, if the value of progression is less than 10");
         }
 
         const sizeCoef = this.el.getAttribute('sizeCoef')
@@ -328,7 +345,7 @@ AFRAME.registerComponent("progressBar", {
         }
 
         // Update progress bar color after the mode color has been set
-        this.updateProgressBarColor();
+        // this.updateProgressBarColor();
     },
 
 
