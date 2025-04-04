@@ -185,7 +185,7 @@ AFRAME.registerComponent("button", {
 
         let opacityValue;
         if (this.data.textonly) {
-            opacityValue = 0.1;
+            opacityValue = 0.0;
         } else if (this.data.outlined) {
             opacityValue = 0.05;
         } else {
