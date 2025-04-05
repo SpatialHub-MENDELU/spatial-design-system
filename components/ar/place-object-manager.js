@@ -4,9 +4,6 @@ AFRAME.registerComponent("place-object-manager", {
     schema: {
         enabled: { type: "boolean", default: true },
         maxObjects: { type: "number", default: 10 },
-        defaultHeightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },
-        defaultSurfaceTypes: { type: "array", default: ["horizontal"] },
-        defaultDistanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },
         showHitTestMarker: { type: "boolean", default: true },
         hitTestMarker: { type: "string", default: "#ar-hit-test-marker"},
         showPreview: { type: "boolean", default: true }, // Show preview of object before placing
