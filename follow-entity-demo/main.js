@@ -1,4 +1,4 @@
-import "../components/follow-entity.js";
+import "../components/follow-element.js";
 import "../components/position.js"
 
 const app = document.getElementById("app");

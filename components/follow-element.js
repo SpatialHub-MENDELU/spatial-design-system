@@ -1,6 +1,6 @@
 import * as AFRAME from "aframe";
 
-AFRAME.registerComponent('follow-entity', {
+AFRAME.registerComponent('follow-element', {
     schema: {
         place: { type: 'vec3', default: {x: 1, y: 0, z: 0} }, // Values: -1, 0, 1
         offset: { type: 'number', default: 1 },             // Distance from target's border
@@ -11,7 +11,7 @@ AFRAME.registerComponent('follow-entity', {
     init() {
         this.targetEntity = this.data.target;
         if (!this.targetEntity) {
-            console.warn('follow-entity: No target entity specified');
+            console.warn('follow-element: No target entity specified');
             return;
         }
 
