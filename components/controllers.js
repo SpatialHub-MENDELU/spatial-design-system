@@ -1,4 +1,5 @@
 import * as AFRAME from "aframe";
+import "../components/position.js";
 
 AFRAME.registerComponent("controllers", {
   schema: {
