@@ -48,7 +48,7 @@ AFRAME.registerComponent("chip", {
                 case 'elevated':
                     this.setContent();
                     break;
-                case 'textcolor':
+                case 'textcolor': // fix text color contras control later
                     this.updateTextColor(); 
                     break;
                 case 'mode':
@@ -71,7 +71,7 @@ AFRAME.registerComponent("chip", {
     },
 
     updateChipColor() {
-        if (this.data.color !== PRIMARY_COLOR_DARK) this.finalColor = this.data.color;
+        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") this.finalColor = this.data.color;
         this.chipMesh.material.color.set(this.finalColor);
         if (this.shadowMesh) this.shadowMesh.material.color.set(this.finalColor);
         if (this.outlineMesh) this.outlineMesh.material.color.set(this.finalColor);   
@@ -86,16 +86,30 @@ AFRAME.registerComponent("chip", {
     updateTextColor() {
         // If mode will be used, ignore the textcolor
         if ((this.data.mode === 'light' || this.data.mode === 'dark') 
-            && this.data.primary === PRIMARY_COLOR_DARK) return;
+            && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "") 
+            && !this.data.textonly) return;
 
-        const chipColorHex = `#${this.chipMesh.material.color.getHexString()}`
-        let textcolor = this.data.textcolor
+        let chipColorHex;
+        // If the chip is outlined, calculate the lighter color inside color using opacity
+        if (this.data.outlined && !this.data.textonly && !this.data.elevated) {
+            const borderColor = new AFRAME.THREE.Color(this.data.color);
+            const backgroundColor = new AFRAME.THREE.Color('#FFFFFF'); // Assuming white background
+            const opacity = 0.05; // Opacity for outlined chips
+            const blendedColor = borderColor.clone().lerp(backgroundColor, 1 - opacity);
+            chipColorHex = `#${blendedColor.getHexString()}`;
+        } else {
+            chipColorHex = `#${this.chipMesh.material.color.getHexString()}`;
+        }
+
+        let textcolor = this.data.textcolor;
 
         // Calculate contrast
         const contrast = getContrast(textcolor, chipColorHex);
+        
+        console.log(`Contrast between ${textcolor} and ${chipColorHex} is: ${contrast}`);
 
         // If the contrast is not high enough, adjust the text color
-        if (contrast <= 60) {
+        if (contrast <= 60 && !this.data.textonly) {
             const newTextColor = setContrastColor(chipColorHex);
 
             // Only update and alert if the color actually changes
@@ -178,37 +192,38 @@ AFRAME.registerComponent("chip", {
         this.el.setAttribute('sizeCoef',sizeCoef)
     },
 
-    createChip(widthArg = 1, heightArg = 0.35){
+    createChip(widthArg = 1, heightArg = 0.4) {
         const sizeCoef = this.el.getAttribute('sizeCoef');
         const group = new AFRAME.THREE.Group();
 
         const width = widthArg * sizeCoef;
         const height = heightArg * sizeCoef;
-        let  borderRadius = 0.08 * sizeCoef;
+        let borderRadius = 0.08 * sizeCoef;
 
         if (this.data.rounded) {
             borderRadius = 0.2 * sizeCoef;
-        };
+        }
 
         this.width = width;
 
         let opacityValue;
         if (this.data.textonly) {
             opacityValue = 0;
+        } else if (this.data.elevated) {
+            opacityValue = this.data.opacity; // Elevated takes priority over outlined
         } else if (this.data.outlined) {
-            opacityValue = 0.05;
+            opacityValue = 0.05; // Outlined opacity
         } else {
-            opacityValue = this.data.opacity;
+            opacityValue = this.data.opacity; // Default user-defined opacity
         }
 
         // Create a main chip mesh
         const chipShape = createRoundedRectShape(width, height, borderRadius);
-        // Using ExtrudeGeometry to properly display border when using outlined prop is true
-        const chipGeometry  = new AFRAME.THREE.ExtrudeGeometry(
+        const chipGeometry = new AFRAME.THREE.ExtrudeGeometry(
             chipShape,
             { depth: 0.01, bevelEnabled: false }
         );
-        if (this.data.outlined) chipGeometry.translate(0, 0, -0.005);
+        if (this.data.outlined && !this.data.textonly && !this.data.elevated) chipGeometry.translate(0, 0, -0.005);
 
         const chipMaterial = new AFRAME.THREE.MeshBasicMaterial({ 
             color: this.data.color, 
@@ -222,7 +237,7 @@ AFRAME.registerComponent("chip", {
         group.add(chipMesh);
 
         // Create an outline if outlined is true
-        if (this.data.outlined && !this.data.textonly) {
+        if (this.data.outlined && !this.data.textonly && !this.data.elevated) {
             const borderSize = 0.04 * sizeCoef;
             const outlineShape = createRoundedRectShape(width + borderSize, height + borderSize, borderRadius + 0.024);
             const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
@@ -243,7 +258,7 @@ AFRAME.registerComponent("chip", {
             const shadowGeometry = new AFRAME.THREE.ShapeGeometry(chipShape);
             const shadowMaterial = new AFRAME.THREE.MeshBasicMaterial({
                 color: this.data.color,
-                opacity: 0.6 * opacityValue,
+                opacity: 0.65 * opacityValue,
                 transparent: true
             });
             const shadowMesh = new AFRAME.THREE.Mesh(shadowGeometry, shadowMaterial);
@@ -252,6 +267,7 @@ AFRAME.registerComponent("chip", {
             this.shadowMesh = shadowMesh;
             group.add(shadowMesh);
         }
+
         this.el.setObject3D('mesh', group);
     },
 
@@ -286,39 +302,38 @@ AFRAME.registerComponent("chip", {
 
     setMode() {
         const shadowMesh = this.shadowMesh;
-        //If color is set ignore the variant
-        if (this.data.color !== PRIMARY_COLOR_DARK) {
+        // If color is set, ignore the mode
+        // Also, if textonly is true, skip applying the mode
+        if ((this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") || this.data.textonly) {
             return;
         }
         switch (this.data.mode) {
             case "light":
-                this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 })
-                this.el.querySelector("a-text").setAttribute("color", "black")
-                // Adjust main color to match the variant
-                this.finalColor = VARIANT_LIGHT_COLOR
+                this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 });
+                this.el.querySelector("a-text").setAttribute("color", "black");
+                // Adjust main color to match the mode
+                this.finalColor = VARIANT_LIGHT_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
-                    shadowMesh.material.opacity = 1 * 0.65;
-                    // Make sure material is transparent to display opacity
+                    shadowMesh.material.opacity = 0.65;
                     shadowMesh.material.transparent = true;
                 }
                 break;
-                case "dark":
-                    this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
-                    this.el.querySelector("a-text").setAttribute("color", "white");
-                    // Adjust main color to match the variant
-                    this.finalColor = VARIANT_DARK_COLOR;
-                    if (shadowMesh) {
-                        shadowMesh.material.color.set(VARIANT_DARK_COLOR);
-                        shadowMesh.material.opacity = 1 * 0.65;
-                        // Make sure material is transparent to display opacity
-                        shadowMesh.material.transparent = true;
-                    }
-                    break;
+            case "dark":
+                this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
+                this.el.querySelector("a-text").setAttribute("color", "white");
+                // Adjust main color to match the mode
+                this.finalColor = VARIANT_DARK_COLOR;
+                if (shadowMesh) {
+                    shadowMesh.material.color.set(VARIANT_DARK_COLOR);
+                    shadowMesh.material.opacity = 0.65;
+                    shadowMesh.material.transparent = true;
+                }
+                break;
             default:
                 break;
         }
-        // Update button color after the variant color has been set
+        // Update button color after the mode color has been set
         this.updateChipColor();
     },
 
