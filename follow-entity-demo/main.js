@@ -6,7 +6,7 @@ const scene = document.createElement("a-scene");
 
 scene.innerHTML = `
 <a-sphere 
-  id="spehere1"
+  id="sphere1"
   color="#03FCC6" 
   position="0 1.5 -2" 
   radius="0.8"
@@ -17,8 +17,10 @@ scene.innerHTML = `
   color="#101011" 
   position="0 10 -2" 
   radius="0.8"
-  follow-entity="
-    target: #spehere1;
+  follow-element="
+    target: #sphere1;
+    place: 1 1 0;
+    offset: 0.1;
   "
 ></a-sphere>
 `
