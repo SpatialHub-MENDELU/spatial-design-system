@@ -1,6 +1,8 @@
 import "./ar-placement-utils.js";
 
-AFRAME.registerComponent("place-object", {
+export const PLACE_OBJECT_COMPONENT_NAME = "place-object";
+
+AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
     schema: {
         heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },     // Min/max height in meters
         surfaceTypes: { type: "array", default: ["horizontal"] },       // horizontal, wall, ceiling
@@ -45,7 +47,7 @@ AFRAME.registerComponent("place-object", {
             const entityCopy = this.el.cloneNode(true);
             entityCopy.setAttribute('visible', true);
             entityCopy.removeAttribute('id');
-            entityCopy.removeAttribute('place-object');
+            entityCopy.removeAttribute(PLACE_OBJECT_COMPONENT_NAME);
             entityCopy.removeAttribute('position');
 
             // Use the shared placement utility

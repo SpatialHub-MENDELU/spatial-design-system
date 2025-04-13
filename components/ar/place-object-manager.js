@@ -1,4 +1,5 @@
 import "./ar-placement-utils.js";
+import { PLACE_OBJECT_COMPONENT_NAME } from "./place-object";
 
 AFRAME.registerComponent("place-object-manager", {
     schema: {
@@ -29,15 +30,71 @@ AFRAME.registerComponent("place-object-manager", {
         this.el.addEventListener("object-placed", this.onObjectPlaced.bind(this));
     },
 
-// In place-object-manager.js
     tick() {
-        if (!this.hitTestMarker || !this.scene.components['ar-hit-test']) return;
+        if (!this.hitTestMarker || !this.scene.components['ar-hit-test']){
+            return;
+        }
+
+        if(this.data.showHitTestMarker) {
+            this.updateHitTestMarkerPosition()
+        }
+
+        if (this.data.showPreview) {
+            this.updatePreviewObjectPosition()
+        }
+    },
+
+    updatePreviewObjectPosition() {
+        const objectToPlace = this.scene.querySelector(`[${PLACE_OBJECT_COMPONENT_NAME}]`);
+        if (!objectToPlace) {
+            return;
+        }
 
         const hitTest = this.scene.components['ar-hit-test'];
-        if (hitTest.bboxMesh && this.hitTestMarker.object3D) {
-            this.hitTestMarker.object3D.position.copy(hitTest.bboxMesh.position);
-            this.hitTestMarker.object3D.quaternion.copy(hitTest.bboxMesh.quaternion);
+
+        if (!hitTest.bboxMesh) {
+            return;
         }
+
+        // Get or create the preview object
+        const previewObject = document.getElementById('place-object-preview') ||
+            this.createObjectGhostCopy(objectToPlace);
+
+        // Get configuration from the place-object component
+        const placeObjectComponent = objectToPlace.components[PLACE_OBJECT_COMPONENT_NAME];
+        if (placeObjectComponent) {
+            // Use the shared placement utility for consistent preview
+            ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
+                isPoster: placeObjectComponent.data.isPoster,
+                adjustOrientation: placeObjectComponent.data.adjustOrientation,
+                scale: placeObjectComponent.data.scale,
+                camera: this.camera
+            });
+        } else {
+            // Default fallback if no place-object component is found
+            ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
+                scale: 0.1,
+                camera: this.camera
+            });
+        }
+    },
+
+    updateHitTestMarkerPosition() {
+        if (
+            !this.hitTestMarker?.object3D
+            || !this.scene.components['ar-hit-test']
+        ){
+            return;
+        }
+
+        const hitTest = this.scene.components['ar-hit-test'];
+
+        if (!hitTest.bboxMesh) {
+            return;
+        }
+
+        this.hitTestMarker.object3D.position.copy(hitTest.bboxMesh.position);
+        this.hitTestMarker.object3D.quaternion.copy(hitTest.bboxMesh.quaternion);
 
         // Create adjustment rotation (-90 degrees around X-axis)
         const adjustRotation = new THREE.Quaternion()
@@ -47,41 +104,13 @@ AFRAME.registerComponent("place-object-manager", {
         this.hitTestMarker.object3D.quaternion
             .copy(hitTest.bboxMesh.quaternion)
             .multiply(adjustRotation);
-
-        // Show preview if enabled
-        if (this.data.showPreview) {
-            const objectToPlace = this.scene.querySelector('[place-object]');
-            if (!objectToPlace) return;
-
-            // Get or create the preview object
-            const previewObject = document.getElementById('place-object-preview') ||
-                this.createObjectGhostCopy(objectToPlace);
-
-            // Get configuration from the place-object component
-            const placeObjectComp = objectToPlace.components['place-object'];
-            if (placeObjectComp) {
-                // Use the shared placement utility for consistent preview
-                ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
-                    isPoster: placeObjectComp.data.isPoster,
-                    adjustOrientation: placeObjectComp.data.adjustOrientation,
-                    scale: placeObjectComp.data.scale,
-                    camera: this.camera
-                });
-            } else {
-                // Default fallback if no place-object component is found
-                ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
-                    scale: 0.1,
-                    camera: this.camera
-                });
-            }
-        }
     },
 
     createObjectGhostCopy(el) {
         const entityCopy = el.cloneNode(true);
         entityCopy.removeAttribute('visible');
         entityCopy.removeAttribute('id');
-        entityCopy.removeAttribute('place-object');
+        entityCopy.removeAttribute(PLACE_OBJECT_COMPONENT_NAME);
         entityCopy.setAttribute('id', 'place-object-preview');
         entityCopy.setAttribute('visible', true);
 
@@ -100,8 +129,11 @@ AFRAME.registerComponent("place-object-manager", {
         return entityCopy;
     },
 
-
     createHitTestMarker() {
+        if(!this.data.showHitTestMarker) {
+            return;
+        }
+
         // Check if marker already exists in DOM
         const doesMarkerExist = document.querySelector(this.data.hitTestMarker);
         if(doesMarkerExist) {
