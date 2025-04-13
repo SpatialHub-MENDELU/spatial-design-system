@@ -20,7 +20,6 @@ AFRAME.registerPrimitive('a-ar-chip', {
         outlined: 'chip.outlined',
         elevated: 'chip.elevated',
         textonly: 'chip.textonly',
-        closable: 'chip.closable',
 
     }
 })

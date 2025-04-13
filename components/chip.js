@@ -17,7 +17,6 @@ AFRAME.registerComponent("chip", {
         outlined: { type: 'boolean', default: false },
         elevated: { type: "boolean", default: false },
         textonly: { type: "boolean", default: false },
-        closable: { type: 'boolean', default: false },
     },
 
     init() {
@@ -25,6 +24,7 @@ AFRAME.registerComponent("chip", {
         this.setSize();
         this.setContent();
         this.setMode();
+        this.updateChipColor();
     },
 
     update(oldData) {
@@ -39,20 +39,24 @@ AFRAME.registerComponent("chip", {
                     this.setSize();
                     this.setContent();
                     break;
-                case 'label':
                 case 'icon':
-                case 'textonly':
-                case 'outlined':
                 case 'rounded':
                 case 'closable': // test this later
-                case 'elevated':
                     this.setContent();
                     break;
-                case 'textcolor': // fix text color contras control later
+                case 'outlined':
+                case 'elevated':
+                case 'textonly':
+                case 'label':
+                    this.setContent();
+                    this.updateChipColor();
+                    break;
+                case 'textcolor':
                     this.updateTextColor(); 
                     break;
                 case 'mode':
                     this.setMode();
+                    this.updateChipColor();
                     break;
                 case 'color':
                     this.updateChipColor();
@@ -71,7 +75,14 @@ AFRAME.registerComponent("chip", {
     },
 
     updateChipColor() {
-        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") this.finalColor = this.data.color;
+        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
+            this.finalColor = this.data.color;
+        } else if (this.data.mode !== "") {
+            this.setMode();
+        } else {
+            this.finalColor = PRIMARY_COLOR_DARK;
+            this.updateTextColor();
+        }
         this.chipMesh.material.color.set(this.finalColor);
         if (this.shadowMesh) this.shadowMesh.material.color.set(this.finalColor);
         if (this.outlineMesh) this.outlineMesh.material.color.set(this.finalColor);   
@@ -275,35 +286,40 @@ AFRAME.registerComponent("chip", {
         const icon = this.data.icon === "" ? "" : this.data.icon;
         const iconpos = this.data.iconpos;
         let text = this.data.label;
+
+        // Ensure the text does not exceed 15 characters
+        if (text.length > 15) {
+            text = text.substring(0, 12) + "...";
+        }
+
         const sizeCoef = this.el.getAttribute('sizeCoef');
 
-        let textEl = this.el.querySelector("a-text")
-        if(textEl) textEl.remove();
+        let textEl = this.el.querySelector("a-text");
+        if (textEl) textEl.remove();
 
-        textEl = document.createElement("a-text")
-        textEl.setAttribute("value", text === undefined ? "" : text)
-        textEl.setAttribute("align", "center")
-        textEl.setAttribute('scale', {x: 0.7 * sizeCoef , y: 0.7 * sizeCoef, z: 0.7 * sizeCoef});
-        textEl.setAttribute("position", '0 0 0.05')
+        textEl = document.createElement("a-text");
+        textEl.setAttribute("value", text === undefined ? "" : text);
+        textEl.setAttribute("align", "center");
+        textEl.setAttribute('scale', { x: 0.7 * sizeCoef, y: 0.7 * sizeCoef, z: 0.7 * sizeCoef });
+        textEl.setAttribute("position", '0 0 0.05');
 
         // If there is an icon, the button has to be wider
-        const iconWidth = icon !== "" && !this.data.textonly ? 0.2 * this.el.getAttribute('sizeCoef') : 0
+        const iconWidth = icon !== "" && !this.data.textonly ? 0.2 * this.el.getAttribute('sizeCoef') : 0;
 
         // If the text is longer than 8 chars, the button has to be wider
         // Have to create a new button, if using button.scale.set(), the border radius will not scale
         const defaultLetterWidth = 0.08;
-        this.createChip(0.9 + defaultLetterWidth  * (text.length - 8) + iconWidth * 0.7)
-        
-        this.el.appendChild(textEl)
+        this.createChip(0.9 + defaultLetterWidth * (text.length - 8) + iconWidth * 0.7);
 
-        this.updateIconPosition(iconpos)
+        this.el.appendChild(textEl);
+
+        this.updateIconPosition(iconpos);
         this.updateTextColor();
     },
 
     setMode() {
         const shadowMesh = this.shadowMesh;
-        // If color is set, ignore the mode
-        // Also, if textonly is true, skip applying the mode
+        // If color is set, or textonly is true, skip applying the mode
         if ((this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") || this.data.textonly) {
             return;
         }
@@ -311,7 +327,6 @@ AFRAME.registerComponent("chip", {
             case "light":
                 this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 });
                 this.el.querySelector("a-text").setAttribute("color", "black");
-                // Adjust main color to match the mode
                 this.finalColor = VARIANT_LIGHT_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
@@ -322,19 +337,19 @@ AFRAME.registerComponent("chip", {
             case "dark":
                 this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
                 this.el.querySelector("a-text").setAttribute("color", "white");
-                // Adjust main color to match the mode
                 this.finalColor = VARIANT_DARK_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(VARIANT_DARK_COLOR);
                     shadowMesh.material.opacity = 0.65;
                     shadowMesh.material.transparent = true;
                 }
+                if (this.data.outlined && !this.data.textonly && !this.data.elevated) {
+                    this.el.querySelector("a-text").setAttribute("color", VARIANT_DARK_COLOR);
+                }
                 break;
             default:
                 break;
         }
-        // Update button color after the mode color has been set
-        this.updateChipColor();
     },
 
 });
