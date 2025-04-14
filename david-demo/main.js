@@ -41,8 +41,6 @@ document.querySelector("#app").innerHTML = `
       faceCamera: false;
     "
 ></a-ar-menu>
-  
-
       
   <!-- UI controls -->
   <a-entity id="controls" position="0 0 -1">
@@ -60,7 +58,7 @@ document.querySelector("#app").innerHTML = `
         outlined="true"
         textcolor="white"
         variant=""
-        onclick="document.querySelector('[place-object-manager]').components['place-object-manager'].removeAllObjects()"
+        onclick="window.ARObjectManager.removeAllObjects()"
       ></a-ar-button>
   </a-entity>
 </a-scene>

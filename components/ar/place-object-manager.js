@@ -22,6 +22,15 @@ AFRAME.registerComponent("place-object-manager", {
             referenceSpaceType: 'local-floor'
         });
 
+        // turn off default hit-test-marker
+        this.scene.setAttribute('ar-hit-test', {
+            mapSize: {x: 0, y: 0}
+        })
+
+        this.scene.setAttribute('xr-mode-ui', {
+            XRMode: 'ar'
+        })
+
         this.createHitTestMarker()
 
         // Event listeners
