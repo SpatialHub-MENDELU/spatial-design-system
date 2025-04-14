@@ -5,6 +5,7 @@ AFRAME.registerComponent("place-object-manager", {
     schema: {
         enabled: { type: "boolean", default: true },
         maxObjects: { type: "number", default: 10 },
+        multiPlacement: { type: "boolean", default: false }, // Allow multiple placements of one object
         showHitTestMarker: { type: "boolean", default: true },
         hitTestMarker: { type: "string", default: "#ar-hit-test-marker"},
         showPreview: { type: "boolean", default: true }, // Show preview of object before placing
@@ -67,6 +68,8 @@ AFRAME.registerComponent("place-object-manager", {
             ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
                 isPoster: placeObjectComponent.data.isPoster,
                 adjustOrientation: placeObjectComponent.data.adjustOrientation,
+                faceCamera: placeObjectComponent.data.faceCamera,
+                customRotation: placeObjectComponent.data.customRotation,
                 scale: placeObjectComponent.data.scale,
                 camera: this.camera
             });
@@ -239,8 +242,8 @@ AFRAME.registerComponent("place-object-manager", {
 
         // Check if we've reached the maximum
         if (this.placedObjects.length >= this.data.maxObjects) {
-            // Disable further placement
-            this.data.enabled = false;
+            // Disable further placement - use setAttribute instead of direct assignment
+            this.removeLastObject()
             console.log("Maximum number of objects placed");
         }
 
@@ -280,7 +283,7 @@ AFRAME.registerComponent("place-object-manager", {
 
             // Re-enable placement if we were at max
             if (!this.data.enabled && this.placedObjects.length < this.data.maxObjects) {
-                this.data.enabled = true;
+                this.el.setAttribute('place-object-manager', 'enabled', true);
             }
 
             // Emit event

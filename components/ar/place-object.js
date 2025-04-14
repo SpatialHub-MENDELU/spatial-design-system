@@ -4,12 +4,13 @@ export const PLACE_OBJECT_COMPONENT_NAME = "place-object";
 
 AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
     schema: {
-        heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },     // Min/max height in meters
-        surfaceTypes: { type: "array", default: ["horizontal"] },       // horizontal, wall, ceiling
-        adjustOrientation: { type: "boolean", default: true },          // Orient to surface
-        distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },   // Min/max distance from camera
-        scale: { type: "number", default: 1.0 },                        // Scale of placed object
-        isPoster: { type: "boolean", default: false },                  // Place object flat on surface
+        heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },         // Min/max height in meters
+        surfaceTypes: { type: "array", default: ["horizontal"] },           // horizontal, wall, ceiling
+        distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },       // Min/max distance from camera
+        scale: { type: "number", default: 1.0 },                            // Scale of placed object
+        isPoster: { type: "boolean", default: false },                      // Place object flat on surface
+        customRotation: { type: "vec3", default: { x: 0, y: 0, z: 0 } },    // Custom rotation in degrees
+        faceCamera: { type: "boolean", default: true},                      // Orient toward camera
     },
 
     init() {
@@ -50,10 +51,12 @@ AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
             entityCopy.removeAttribute(PLACE_OBJECT_COMPONENT_NAME);
             entityCopy.removeAttribute('position');
 
-            // Use the shared placement utility
+            // Use the shared placement utility with all properties
             ARPlacementUtils.placeObject(entityCopy, hitMesh, {
                 isPoster: this.data.isPoster,
                 adjustOrientation: this.data.adjustOrientation,
+                faceCamera: this.data.faceCamera,
+                customRotation: this.data.customRotation,
                 scale: this.data.scale,
                 camera: this.camera
             });

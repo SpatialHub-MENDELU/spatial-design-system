@@ -13,6 +13,7 @@ document.querySelector("#app").innerHTML = `
     touch-raycaster
     place-object-manager="
         showPreview: true;
+        maxObjects: 10;
     "
     context-menu
     cross-objects
@@ -37,6 +38,7 @@ document.querySelector("#app").innerHTML = `
       distanceRange: 0.5 10;
       scale: 0.2;
       isPoster: true;
+      faceCamera: false;
     "
 ></a-ar-menu>
   

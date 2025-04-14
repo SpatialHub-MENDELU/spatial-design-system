@@ -59,22 +59,28 @@ window.ARPlacementUtils = {
             cameraPosition.distanceTo(hitMesh.position) <= maxDistance;
     },
 
-    // Core placement function used by both components
+    // Core placement function
     placeObject: function(entity, hitMesh, options) {
         const {
             isPoster = false,
             adjustOrientation = true,
+            faceCamera = false,
             scale = 1.0,
-            camera = null
+            camera = null,
+            customRotation = { x: 0, y: 0, z: 0 }
         } = options || {};
 
         // Set position to hit point
         entity.object3D.position.copy(hitMesh.position);
 
-        // Start with hit mesh orientation
-        entity.object3D.quaternion.copy(hitMesh.quaternion);
+        // Reset rotation to identity (start fresh)
+        entity.object3D.rotation.set(0, 0, 0);
+        entity.object3D.quaternion.identity();
 
+        // Start with surface orientation if adjustOrientation is true
         if (adjustOrientation) {
+            entity.object3D.quaternion.copy(hitMesh.quaternion);
+
             // Determine surface type
             const surfaceType = this.detectSurfaceType(hitMesh);
 
@@ -82,10 +88,18 @@ window.ARPlacementUtils = {
             const isPosterObject = isPoster || entity.nodeName.toLowerCase() === 'a-ar-menu';
 
             if (isPosterObject) {
-                this.handlePosterPlacement(entity, surfaceType, camera);
+                this.handlePosterPlacement(entity, surfaceType, camera, faceCamera);
             } else {
                 this.handleDefaultPlacement(entity, surfaceType);
             }
+        }
+
+        // Apply custom rotation (always applied, regardless of other settings)
+        // Convert degrees to radians
+        if (customRotation) {
+            entity.object3D.rotateX(THREE.MathUtils.degToRad(customRotation.x));
+            entity.object3D.rotateY(THREE.MathUtils.degToRad(customRotation.y));
+            entity.object3D.rotateZ(THREE.MathUtils.degToRad(customRotation.z));
         }
 
         // Set scale
@@ -98,7 +112,7 @@ window.ARPlacementUtils = {
     },
 
     // Handle placement for poster-like objects
-    handlePosterPlacement: function(entity, surfaceType, camera) {
+    handlePosterPlacement: function(entity, surfaceType, camera, faceCamera) {
         switch (surfaceType) {
             case 'floor':
                 // Reset rotation completely first
@@ -108,8 +122,8 @@ window.ARPlacementUtils = {
                 // Rotate around X axis to lay flat on floor (-90 degrees)
                 entity.object3D.rotateX(-Math.PI/2);
 
-                // Orient toward camera if available
-                if (camera) {
+                // Orient toward camera if requested and camera is available
+                if (faceCamera && camera) {
                     this.orientTowardCamera(entity, camera);
                 }
                 break;
@@ -125,8 +139,8 @@ window.ARPlacementUtils = {
                 // On ceiling: lay flat against ceiling
                 entity.object3D.rotateX(-Math.PI/2);
 
-                // Orient toward camera with 180 degree offset if available
-                if (camera) {
+                // Orient toward camera with 180 degree offset if requested
+                if (faceCamera && camera) {
                     this.orientTowardCamera(entity, camera, Math.PI);
                 }
                 break;
@@ -136,10 +150,25 @@ window.ARPlacementUtils = {
     // Handle placement for standard objects
     handleDefaultPlacement: function(entity, surfaceType) {
         if (surfaceType === 'wall') {
-            // For walls, rotate to face outward
-            entity.object3D.rotateY(Math.PI);
+            // For walls, make the object face outward properly
+            // First reset to identity quaternion (needed for consistent behavior)
+            entity.object3D.quaternion.identity();
+
+            // Get wall normal from hitMesh quaternion
+            const normal = new THREE.Vector3(0, 0, 1)
+                .applyQuaternion(entity.object3D.quaternion)
+                .normalize();
+
+            // Create rotation to align with wall normal
+            const alignWithWall = new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 0, 1), // Default forward vector
+                normal
+            );
+
+            // Apply rotation
+            entity.object3D.quaternion.multiply(alignWithWall);
         }
-        // Other surface types keep default orientation
+        // Other surface types keep default orientation from hitMesh
     },
 
     // Orient entity to face the camera (for floor/ceiling placements)
