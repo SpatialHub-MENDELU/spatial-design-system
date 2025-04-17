@@ -38,7 +38,8 @@ document.querySelector("#app").innerHTML = `
       distanceRange: 0.5 10;
       scale: 0.2;
       isPoster: true;
-      faceCamera: false;
+      faceCamera: true;
+      customRotation: 30, 0, 180;
     "
 ></a-ar-menu>
       

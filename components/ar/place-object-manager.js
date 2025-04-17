@@ -305,7 +305,6 @@ AFRAME.registerComponent("place-object-manager", {
     },
 
     update(oldData) {
-        // React to changes in the component properties
         if (oldData.showHitTestMarker !== undefined &&
             this.data.showHitTestMarker !== oldData.showHitTestMarker) {
             if (this.hitTestMarker) {
