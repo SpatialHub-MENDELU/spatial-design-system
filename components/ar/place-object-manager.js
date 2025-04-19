@@ -15,6 +15,7 @@ AFRAME.registerComponent("place-object-manager", {
         this.scene = this.el.sceneEl;
         this.placedObjects = [];
         this.hitTestMarker = null;
+        this.camera = this.scene.camera;
 
         // Enable AR hit test
         this.scene.setAttribute("webxr", {
@@ -67,8 +68,16 @@ AFRAME.registerComponent("place-object-manager", {
         }
 
         // Get or create the preview object
-        const previewObject = document.getElementById('place-object-preview') ||
-            this.createObjectGhostCopy(objectToPlace);
+        let previewObject = document.getElementById('place-object-preview');
+        if (!previewObject) {
+            previewObject = this.createObjectGhostCopy(objectToPlace);
+        }
+
+        // Reset preview object's transformation before applying new one
+        previewObject.object3D.position.set(0, 0, 0);
+        previewObject.object3D.rotation.set(0, 0, 0);
+        previewObject.object3D.quaternion.identity();
+        previewObject.object3D.scale.set(1, 1, 1);
 
         // Get configuration from the place-object component
         const placeObjectComponent = objectToPlace.components[PLACE_OBJECT_COMPONENT_NAME];
@@ -105,17 +114,21 @@ AFRAME.registerComponent("place-object-manager", {
             return;
         }
 
+        // Always copy the position from the hit test
         this.hitTestMarker.object3D.position.copy(hitTest.bboxMesh.position);
+
+        // The issue is that the marker's children (ring and dot) need special handling
+        // First, let's identify the elements
+        const ring = this.hitTestMarker.querySelector('a-entity[geometry^="primitive: ring"]');
+        const dot = this.hitTestMarker.querySelector('a-circle');
+
+        // Copy quaternion from hit test mesh
         this.hitTestMarker.object3D.quaternion.copy(hitTest.bboxMesh.quaternion);
 
-        // Create adjustment rotation (-90 degrees around X-axis)
-        const adjustRotation = new THREE.Quaternion()
-            .setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
-
-        // Combine hit-test rotation with adjustment
-        this.hitTestMarker.object3D.quaternion
-            .copy(hitTest.bboxMesh.quaternion)
-            .multiply(adjustRotation);
+        // Create adjustment rotation (-90 degrees around X-axis) to lay flat on the surface
+        // This is needed because the ring geometry in A-Frame is initially in the XY plane
+        const adjustRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
+        this.hitTestMarker.object3D.quaternion.multiply(adjustRotation);
     },
 
     createObjectGhostCopy(el) {
@@ -136,6 +149,12 @@ AFRAME.registerComponent("place-object-manager", {
         } else {
             entityCopy.setAttribute('material', 'opacity: 0.5');
         }
+
+        // Reset any transformations that might have been cloned
+        entityCopy.object3D.position.set(0, 0, 0);
+        entityCopy.object3D.rotation.set(0, 0, 0);
+        entityCopy.object3D.quaternion.identity();
+        entityCopy.object3D.scale.set(1, 1, 1);
 
         this.scene.appendChild(entityCopy);
         return entityCopy;
@@ -159,62 +178,23 @@ AFRAME.registerComponent("place-object-manager", {
         const marker = document.createElement('a-entity');
         marker.setAttribute('visible', true);
         marker.setAttribute('position', '0 0 0');
+        marker.setAttribute('scale', '0.3 0.3 0.3');
 
+        // Outer ring - must be a child directly to properly inherit transformations
         const outerRing = document.createElement('a-entity');
-        outerRing.setAttribute('geometry', 'primitive: ring; radiusInner: 0.06; radiusOuter: 0.1');
-        outerRing.setAttribute('material', `color: ${MARKER_COLOR}; opacity: 0.8`);
-        marker.setAttribute('rotation', '0 -90 0');
+        outerRing.setAttribute('geometry', 'primitive: ring; radiusInner: 0.06; radiusOuter: 0.1; segments-theta: 64');
+        outerRing.setAttribute('material', `color: ${MARKER_COLOR}; opacity: 0.8; side: double`);
 
-        // Central dot
+        // Central dot - ensure it's slightly offset to avoid Z-fighting
         const centerDot = document.createElement('a-circle');
         centerDot.setAttribute('radius', 0.02);
         centerDot.setAttribute('color', MARKER_COLOR);
         centerDot.setAttribute('material', 'opacity: 0.9; side: double');
-        centerDot.setAttribute('position', '0 0.001 0'); // Z-offset to prevent z-fighting
-
-        marker.setAttribute('scale', '0.3 0.3 0.3');
-
-        marker.appendChild(outerRing);
-        marker.appendChild(centerDot);
-
-        this.scene.appendChild(marker);
-        this.hitTestMarker = marker;
-    },
-
-    csreateHitTestMarker() {
-        // Create parent entity
-        const marker = document.createElement('a-entity');
-        marker.setAttribute('visible', false);
-        marker.setAttribute('position', '0 0 0');
-
-        // Outer ring (main circle)
-        const outerRing = document.createElement('a-ring');
-        outerRing.setAttribute('radius-inner', 0.12);  // Width of the ring
-        outerRing.setAttribute('radius-outer', 0.2);
-        outerRing.setAttribute('color', '#ff0000');
-        outerRing.setAttribute('material', 'opacity: 0.8; side: double');
-        outerRing.setAttribute('rotation', '-90 0 0');
-
-        // Central dot
-        const centerDot = document.createElement('a-circle');
-        centerDot.setAttribute('radius', 0.03);
-        centerDot.setAttribute('color', '#ff0000');
-        centerDot.setAttribute('material', 'opacity: 0.9; side: double');
-        centerDot.setAttribute('position', '0 0.001 0'); // Z-offset to prevent z-fighting
+        centerDot.setAttribute('position', '0 0 0.001'); // Small Z-offset to prevent z-fighting
 
         // Add children to marker
         marker.appendChild(outerRing);
         marker.appendChild(centerDot);
-
-        // Add subtle animation
-        marker.setAttribute('animation', `
-        property: scale;
-        dur: 1200;
-        loop: true;
-        from: 0.9 0.9 0.9;
-        to: 1.1 1.1 1.1;
-        easing: easeInOutQuad
-    `);
 
         this.scene.appendChild(marker);
         this.hitTestMarker = marker;
@@ -317,6 +297,12 @@ AFRAME.registerComponent("place-object-manager", {
         // Clean up
         if (this.hitTestMarker && this.hitTestMarker.parentNode) {
             this.hitTestMarker.parentNode.removeChild(this.hitTestMarker);
+        }
+
+        // Remove preview object if it exists
+        const previewObject = document.getElementById('place-object-preview');
+        if (previewObject && previewObject.parentNode) {
+            previewObject.parentNode.removeChild(previewObject);
         }
 
         // Remove all placed objects

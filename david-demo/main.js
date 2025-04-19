@@ -35,7 +35,8 @@ document.querySelector("#app").innerHTML = `
       distanceRange: 0.5 10;
       scale: 0.2;
       isPoster: false;
-      faceCamera: true;
+      faceCamera: false;
+      adjustOrientation: false;
     "
    ></a-entity>
 </a-scene>

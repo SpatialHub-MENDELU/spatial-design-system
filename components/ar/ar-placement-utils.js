@@ -79,18 +79,16 @@ window.ARPlacementUtils = {
 
         // Start with surface orientation if adjustOrientation is true
         if (adjustOrientation) {
-            entity.object3D.quaternion.copy(hitMesh.quaternion);
-
-            // Determine surface type
+            // Determine surface type first
             const surfaceType = this.detectSurfaceType(hitMesh);
 
             // Check if it's a poster/menu object
             const isPosterObject = isPoster || entity.nodeName.toLowerCase() === 'a-ar-menu';
 
             if (isPosterObject) {
-                this.handlePosterPlacement(entity, surfaceType, camera, faceCamera);
+                this.handlePosterPlacement(entity, surfaceType, camera, faceCamera, hitMesh);
             } else {
-                this.handleDefaultPlacement(entity, surfaceType);
+                this.handleDefaultPlacement(entity, surfaceType, hitMesh);
             }
         }
 
@@ -112,7 +110,7 @@ window.ARPlacementUtils = {
     },
 
     // Handle placement for poster-like objects
-    handlePosterPlacement: function(entity, surfaceType, camera, faceCamera) {
+    handlePosterPlacement: function(entity, surfaceType, camera, faceCamera, hitMesh) {
         switch (surfaceType) {
             case 'floor':
                 // Reset rotation completely first
@@ -130,13 +128,26 @@ window.ARPlacementUtils = {
 
             case 'wall':
                 // On wall: flat against wall, top facing up
-                const adjustRotation = new THREE.Quaternion()
-                    .setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0));
-                entity.object3D.quaternion.multiply(adjustRotation);
+                // First get the wall normal
+                const normal = new THREE.Vector3(0, 1, 0)
+                    .applyQuaternion(hitMesh.quaternion)
+                    .normalize();
+
+                // Create a quaternion to rotate from default orientation to wall orientation
+                const wallRotation = new THREE.Quaternion().setFromUnitVectors(
+                    new THREE.Vector3(0, 0, 1), // Default forward vector
+                    normal
+                );
+                entity.object3D.quaternion.copy(wallRotation);
+
+                // Adjust to make it flush with the wall
+                entity.object3D.rotateY(Math.PI);
                 break;
 
             case 'ceiling':
                 // On ceiling: lay flat against ceiling
+                entity.object3D.rotation.set(0, 0, 0);
+                entity.object3D.quaternion.identity();
                 entity.object3D.rotateX(-Math.PI/2);
 
                 // Orient toward camera with 180 degree offset if requested
@@ -148,27 +159,59 @@ window.ARPlacementUtils = {
     },
 
     // Handle placement for standard objects
-    handleDefaultPlacement: function(entity, surfaceType) {
-        if (surfaceType === 'wall') {
-            // For walls, make the object face outward properly
-            // First reset to identity quaternion (needed for consistent behavior)
-            entity.object3D.quaternion.identity();
+    handleDefaultPlacement: function(entity, surfaceType, hitMesh) {
+        // Start with identity rotation
+        entity.object3D.rotation.set(0, 0, 0);
+        entity.object3D.quaternion.identity();
 
-            // Get wall normal from hitMesh quaternion
-            const normal = new THREE.Vector3(0, 0, 1)
-                .applyQuaternion(entity.object3D.quaternion)
-                .normalize();
+        switch (surfaceType) {
+            case 'floor':
+                // Default orientation - no additional rotation needed
+                break;
 
-            // Create rotation to align with wall normal
-            const alignWithWall = new THREE.Quaternion().setFromUnitVectors(
-                new THREE.Vector3(0, 0, 1), // Default forward vector
-                normal
-            );
+            case 'wall':
+                // For walls, make the object "stand" on the wall
+                // First, get the wall normal
+                const normal = new THREE.Vector3(0, 1, 0)
+                    .applyQuaternion(hitMesh.quaternion)
+                    .normalize();
 
-            // Apply rotation
-            entity.object3D.quaternion.multiply(alignWithWall);
+                // The wall normal gives us the direction to rotate toward
+                // Create a rotation from the up vector to the wall normal
+                const wallRotation = new THREE.Quaternion().setFromUnitVectors(
+                    new THREE.Vector3(0, 1, 0), // Up vector
+                    normal                      // Wall normal
+                );
+
+                // Apply the rotation
+                entity.object3D.quaternion.copy(wallRotation);
+
+                // Now rotate around the wall normal to make it face outward
+                // Calculate the outward direction (perpendicular to wall normal)
+                const outward = new THREE.Vector3(0, 0, -1);
+                outward.applyQuaternion(hitMesh.quaternion);
+                outward.normalize();
+
+                // Create a temporary object to help with rotation
+                const tempObj = new THREE.Object3D();
+                tempObj.position.copy(entity.object3D.position);
+                tempObj.lookAt(tempObj.position.clone().add(outward));
+
+                // Extract the y-rotation to apply to our model
+                const lookRotation = new THREE.Euler().setFromQuaternion(tempObj.quaternion);
+                entity.object3D.rotateY(lookRotation.y);
+                break;
+
+            case 'ceiling':
+                // For ceiling, flip the object upside down
+                entity.object3D.rotateX(Math.PI);
+                break;
+
+            default:
+                // For unknown surfaces, use the hit-test orientation
+                entity.object3D.quaternion.copy(hitMesh.quaternion);
+                break;
         }
-        // Other surface types keep default orientation from hitMesh
     },
 
     // Orient entity to face the camera (for floor/ceiling placements)

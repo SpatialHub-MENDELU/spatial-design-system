@@ -9,6 +9,7 @@ AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
         distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },       // Min/max distance from camera
         scale: { type: "number", default: 1.0 },                            // Scale of placed object
         isPoster: { type: "boolean", default: false },                      // Place object flat on surface
+        adjustOrientation: { type: "boolean", default: true },              // Adjust orientation based on surface
         customRotation: { type: "vec3", default: { x: 0, y: 0, z: 0 } },    // Custom rotation in degrees
         faceCamera: { type: "boolean", default: true},                      // Orient toward camera
     },
@@ -50,6 +51,12 @@ AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
             entityCopy.removeAttribute('id');
             entityCopy.removeAttribute(PLACE_OBJECT_COMPONENT_NAME);
             entityCopy.removeAttribute('position');
+
+            // Reset any existing transformations
+            entityCopy.object3D.position.set(0, 0, 0);
+            entityCopy.object3D.rotation.set(0, 0, 0);
+            entityCopy.object3D.quaternion.identity();
+            entityCopy.object3D.scale.set(1, 1, 1);
 
             // Use the shared placement utility with all properties
             ARPlacementUtils.placeObject(entityCopy, hitMesh, {
