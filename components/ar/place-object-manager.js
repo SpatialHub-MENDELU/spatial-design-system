@@ -5,7 +5,6 @@ AFRAME.registerComponent("place-object-manager", {
     schema: {
         enabled: { type: "boolean", default: true },
         maxObjects: { type: "number", default: 10 },
-        multiPlacement: { type: "boolean", default: false }, // Allow multiple placements of one object
         showHitTestMarker: { type: "boolean", default: true },
         hitTestMarker: { type: "string", default: "#ar-hit-test-marker"},
         showPreview: { type: "boolean", default: true }, // Show preview of object before placing
