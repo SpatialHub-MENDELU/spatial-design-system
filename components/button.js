@@ -93,7 +93,7 @@ AFRAME.registerComponent("button", {
         if (getContrast(textcolor, buttonColorHex) <= 60){
             textcolor = setContrastColor(buttonColorHex);
             this.data.textcolor = textcolor;
-            alert(`The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`);
+            console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`);
         }
         const textEl = this.el.querySelector("a-text");
         if (textEl) {

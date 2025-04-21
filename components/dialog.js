@@ -7,8 +7,8 @@ import "../primitives/ar-button.js"
 AFRAME.registerComponent("dialog", {
     schema: {
         opacity: { type: "number", default: 1},
-        primary: { type: "string", default: PRIMARY_COLOR_DARK},
-        variant: { type: "string", default: "light"},
+        color: { type: "string", default: PRIMARY_COLOR_DARK},
+        mode: { type: "string", default: ""},
         textcolor: { type: "string", default: "black"},
         prependicon: { type: "string", default: ""},
         closingicon: { type: "boolean", default: false},
@@ -23,14 +23,16 @@ AFRAME.registerComponent("dialog", {
     },
 
     init() {
-        this.el.setAttribute("flexbox", "...")
-        this.setContent()
-        this.setVariant()
+        // this.el.setAttribute("flexbox", "...")
+        this.finalColor = this.data.color;
+        this.setContent();
+        this.setMode();
+        this.updateDialogColor();
     },
 
     update(oldData) {
         // Skip the update for the first time since init() handles the initial setup
-        if (!oldData.primary) return;
+        if (!oldData.color) return;
     
         // Checking which properties have changed and executing the appropriate functions
         const changedProperties = Object.keys(this.data).filter(property => this.data[property] !== oldData[property]);
@@ -41,9 +43,11 @@ AFRAME.registerComponent("dialog", {
                     break;
                 case 'color':
                     this.updateDialogColor();
+                    this.updateTextColor();
                     break;
-                case 'variant':
-                    this.setVariant();
+                case 'mode':
+                    this.setMode();
+                    this.updateDialogColor();
                     break;
                 case 'textcolor':
                     this.updateTextColor(); 
@@ -82,7 +86,6 @@ AFRAME.registerComponent("dialog", {
         const height = heightArg
         let  borderRadius = 0.12
         this.width = width
-        let opacityValue = this.data.opacity;
 
         // Create a main dialog mesh
         const dialogShape = createRoundedRectShape(width, height, borderRadius)
@@ -92,13 +95,13 @@ AFRAME.registerComponent("dialog", {
         );
 
         const dialogMaterial = new AFRAME.THREE.MeshBasicMaterial({ 
-            color: this.data.primary, 
-            opacity: opacityValue, 
+            color: this.data.color, 
+            opacity: this.data.opacity, 
             transparent: true
         })
 
         const dialogMesh = new AFRAME.THREE.Mesh(dialogGeometry, dialogMaterial)
-        this.dialogMesh = dialogMesh
+        this.dialogMesh = dialogMesh;
 
         group.add(dialogMesh);
         this.el.setObject3D('mesh', group);
@@ -106,99 +109,96 @@ AFRAME.registerComponent("dialog", {
     },
 
     setContent() {
-        let title = this.data.title
-        let content = this.data.content
+        let title = this.data.title;
+        let content = this.data.content;
 
-        let titleEl = this.el.querySelector("#title")
+        let titleEl = this.el.querySelector("#title");
         if(titleEl) titleEl.remove();
-        titleEl = document.createElement("a-text")
-        titleEl.setAttribute("id", "title")
-        titleEl.setAttribute("value", title === undefined ? "" : title)
-        titleEl.setAttribute("align", "left")
+        titleEl = document.createElement("a-text");
+        titleEl.setAttribute("id", "title");
+        titleEl.setAttribute("value", title === undefined ? "" : title);
+        titleEl.setAttribute("align", "left");
         titleEl.setAttribute('scale', {x: 0.7 , y: 0.7, z: 0.7});
         //titleEl.setAttribute("lineHeight", 0.7)
         //titleEl.setAttribute("width", 0.7)
         titleEl.setAttribute("position", {x: -1.3, y: 0.7, z: 0.05})
 
-        let contentEl = this.el.querySelector("#content")
+        let contentEl = this.el.querySelector("#content");
         if(contentEl) contentEl.remove();
-        contentEl = document.createElement("a-text")
-        contentEl.setAttribute("id", "content") 
-        contentEl.setAttribute("value", content === undefined ? "" : content)
-        contentEl.setAttribute("align", "center")
-        contentEl.setAttribute("wrap-count", 40)
-        contentEl.setAttribute("width", 4)       
+        contentEl = document.createElement("a-text");
+        contentEl.setAttribute("id", "content");
+        contentEl.setAttribute("value", content === undefined ? "" : content);
+        contentEl.setAttribute("align", "center");
+        contentEl.setAttribute("wrap-count", 40);
+        contentEl.setAttribute("width", 4);
         contentEl.setAttribute('scale', {x: 0.7, y: 0.7, z: 0.7});
-        contentEl.setAttribute("position", {x: 0, y: 0.4, z: 0.05})
+        contentEl.setAttribute("position", {x: 0, y: 0.4, z: 0.05});
         
-        this.createDialog() 
-        this.el.appendChild(titleEl)
-        this.el.appendChild(contentEl)
+        this.createDialog();
+        this.el.appendChild(titleEl);
+        this.el.appendChild(contentEl);
 
         //this.updateIconPosition(iconpos)
         this.updateTextColor();
         this.setButtons();
     },
 
-    setVariant() {
-        const shadowMesh = this.shadowMesh;
-        //If primary is set ignore the variant
-        if (this.data.primary !== PRIMARY_COLOR_DARK) {
+    setMode() {
+        //If color is set ignore the mode
+        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
             return;
         }
-        switch (this.data.variant) {
+        switch (this.data.mode) {
             case "light":
-                this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 })
+                this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 });
                 this.el.querySelector("#title").setAttribute("color", "black");
                 this.el.querySelector("#content").setAttribute("color", "black");
-                // Adjust primary color to match the variant
-                this.data.primary = VARIANT_LIGHT_COLOR
-                if (shadowMesh) {
-                    shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
-                    shadowMesh.material.opacity = 0.65;
-                    // Make sure material is transparent to display opacity
-                    shadowMesh.material.transparent = true;
-                }
+                this.finalColor = VARIANT_LIGHT_COLOR;
                 break;
-                case "dark":
-                    this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
-                    this.el.querySelector("#title").setAttribute("color", "white");
-                    this.el.querySelector("#content").setAttribute("color", "white");
-                    // Adjust primary color to match the variant
-                    this.data.primary = VARIANT_DARK_COLOR;
-                    if (shadowMesh) {
-                        shadowMesh.material.color.set(VARIANT_DARK_COLOR);
-                        shadowMesh.material.opacity = 0.65;
-                        // Make sure material is transparent to display opacity
-                        shadowMesh.material.transparent = true;
-                    }
+            case "dark":
+                this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
+                this.el.querySelector("#title").setAttribute("color", "white");
+                this.el.querySelector("#content").setAttribute("color", "white");
+                this.finalColor = VARIANT_DARK_COLOR;
                 break;
             default:
                 break;
         }
-        // Update button color after the variant color has been set
-        this.updateDialogColor();
     },
 
     updateDialogColor() {
-        this.dialogMesh.material.color.set(this.data.primary);
-        if (this.shadowMesh) this.shadowMesh.material.color.set(this.data.primary);
+        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
+            this.finalColor = this.data.color;
+        } else if (this.data.mode !== "") {
+            this.setMode();
+        } else {
+            this.finalColor = PRIMARY_COLOR_DARK;
+            this.updateTextColor();
+        }
+        this.dialogMesh.material.color.set(this.finalColor);
     },
 
     updateTextColor() {
-        // If variant will be used, ignore the textcolor
-        if ((this.data.variant === 'light' || this.data.variant === 'dark') 
-            && this.data.color === PRIMARY_COLOR_DARK) return;
+        // If mode will be used, ignore the textcolor
+        if ((this.data.mode === 'light' || this.data.mode === 'dark') 
+            && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) return;
     
-            const dialogColorHex = `#${this.dialogMesh.material.color.getHexString()}`
-            let textcolor = this.data.textcolor
+            const dialogColorHex = `#${this.dialogMesh.material.color.getHexString()}`;
+            let textcolor = this.data.textcolor;
     
             // If the contrast is not high enough, set the textcolor to white/black
             if (getContrast(textcolor, dialogColorHex) <= 60){
-                textcolor = setContrastColor(dialogColorHex);
-                this.data.textcolor = textcolor;
-                alert(`DIALOGThe text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`);
+                const newTextColor = setContrastColor(dialogColorHex);
+                // Only update and alert if the color actually changes
+                if (newTextColor !== textcolor) {
+                    textcolor = newTextColor;
+                    //this.data.textcolor = textcolor;
+                    this.setButtons(textcolor);
+                    console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
+                    console.log("buttton text color was changed")
+                }
             }
+
             const titleEl = this.el.querySelector("#title");
             if (titleEl) {
                 titleEl.setAttribute("color", textcolor);
@@ -207,19 +207,23 @@ AFRAME.registerComponent("dialog", {
             if (contentEl) {
                 contentEl.setAttribute("color", textcolor);
             }
+
+            const buttons = this.el.querySelectorAll("a-ar-button");
+            buttons.forEach((button) => {
+                button.setAttribute("textcolor", textcolor);
+            });
     },
 
     updateDialogOpacity() {
         const opacityValue = this.data.opacity;
         this.dialogMesh.material.opacity = opacityValue;
-        //if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.65;
     },
 
     setButtons() {
         let buttons = this.data.buttons;
 
         if (buttons.length > 2) {
-            //alert(`The dialog can have a maximum of 2 buttons. That's why your other buttons have been removed.`);
+            console.log(`The dialog can have a maximum of 2 buttons. That's why other buttons have been removed.`);
             buttons = buttons.slice(0, 2); // Keep only the first two buttons
         }
     
@@ -237,6 +241,16 @@ AFRAME.registerComponent("dialog", {
             } else {
                 buttonEl.setAttribute("position", { x: 0.3, y: -0.7, z: 0.07 });
 
+            }
+
+            // If mode will be used, update the color of the buttons accordingly
+            if ((this.data.mode === 'light' || this.data.mode === 'dark') 
+                && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
+                    if (this.data.mode === 'dark') {
+                        buttonEl.setAttribute("variant", "dark");
+                    } else {
+                        buttonEl.setAttribute("mode", "light");
+                    }   
             }
 
             this.el.appendChild(buttonEl);

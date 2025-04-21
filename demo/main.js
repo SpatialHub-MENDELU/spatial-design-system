@@ -14,7 +14,9 @@ scene.innerHTML = `
     position="0 2 -3"
     title="Dialog Title"
     buttons="accept,close,No,Yes"
-    variant="dark"
+    color="yellow"
+    mode="dark"
+    textcolor="white"
 ></a-ar-dialog>
 <a-ar-button
     id="openDialogButton"
