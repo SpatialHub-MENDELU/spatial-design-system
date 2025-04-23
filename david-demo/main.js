@@ -1,186 +1,67 @@
-import "../components/flexbox/flexbox.js";
-import "../components/flexbox/Properties/flex-col.js";
+import "../primitives/ar-button.js";
+import "../components/ar/place-object.js";
+import "../components/ar/place-object-manager.js";
+import "../primitives/ar-menu.js";
+import 'aframe-extras';
+import "../primitives/ar-menu.js";
 
-const app = document.getElementById("app");
-const scene = document.createElement("a-scene");
-
-// Configuration constants
-const CONFIG = {
-    zIndex: '-22',
-    positions: {
-        justifyRow: '-20.1',
-        justifyCol: '-16',
-        alignRow: '-10',
-        alignCol: '-5.9'
-    },
-    colors: {
-        background: '#018A6C',
-        text: 'black'
-    }
-};
-
-// Helper functions
-const createText = (value, position, scale = 2) => `
-  <a-text 
-    value="${value}" 
-    position="${position.x} ${position.y} ${CONFIG.zIndex}" 
-    color="${CONFIG.colors.text}"
-    align="center"
-    scale="${scale} ${scale} ${scale}"
-  ></a-text>
-`;
-
-const createFlexContainer = (props) => `
-  <a-plane 
-    position="${props.position.x} ${props.position.y} ${CONFIG.zIndex}" 
-    width="4"
-    height="4"
-    material="color: ${CONFIG.colors.background}"
-    flexbox="
-      direction: ${props.direction};
-      wrap: true;
-      ${props.justify ? `justify: ${props.justify};` : ''}
-      ${props.items ? `items: ${props.items};` : ''}
+document.querySelector("#app").innerHTML = `
+<a-scene     
+    id="scene"
+    xr-mode-ui="XRMode: ar;"
+    webxr="optionalFeatures: hit-test;"
+    ar-hit-test="mapSize: 0 0"
+    touch-raycaster
+    place-object-manager="
+        showPreview: true;
+        maxObjects: 10;
     "
-  >
-    ${createFlexChildren(props.childrenCount)}
-  </a-plane>
-`;
+    context-menu
+    cross-objects
+>
 
-const createFlexChildren = (count) => {
-    const colors = ['black', 'pink', 'blue', 'green', 'red'];
-
-    return Array.from({length: count}, (_, i) => `
-    <a-plane 
-      color="${colors[i]}" 
-      ${i === 0 ? 'width="1.5"' : ''}
-      text="value: ${i + 1}; color: white; align: center; width: 12; font: kelsonsans;"
-      ${i === 1 ? 'scale="1 2 2"' : ''}
-    ></a-plane>
-  `).join('');
-};
-
-// Layout configurations
-const layouts = {
-    justify: {
-        row: ['start', 'center', 'end', 'between', 'around'],
-        col: ['start', 'center', 'end', 'between', 'around']
-    },
-    align: {
-        row: ['start', 'center', 'end'],
-        col: ['start', 'center', 'end']
-    }
-};
-
-// Generate HTML
-let sceneHTML = `
-  ${createText('justify', {x: -18, y: 18.5}, 4)}
-  ${createText('align', {x: -8, y: 18.5}, 4)}
-`;
-
-// Generate justify section
-['row', 'col'].forEach((direction, dirIndex) => {
-    const baseX = direction === 'row' ? CONFIG.positions.justifyRow : CONFIG.positions.justifyCol;
-
-    sceneHTML += `
-    ${createText(direction, {x: baseX, y: 15.5}, 3)}
-  `;
-
-    layouts.justify[direction].forEach((justify, index) => {
-        const y = 13.5 - (index * 5);
-        sceneHTML += `
-      ${createText(`justify-${justify}`, {x: baseX, y: y})}
-      ${createFlexContainer({
-            position: {x: baseX, y: y - 2.5},
-            direction,
-            justify,
-            childrenCount: 5
-        })}
-    `;
-    });
-});
-
-// Generate align section
-['row', 'col'].forEach((direction, dirIndex) => {
-    const baseX = direction === 'row' ? CONFIG.positions.alignRow : CONFIG.positions.alignCol;
-
-    sceneHTML += `
-    ${createText(direction, {x: baseX, y: 15.5}, 3)}
-  `;
-
-    layouts.align[direction].forEach((items, index) => {
-        const y = 13.5 - (index * 5);
-        sceneHTML += `
-      ${createText(`items-${items}`, {x: baseX, y: y})}
-      ${createFlexContainer({
-            position: {x: baseX, y: y - 2.5},
-            direction,
-            items,
-            childrenCount: 3
-        })}
-    `;
-    });
-});
-
-// Generate combination section
-sceneHTML += `
-  ${createText('combinations', { x: 10, y: 18.5 }, 4)}
-`;
-
-['row', 'col'].forEach((direction, dirIndex) => {
-    const baseX =  10 + (dirIndex * 6);
-
-    layouts.justify[direction].forEach((justify, justifyIndex) => {
-        layouts.align[direction].forEach((items, itemsIndex) => {
-            const y = 13.5 - (justifyIndex * 6); // Position rows dynamically
-            const x = baseX + (itemsIndex * 12); // Position columns dynamically
-
-            // Add labels for combination
-            sceneHTML += `
-        ${createText(`[${direction[0]}] j-${justify} + i-${items}`, { x, y: y + 3 })}
-      `;
-
-            // Add the combination flex container
-            sceneHTML += `
-        ${createFlexContainer({
-                position: { x, y: y },
-                direction,
-                justify,
-                items,
-                childrenCount: 5,
-            })}
-      `;
-        });
-    });
-});
-
-sceneHTML += `
-  <a-plane 
-    position="0 0 -5" 
-    width="4"
-    height="4"
-    material="color: ${CONFIG.colors.background}"
-    flexbox="
-      direction: row;
-      wrap: true;
-      justify: center;
-      items: center;
+  <!-- Asset definitions -->
+  <a-assets>
+    <a-asset-item id="shrek" src="models/shrek_dancing.glb"></a-asset-item>
+  </a-assets>
+  
+<!--   Placeable objects -->
+<!--  <a-entity-->
+<!--    id="chair-template"-->
+<!--    gltf-model="#shrek"-->
+<!--    visible="false"-->
+<!--    place-object="    -->
+<!--      heightRange: 0 5;-->
+<!--      surfaceTypes: horizontal, ceiling, wall;-->
+<!--      distanceRange: 0.5 10;-->
+<!--      scale: 0.2;-->
+<!--      isPoster: false;-->
+<!--      faceCamera: true;-->
+<!--      adjustOrientation: true;-->
+<!--    "-->
+<!--   ></a-entity>-->
+   
+   <a-ar-menu
+      position="0 1.5 -3"
+      primary="#018A6C"
+      items="[
+                {'color':'white','icon':'/content-save','title':'Save','textColor':'black'},
+                {'color':'white','icon':'/close-circle','title':'Quit','textColor':'black'},
+                {'color':'white','icon':'/settings','title':'Settings','textColor':'black'},
+                {'color':'white','icon':'/file-plus','title':'New file','textColor':'black'}
+            ]"
+      variant="filled"
+      layout="circle"
+      visible="false"
+      place-object="
+          heightRange: 0 5;
+          surfaceTypes: horizontal, ceiling, wall;
+          distanceRange: 0.5 10;
+          scale: 0.2;
+          isPoster: true;
+          faceCamera: true;
+          adjustOrientation: true;
     "
-  >
-     <a-plane 
-      color="blue" 
-      text="value: ${1}; color: white; align: center; width: 12; font: kelsonsans;"
-      flex-col="
-        xs: 6;
-        sm: 6;
-        md: 12;
-        lg: 6;
-        xl: 6;
-        '2xl': 6;
-      "
-    ></a-plane>
-  </a-plane>
-`
-
-scene.innerHTML = sceneHTML;
-app.appendChild(scene);
+></a-ar-menu>
+</a-scene>
+`;
