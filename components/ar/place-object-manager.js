@@ -3,7 +3,6 @@ import { PLACE_OBJECT_COMPONENT_NAME } from "./place-object";
 
 AFRAME.registerComponent("place-object-manager", {
     schema: {
-        enabled: { type: "boolean", default: true },
         maxObjects: { type: "number", default: 10 },
         showHitTestMarker: { type: "boolean", default: true },
         hitTestMarker: { type: "string", default: "#ar-hit-test-marker"},
@@ -200,7 +199,7 @@ AFRAME.registerComponent("place-object-manager", {
     },
 
     updateMarkerPosition(evt) {
-        if (!this.hitTestMarker || !this.data.enabled) return;
+        if (!this.hitTestMarker) return;
 
         const hitPose = evt.detail.position;
         const orientation = evt.detail.orientation;
@@ -252,7 +251,6 @@ AFRAME.registerComponent("place-object-manager", {
         });
 
         this.placedObjects = [];
-        this.data.enabled = true;
 
         // Emit event
         this.el.emit("object-managed", {
@@ -267,11 +265,6 @@ AFRAME.registerComponent("place-object-manager", {
 
             if (lastObject.parentNode) {
                 lastObject.parentNode.removeChild(lastObject);
-            }
-
-            // Re-enable placement if we were at max
-            if (!this.data.enabled && this.placedObjects.length < this.data.maxObjects) {
-                this.el.setAttribute('place-object-manager', 'enabled', true);
             }
 
             // Emit event

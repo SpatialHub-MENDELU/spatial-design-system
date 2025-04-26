@@ -8,9 +8,6 @@ import "../primitives/ar-menu.js";
 document.querySelector("#app").innerHTML = `
 <a-scene     
     id="scene"
-    xr-mode-ui="XRMode: ar;"
-    webxr="optionalFeatures: hit-test;"
-    ar-hit-test="mapSize: 0 0"
     touch-raycaster
     place-object-manager="
         showPreview: true;
@@ -23,21 +20,21 @@ document.querySelector("#app").innerHTML = `
   <!-- Asset definitions -->
   <a-assets>
     <a-asset-item id="shrek" src="models/shrek_dancing.glb"></a-asset-item>
+    <a-asset-item id="mike" src="models/mike.glb"></a-asset-item>
+<!--    https://sketchfab.com/3d-models/mike-wazowski-sulley-face-swap-46f4f6948e25444880fcdfb4477390da-->
   </a-assets>
   
-<!--   Placeable objects -->
 <!--  <a-entity-->
-<!--    id="chair-template"-->
-<!--    gltf-model="#shrek"-->
+<!--    id="3dModel"-->
+<!--    gltf-model="#mike"-->
 <!--    visible="false"-->
 <!--    place-object="    -->
 <!--      heightRange: 0 5;-->
 <!--      surfaceTypes: horizontal, ceiling, wall;-->
 <!--      distanceRange: 0.5 10;-->
-<!--      scale: 0.2;-->
-<!--      isPoster: false;-->
-<!--      faceCamera: true;-->
-<!--      adjustOrientation: true;-->
+<!--      scale: 0.0005;-->
+<!--      faceCamera: false;-->
+<!--      adjustOrientation: false;-->
 <!--    "-->
 <!--   ></a-entity>-->
    
@@ -58,9 +55,8 @@ document.querySelector("#app").innerHTML = `
           surfaceTypes: horizontal, ceiling, wall;
           distanceRange: 0.5 10;
           scale: 0.2;
-          isPoster: true;
           faceCamera: true;
-          adjustOrientation: true;
+          adjustOrientation: false;
     "
 ></a-ar-menu>
 </a-scene>
