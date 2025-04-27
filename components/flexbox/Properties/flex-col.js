@@ -2,7 +2,7 @@ import * as AFRAME from "aframe";
 
 AFRAME.registerComponent("flex-col", {
     schema: {
-        sm: { type: "number", default: 12 },
+        sm: { type: "number" },
         md: { type: "number" },
         lg: { type: "number" },
         xl: { type: "number" },
