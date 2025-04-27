@@ -311,15 +311,12 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyBootstrapGrid() {
+        // Nejprve určíme velikost jednoho sloupce (1/12 celkové šířky) - bez ohledu na mezery
+        // Bootstrap nechává sloupce vyplnit celou šířku a mezery jsou součástí sloupců
+        const columnSize = this.container[this.MAIN_DIMENSION] / 12;
+
+        // Aplikujeme na každou řadu zvlášť
         this.lines.forEach(line => {
-            let freeSpace = this.container[this.MAIN_DIMENSION] - this.data.gap[this.MAIN_AXIS] * (line.length - 1);
-
-            line.forEach(item => {
-                const itemBboxSize = this.getItemBboxSize(item)
-
-                freeSpace -= itemBboxSize[this.MAIN_AXIS];
-            })
-
             const colItems = line.filter(item => (
                 item.getAttribute("flex-col") !== null
             ));
@@ -329,7 +326,9 @@ AFRAME.registerComponent("flexbox", {
             colItems.forEach(colItem => {
                 const originalDimensionSize = colItem.getAttribute(this.MAIN_DIMENSION) || '1';
                 const colValue = colItem.components['flex-col'].getCurrentColumn();
-                const newDimensionSize = (this.container[this.MAIN_DIMENSION]/12) * +colValue;
+
+                // Velikost sloupce odpovídá jeho col-hodnotě, mezery jsou řešeny při pozicování
+                const newDimensionSize = columnSize * +colValue;
 
                 if(!colItem.hasAttribute(ORIGINAL_DIRECTION_ATTRIBUTE)) {
                     colItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, originalDimensionSize);
@@ -337,13 +336,12 @@ AFRAME.registerComponent("flexbox", {
 
                 colItem.setAttribute(this.MAIN_DIMENSION, newDimensionSize);
 
-                const sizeDiff = newDimensionSize - originalDimensionSize
+                const sizeDiff = newDimensionSize - originalDimensionSize;
                 if(this.isDirectionRow()) {
                     colItem.object3D.position[this.MAIN_AXIS] += sizeDiff / 2;
                 } else {
                     colItem.object3D.position[this.MAIN_AXIS] -= sizeDiff / 2;
                 }
-
 
                 const inLineIndex = line.indexOf(colItem);
                 for (let i = inLineIndex + 1; i < line.length; i++) {
@@ -353,8 +351,8 @@ AFRAME.registerComponent("flexbox", {
                         line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
                     }
                 }
-            })
-        })
+            });
+        });
     },
 
     handleColumnBreakpoint() {
