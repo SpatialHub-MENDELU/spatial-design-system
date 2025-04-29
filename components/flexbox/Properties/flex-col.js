@@ -36,27 +36,17 @@ AFRAME.registerComponent("flex-col", {
         // Získání šířky rodičovského ThreeJS objektu v metrech
         let containerWidth = 0;
 
-        // Pokud má rodič komponentu width, použijeme ji
-        if (this.el.parentEl.hasAttribute('width')) {
-            containerWidth = parseFloat(this.el.parentEl.getAttribute('width'));
-        }
-        // Jinak zkusíme získat šířku z geometrie
-        else if (this.el.parentEl.object3D) {
+        if (this.el.parentEl.object3D) {
             // Pokud má objekt bounding box, použijeme ho
             const bbox = new THREE.Box3().setFromObject(this.el.parentEl.object3D);
             const size = new THREE.Vector3();
             bbox.getSize(size);
             containerWidth = size.x;
-        }
-
-        // Pokud nemáme validní šířku, použijeme výchozí breakpoint
-        if (!containerWidth || isNaN(containerWidth)) {
-            this.currentBreakpoint = 'sm';
-            return;
+        } else {
+            console.error('Flex-col: Parent element does not have a valid object3D');
         }
 
         // Určení breakpointu podle šířky rodičovského kontejneru v metrech
-        // Použijeme menší hodnoty, protože pracujeme s metry, ne pixely
         this.currentBreakpoint =
             containerWidth >= 15 ? '3xl' :  // 15m ~ 1500px
                 containerWidth >= 12 ? '2xl' :  // 12m ~ 1200px
@@ -65,7 +55,6 @@ AFRAME.registerComponent("flex-col", {
                             containerWidth >= 4 ? 'md' :    // 4m ~ 400px
                                 'sm';                          // výchozí hodnota
 
-        // Emitování události změny breakpointu
         this.el.emit('breakpoint-changed', {
             breakpoint: this.currentBreakpoint,
             containerWidth: containerWidth
@@ -73,8 +62,6 @@ AFRAME.registerComponent("flex-col", {
     },
 
     getCurrentColumn() {
-        // Vrácení aktuální hodnoty sloupce podle breakpointu
-        // Fallback na nižší breakpointy, pokud aktuální není definován
         const result = this.data[this.currentBreakpoint] ||
             this.data.md ||
             this.data.lg ||
@@ -87,7 +74,6 @@ AFRAME.registerComponent("flex-col", {
     },
 
     remove() {
-        // Vyčištění posluchačů událostí
         if (this.el.parentEl) {
             this.el.parentEl.removeEventListener('object3dset', this.updateBreakpoint);
         }
