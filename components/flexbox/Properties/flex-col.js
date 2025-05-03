@@ -48,11 +48,11 @@ AFRAME.registerComponent("flex-col", {
 
         // Určení breakpointu podle šířky rodičovského kontejneru v metrech
         this.currentBreakpoint =
-            containerWidth >= 15 ? '3xl' :  // 15m ~ 1500px
-                containerWidth >= 12 ? '2xl' :  // 12m ~ 1200px
-                    containerWidth >= 10 ? 'xl' :   // 10m ~ 1000px
-                        containerWidth >= 7 ? 'lg' :    // 7m ~ 700px
-                            containerWidth >= 4 ? 'md' :    // 4m ~ 400px
+            containerWidth >= 15 && this.data['3xl'] ? '3xl' :  // 15m ~ 1500px
+                containerWidth >= 12 && this.data['2xl'] ? '2xl' :  // 12m ~ 1200px
+                    containerWidth >= 10 && this.data.xl ? 'xl' :   // 10m ~ 1000px
+                        containerWidth >= 7 && this.data.lg ? 'lg' :    // 7m ~ 700px
+                            containerWidth >= 4 && this.data.md ? 'md' :    // 4m ~ 400px
                                 'sm';                          // výchozí hodnota
 
         this.el.emit('breakpoint-changed', {
