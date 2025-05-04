@@ -4,7 +4,8 @@ AFRAME.registerComponent("controller-teleport", {
   schema: {
     hand: { type: "string", default: "right", oneOf: ["left", "right"] },
     button: { type: "string", default: "trigger", oneOf: ["trigger", "grip", "a", "b", "x", "y"] },
-    cameraHeight: { type: "number", default: 1 }
+    cameraHeight: { type: "number", default: 1 },
+    interactionClass: { type: "string", default: "interactive" }
   },
   
   init() {
@@ -54,7 +55,15 @@ AFRAME.registerComponent("controller-teleport", {
     }
     
     if (raycaster.intersections && raycaster.intersections.length > 0) {
-      const intersection = raycaster.intersections[0];
+      const validIntersections = raycaster.intersections.filter(intersection => {
+        return intersection.object.el && intersection.object.el.classList.contains(this.data.interactionClass);
+      });
+      
+      if (validIntersections.length === 0) {
+        return;
+      }
+      
+      const intersection = validIntersections[0];
       
       const point = intersection.point;
       
