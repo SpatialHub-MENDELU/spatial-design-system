@@ -10,7 +10,7 @@ AFRAME.registerComponent("controller-attach", {
 
   init() {
     this.controllerEl = null;
-    this.cameraEl = null; // Initialize as null
+    this.cameraEl = null;
     
     this.worldPosition = new THREE.Vector3();
     this.controllerPosition = new THREE.Vector3();
@@ -29,20 +29,16 @@ AFRAME.registerComponent("controller-attach", {
     this.el.sceneEl.addEventListener("controllerconnected", this.findController);
   },
 
-  // New method to find camera
   findCamera() {
-    // Try different selectors to find the camera
     this.cameraEl = document.querySelector("[camera]") || 
                     document.querySelector("a-camera") ||
                     document.querySelector("[camera]");
                     
     if (!this.cameraEl && this.el.sceneEl.camera) {
-      // If camera element not found but scene has camera object, create a reference
       this.cameraEl = this.el.sceneEl;
     }
     
     if (!this.cameraEl) {
-      // If still not found, try again later
       this.findCameraTimeout = setTimeout(() => this.findCamera(), 500);
     }
   },
@@ -63,7 +59,6 @@ AFRAME.registerComponent("controller-attach", {
     
     this.updatePosition();
     
-    // Use different rotation logic based on faceCamera flag
     if (this.data.faceCamera) {
       this.updateFacingCamera();
     } else {
@@ -102,30 +97,24 @@ AFRAME.registerComponent("controller-attach", {
   },
   
   updateFacingCamera() {
-    // Check if camera element exists before using it
     if (!this.cameraEl) {
-      this.findCamera(); // Try to find camera again
-      return; // Skip this frame if camera not found
+      this.findCamera();
+      return; 
     }
 
-    // Get camera position - handle both direct camera elements and scene.camera cases
     if (this.cameraEl.object3D) {
       this.cameraEl.object3D.getWorldPosition(this.cameraPosition);
     } else if (this.cameraEl.camera && this.cameraEl.camera.parent) {
       this.cameraEl.camera.parent.getWorldPosition(this.cameraPosition);
     } else if (this.el.sceneEl.camera) {
-      // Last resort: try to use scene's camera directly
-      this.cameraPosition.set(0, 1.6, 0); // Default camera height
+      this.cameraPosition.set(0, 1.6, 0); 
       this.el.sceneEl.camera.getWorldPosition(this.cameraPosition);
     } else {
-      // If still no camera, return without updating rotation
       return;
     }
     
-    // Make the object look at the camera
     this.el.object3D.lookAt(this.cameraPosition);
     
-    // Apply additional rotation offset after facing the camera
     this.el.object3D.rotation.x += THREE.MathUtils.degToRad(this.data.rotation.x);
     this.el.object3D.rotation.y += THREE.MathUtils.degToRad(this.data.rotation.y);
     this.el.object3D.rotation.z += THREE.MathUtils.degToRad(this.data.rotation.z);
