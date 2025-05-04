@@ -24,7 +24,11 @@ AFRAME.registerComponent("controllers", {
     this.handleXButtonUp = this.handleXButtonUp.bind(this);
     this.handleYButtonDown = this.handleYButtonDown.bind(this);
     this.handleYButtonUp = this.handleYButtonUp.bind(this);
-    
+    this.handleMenuDown = this.handleMenuDown.bind(this);
+    this.handleMenuUp = this.handleMenuUp.bind(this);
+    this.handleTrackpadDown = this.handleTrackpadDown.bind(this);
+    this.handleTrackpadUp = this.handleTrackpadUp.bind(this);
+
     this.controllerEls = [];
 
     this.el.sceneEl.addEventListener('loaded', () => {
@@ -66,6 +70,9 @@ AFRAME.registerComponent("controllers", {
     const controller = document.createElement("a-entity");
     controller.setAttribute("id", `${hand}Hand`);
     controller.setAttribute("oculus-touch-controls", `hand: ${hand}`);
+    controller.setAttribute("vive-controls", `hand: ${hand}`);
+    controller.setAttribute("meta-touch-controls", `hand: ${hand}`);
+    controller.setAttribute("windows-motion-controls", `hand: ${hand}`);
     
     controller.setAttribute("raycaster", {
       showLine: true,
@@ -88,6 +95,10 @@ AFRAME.registerComponent("controllers", {
     controller.addEventListener("xbuttonup", this.handleXButtonUp);
     controller.addEventListener("ybuttondown", this.handleYButtonDown);
     controller.addEventListener("ybuttonup", this.handleYButtonUp);
+    controller.addEventListener("menudown", this.handleMenuDown);
+    controller.addEventListener("menuup", this.handleMenuUp);
+    controller.addEventListener("trackpaddown", this.handleTrackpadDown);
+    controller.addEventListener("trackpadup", this.handleTrackpadUp);
     
     const cursor = document.createElement("a-sphere");
     cursor.setAttribute("radius", this.data.cursorSize);
@@ -216,6 +227,41 @@ AFRAME.registerComponent("controllers", {
       raycaster.intersectedEls[0].emit("ybuttonup");
     }
   },
+  handleMenuDown(evt) {
+    const controller = evt.target;
+    const raycaster = controller.components.raycaster;
+    
+    if (raycaster && raycaster.intersectedEls.length > 0) {
+      raycaster.intersectedEls[0].emit("menudown");
+    }
+  },
+  
+  handleMenuUp(evt) {
+    const controller = evt.target;
+    const raycaster = controller.components.raycaster;
+    
+    if (raycaster && raycaster.intersectedEls.length > 0) {
+      raycaster.intersectedEls[0].emit("menuup");
+    }
+  },
+  
+  handleTrackpadDown(evt) {
+    const controller = evt.target;
+    const raycaster = controller.components.raycaster;
+    
+    if (raycaster && raycaster.intersectedEls.length > 0) {
+      raycaster.intersectedEls[0].emit("trackpaddown");
+    }
+  },
+  
+  handleTrackpadUp(evt) {
+    const controller = evt.target;
+    const raycaster = controller.components.raycaster;
+    
+    if (raycaster && raycaster.intersectedEls.length > 0) {
+      raycaster.intersectedEls[0].emit("trackpadup");
+    }
+  },
 
   update(oldData) {
     if (this.needsControllerRecreation(oldData)) {
@@ -248,6 +294,10 @@ AFRAME.registerComponent("controllers", {
       controller.removeEventListener("xbuttonup", this.handleXButtonUp);
       controller.removeEventListener("ybuttondown", this.handleYButtonDown);
       controller.removeEventListener("ybuttonup", this.handleYButtonUp);
+      controller.removeEventListener("menudown", this.handleMenuDown);
+      controller.removeEventListener("menuup", this.handleMenuUp);
+      controller.removeEventListener("trackpaddown", this.handleTrackpadDown);
+      controller.removeEventListener("trackpadup", this.handleTrackpadUp);
       
       if (controller.parentNode) {
         controller.parentNode.removeChild(controller);
