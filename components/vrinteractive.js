@@ -2,7 +2,7 @@ import * as AFRAME from "aframe";
 
 AFRAME.registerComponent("vr-interactive", {
   schema: {
-    enabledButtons: { type: "array", default: ["trigger", "grip", "a", "b", "x", "y"] },
+    enabledButtons: { type: "array", default: ["trigger", "grip", "a", "b", "x", "y", "trackpad", "menu"]},
     clickAnimation: { type: "boolean", default: true },
     highlightEnabled: { type: "boolean", default: true },
     highlightColor: { type: "color", default: "#666666" },
@@ -16,6 +16,17 @@ AFRAME.registerComponent("vr-interactive", {
     this.borderLine = null;
     this.isHighlighted = false;
     this.intersecting = false;
+    
+    this.buttonEvents = {
+      "trigger": ["triggerdown", "triggerup"],
+      "grip": ["gripdown", "gripup"],
+      "a": ["abuttondown", "abuttonup"],
+      "b": ["bbuttondown", "bbuttonup"],
+      "x": ["xbuttondown", "xbuttonup"],
+      "y": ["ybuttondown", "ybuttonup"],
+      "menu": ["menudown", "menuup"],
+      "trackpad": ["trackpaddown", "trackpadup"]
+    };
     
     this.onRaycasterIntersected = this.onRaycasterIntersected.bind(this);
     this.onRaycasterIntersectedCleared = this.onRaycasterIntersectedCleared.bind(this);
@@ -31,19 +42,10 @@ AFRAME.registerComponent("vr-interactive", {
     this.el.addEventListener("raycaster-intersected", this.onRaycasterIntersected);
     this.el.addEventListener("raycaster-intersected-cleared", this.onRaycasterIntersectedCleared);
 
-    const buttonEvents = {
-      "trigger": ["triggerdown", "triggerup"],
-      "grip": ["gripdown", "gripup"],
-      "a": ["abuttondown", "abuttonup"],
-      "b": ["bbuttondown", "bbuttonup"],
-      "x": ["xbuttondown", "xbuttonup"],
-      "y": ["ybuttondown", "ybuttonup"]
-    };
-
     this.data.enabledButtons.forEach(button => {
-      if (buttonEvents[button]) {
-        this.el.addEventListener(buttonEvents[button][0], this.handleInteraction);
-        this.el.addEventListener(buttonEvents[button][1], this.handleInteractionEnd);
+      if (this.buttonEvents[button]) {
+        this.el.addEventListener(this.buttonEvents[button][0], this.handleInteraction);
+        this.el.addEventListener(this.buttonEvents[button][1], this.handleInteractionEnd);
       }
     });
   },
@@ -164,17 +166,8 @@ AFRAME.registerComponent("vr-interactive", {
   },
   
   updateEventListeners(oldData) {
-    const buttonEvents = {
-      "trigger": ["triggerdown", "triggerup"],
-      "grip": ["gripdown", "gripup"],
-      "a": ["abuttondown", "abuttonup"],
-      "b": ["bbuttondown", "bbuttonup"],
-      "x": ["xbuttondown", "xbuttonup"],
-      "y": ["ybuttondown", "ybuttonup"]
-    };
-
-    Object.keys(buttonEvents).forEach(button => {
-      const [downEvent, upEvent] = buttonEvents[button];
+    Object.keys(this.buttonEvents).forEach(button => {
+      const [downEvent, upEvent] = this.buttonEvents[button];
       const wasEnabled = oldData.enabledButtons && oldData.enabledButtons.includes(button);
       const isEnabled = this.data.enabledButtons.includes(button);
 
@@ -203,19 +196,10 @@ AFRAME.registerComponent("vr-interactive", {
     this.el.removeEventListener("raycaster-intersected", this.onRaycasterIntersected);
     this.el.removeEventListener("raycaster-intersected-cleared", this.onRaycasterIntersectedCleared);
     
-    const buttonEvents = {
-      "trigger": ["triggerdown", "triggerup"],
-      "grip": ["gripdown", "gripup"],
-      "a": ["abuttondown", "abuttonup"],
-      "b": ["bbuttondown", "bbuttonup"],
-      "x": ["xbuttondown", "xbuttonup"],
-      "y": ["ybuttondown", "ybuttonup"]
-    };
-
     this.data.enabledButtons.forEach(button => {
-      if (buttonEvents[button]) {
-        this.el.removeEventListener(buttonEvents[button][0], this.handleInteraction);
-        this.el.removeEventListener(buttonEvents[button][1], this.handleInteractionEnd);
+      if (this.buttonEvents[button]) {
+        this.el.removeEventListener(this.buttonEvents[button][0], this.handleInteraction);
+        this.el.removeEventListener(this.buttonEvents[button][1], this.handleInteractionEnd);
       }
     });
   }
