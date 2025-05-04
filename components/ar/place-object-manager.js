@@ -82,7 +82,7 @@ AFRAME.registerComponent("place-object-manager", {
         if (placeObjectComponent) {
             // Use the shared placement utility for consistent preview
             ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
-                isPoster: placeObjectComponent.data.isPoster,
+                layFlat: placeObjectComponent.data.layFlat,
                 adjustOrientation: placeObjectComponent.data.adjustOrientation,
                 faceCamera: placeObjectComponent.data.faceCamera,
                 customRotation: placeObjectComponent.data.customRotation,

@@ -8,7 +8,7 @@ AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
         surfaceTypes: { type: "array", default: ["horizontal"] },           // horizontal, wall, ceiling
         distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },       // Min/max distance from camera
         scale: { type: "number", default: 1.0 },                            // Scale of placed object
-        isPoster: { type: "boolean", default: false },                      // Place object flat on surface
+        layFlat: { type: "boolean", default: false },                      // Place object flat on surface
         adjustOrientation: { type: "boolean", default: true },              // Adjust orientation based on surface
         customRotation: { type: "vec3", default: { x: 0, y: 0, z: 0 } },    // Custom rotation in degrees
         faceCamera: { type: "boolean", default: true},                      // Orient toward camera
@@ -60,7 +60,7 @@ AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
 
             // Use the shared placement utility with all properties
             ARPlacementUtils.placeObject(entityCopy, hitMesh, {
-                isPoster: this.data.isPoster,
+                layFlat: this.data.layFlat,
                 adjustOrientation: this.data.adjustOrientation,
                 faceCamera: this.data.faceCamera,
                 customRotation: this.data.customRotation,

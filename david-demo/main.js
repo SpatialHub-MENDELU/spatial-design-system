@@ -37,7 +37,33 @@ document.querySelector("#app").innerHTML = `
 <!--      adjustOrientation: false;-->
 <!--    "-->
 <!--   ></a-entity>-->
-   
+<!--   -->
+<!--   <a-sphere-->
+<!--  color="yellow"-->
+<!--  radius="5"-->
+<!--  follow-element="-->
+<!--    target: #3dModel;-->
+<!--    place: 1 0 0;-->
+<!--    offset: 0.3;-->
+<!--    duration: 300"-->
+<!--&gt;</a-sphere>-->
+   <a-ar-button
+    position="0 1.5 -3"
+    content="Button"
+    primary="#018A6C"
+    textcolor="white"
+    size="large"
+    place-object="
+          heightRange: 0 5;
+          surfaceTypes: horizontal, ceiling, wall;
+          distanceRange: 0.5 10;
+          scale: 0.2;
+          faceCamera: true;
+          adjustOrientation: true;
+          layFlat: true;
+    "
+></a-ar-button>
+
    <a-ar-menu
       position="0 1.5 -3"
       primary="#018A6C"
@@ -50,14 +76,7 @@ document.querySelector("#app").innerHTML = `
       variant="filled"
       layout="circle"
       visible="false"
-      place-object="
-          heightRange: 0 5;
-          surfaceTypes: horizontal, ceiling, wall;
-          distanceRange: 0.5 10;
-          scale: 0.2;
-          faceCamera: true;
-          adjustOrientation: false;
-    "
+      
 ></a-ar-menu>
 </a-scene>
 `;
