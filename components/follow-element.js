@@ -2,8 +2,8 @@ import * as AFRAME from "aframe";
 
 AFRAME.registerComponent('follow-element', {
     schema: {
-        place: { type: 'vec3', default: {x: 1, y: 0, z: 0} }, // Values: -1, 0, 1
-        offset: { type: 'number', default: 1 },             // Distance from target's border
+        place: { type: 'vec3', default: {x: 1, y: 0, z: 0} }, // Values: -1 to 1 (will be normalized)
+        offset: { type: 'number', default: 0 },             // Distance from target's border
         target: { type: 'selector' },                         // Target entity to follow
         duration: { type: 'number', default: 0 }            // Animation duration
     },
@@ -20,6 +20,7 @@ AFRAME.registerComponent('follow-element', {
         this.targetSize = new THREE.Vector3();
         this.targetBBox = new THREE.Box3();
         this.desiredPosition = new THREE.Vector3();
+        this.normalizedPlace = new THREE.Vector3();
 
         // Listen for model-loaded events on target to handle dynamic size changes
         this.onTargetLoaded = this.onTargetLoaded.bind(this);
@@ -58,6 +59,30 @@ AFRAME.registerComponent('follow-element', {
         this.targetBBox.getSize(this.targetSize);
     },
 
+    // Normalize the place vector so that its maximum absolute component is 1
+    normalizePlace() {
+        // Copy the place values
+        this.normalizedPlace.set(
+            this.data.place.x,
+            this.data.place.y,
+            this.data.place.z
+        );
+
+        // Find the maximum absolute value
+        const maxAbs = Math.max(
+            Math.abs(this.normalizedPlace.x),
+            Math.abs(this.normalizedPlace.y),
+            Math.abs(this.normalizedPlace.z)
+        );
+
+        // Normalize only if the maximum absolute value is greater than 1
+        if (maxAbs > 1) {
+            this.normalizedPlace.divideScalar(maxAbs);
+        }
+
+        return this.normalizedPlace;
+    },
+
     calculateDesiredPosition() {
         const halfWidth = this.targetSize.x / 2;
         const halfHeight = this.targetSize.y / 2;
@@ -66,17 +91,25 @@ AFRAME.registerComponent('follow-element', {
         // Reset desired position to target's position
         this.desiredPosition.copy(this.targetPosition);
 
-        // Apply offset in each direction based on place values
-        if (this.data.place.x !== 0) {
-            this.desiredPosition.x += this.data.place.x * (halfWidth + this.data.offset);
+        // Get normalized place values
+        const place = this.normalizePlace();
+
+        // Apply position based on the target's dimensions
+        this.desiredPosition.x += place.x * halfWidth;
+        this.desiredPosition.y += place.y * halfHeight;
+        this.desiredPosition.z += place.z * halfDepth;
+
+        // Apply offset in the direction of placement (only for non-zero place values)
+        if (place.x !== 0) {
+            this.desiredPosition.x += Math.sign(place.x) * this.data.offset;
         }
 
-        if (this.data.place.y !== 0) {
-            this.desiredPosition.y += this.data.place.y * (halfHeight + this.data.offset);
+        if (place.y !== 0) {
+            this.desiredPosition.y += Math.sign(place.y) * this.data.offset;
         }
 
-        if (this.data.place.z !== 0) {
-            this.desiredPosition.z += this.data.place.z * (halfDepth + this.data.offset);
+        if (place.z !== 0) {
+            this.desiredPosition.z += Math.sign(place.z) * this.data.offset;
         }
     },
 
