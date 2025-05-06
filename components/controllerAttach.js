@@ -4,23 +4,43 @@ AFRAME.registerComponent("controller-attach", {
   schema: {
     hand: { type: "string", default: "right", oneOf: ["left", "right"] },
     offset: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
-    rotation: { type: "vec3", default: { x: 0, y: 0, z: 0 } }
+    rotation: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
+    faceCamera: { type: "boolean", default: false }
   },
 
   init() {
     this.controllerEl = null;
-    this.cameraEl = document.querySelector("[camera]");
+    this.cameraEl = null;
     
     this.worldPosition = new THREE.Vector3();
     this.controllerPosition = new THREE.Vector3();
     this.cameraPosition = new THREE.Vector3();
     
     this.findController = this.findController.bind(this);
+    this.findCamera = this.findCamera.bind(this);
     
     this.findController();
+    this.findCamera();
     
-    this.el.sceneEl.addEventListener("loaded", this.findController);
+    this.el.sceneEl.addEventListener("loaded", () => {
+      this.findController();
+      this.findCamera();
+    });
     this.el.sceneEl.addEventListener("controllerconnected", this.findController);
+  },
+
+  findCamera() {
+    this.cameraEl = document.querySelector("[camera]") || 
+                    document.querySelector("a-camera") ||
+                    document.querySelector("[camera]");
+                    
+    if (!this.cameraEl && this.el.sceneEl.camera) {
+      this.cameraEl = this.el.sceneEl;
+    }
+    
+    if (!this.cameraEl) {
+      this.findCameraTimeout = setTimeout(() => this.findCamera(), 500);
+    }
   },
 
   findController() {
@@ -38,7 +58,12 @@ AFRAME.registerComponent("controller-attach", {
     }
     
     this.updatePosition();
-    this.updateRotation();
+    
+    if (this.data.faceCamera) {
+      this.updateFacingCamera();
+    } else {
+      this.updateRotation();
+    }
   },
 
   updatePosition() {
@@ -71,9 +96,37 @@ AFRAME.registerComponent("controller-attach", {
     this.el.object3D.rotation.copy(controllerRotation);
   },
   
+  updateFacingCamera() {
+    if (!this.cameraEl) {
+      this.findCamera();
+      return; 
+    }
+
+    if (this.cameraEl.object3D) {
+      this.cameraEl.object3D.getWorldPosition(this.cameraPosition);
+    } else if (this.cameraEl.camera && this.cameraEl.camera.parent) {
+      this.cameraEl.camera.parent.getWorldPosition(this.cameraPosition);
+    } else if (this.el.sceneEl.camera) {
+      this.cameraPosition.set(0, 1.6, 0); 
+      this.el.sceneEl.camera.getWorldPosition(this.cameraPosition);
+    } else {
+      return;
+    }
+    
+    this.el.object3D.lookAt(this.cameraPosition);
+    
+    this.el.object3D.rotation.x += THREE.MathUtils.degToRad(this.data.rotation.x);
+    this.el.object3D.rotation.y += THREE.MathUtils.degToRad(this.data.rotation.y);
+    this.el.object3D.rotation.z += THREE.MathUtils.degToRad(this.data.rotation.z);
+  },
+  
   remove() {
     if (this.findControllerTimeout) {
       clearTimeout(this.findControllerTimeout);
+    }
+    
+    if (this.findCameraTimeout) {
+      clearTimeout(this.findCameraTimeout);
     }
     
     this.el.sceneEl.removeEventListener("loaded", this.findController);
