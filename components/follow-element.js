@@ -18,7 +18,9 @@ AFRAME.registerComponent('follow-element', {
         // Initialize vectors
         this.targetPosition = new THREE.Vector3();
         this.targetSize = new THREE.Vector3();
+        this.followerSize = new THREE.Vector3();
         this.targetBBox = new THREE.Box3();
+        this.followerBBox = new THREE.Box3();
         this.desiredPosition = new THREE.Vector3();
         this.normalizedPlace = new THREE.Vector3();
 
@@ -54,9 +56,13 @@ AFRAME.registerComponent('follow-element', {
         // Get current target position and size
         this.targetPosition.copy(this.targetEntity.object3D.position);
 
-        // Calculate bounding box
+        // Calculate bounding box for target
         this.targetBBox.setFromObject(this.targetEntity.object3D);
         this.targetBBox.getSize(this.targetSize);
+
+        // Calculate bounding box for follower (this element)
+        this.followerBBox.setFromObject(this.el.object3D);
+        this.followerBBox.getSize(this.followerSize);
     },
 
     // Normalize the place vector so that its maximum absolute component is 1
@@ -84,33 +90,38 @@ AFRAME.registerComponent('follow-element', {
     },
 
     calculateDesiredPosition() {
-        const halfWidth = this.targetSize.x / 2;
-        const halfHeight = this.targetSize.y / 2;
-        const halfDepth = this.targetSize.z / 2;
+        const halfTargetWidth = this.targetSize.x / 2;
+        const halfTargetHeight = this.targetSize.y / 2;
+        const halfTargetDepth = this.targetSize.z / 2;
 
-        // Reset desired position to target's position
-        this.desiredPosition.copy(this.targetPosition);
+        const halfFollowerWidth = this.followerSize.x / 2;
+        const halfFollowerHeight = this.followerSize.y / 2;
+        const halfFollowerDepth = this.followerSize.z / 2;
 
         // Get normalized place values
         const place = this.normalizePlace();
 
-        // Apply position based on the target's dimensions
-        this.desiredPosition.x += place.x * halfWidth;
-        this.desiredPosition.y += place.y * halfHeight;
-        this.desiredPosition.z += place.z * halfDepth;
+        // Start from target center
+        this.desiredPosition.copy(this.targetPosition);
 
-        // Apply offset in the direction of placement (only for non-zero place values)
-        if (place.x !== 0) {
-            this.desiredPosition.x += Math.sign(place.x) * this.data.offset;
-        }
+        // Move to the target's border
+        this.desiredPosition.x += place.x * halfTargetWidth;
+        this.desiredPosition.y += place.y * halfTargetHeight;
+        this.desiredPosition.z += place.z * halfTargetDepth;
 
-        if (place.y !== 0) {
-            this.desiredPosition.y += Math.sign(place.y) * this.data.offset;
-        }
+        // Check if place vector has any direction at all
+        const hasDirection = (place.x !== 0 || place.y !== 0 || place.z !== 0);
 
-        if (place.z !== 0) {
-            this.desiredPosition.z += Math.sign(place.z) * this.data.offset;
+        if (hasDirection) {
+            // Create a unit direction vector from place
+            const direction = new THREE.Vector3(place.x, place.y, place.z).normalize();
+
+            // Apply follower size offset in the direction
+            this.desiredPosition.x += direction.x * (halfFollowerWidth + this.data.offset);
+            this.desiredPosition.y += direction.y * (halfFollowerHeight + this.data.offset);
+            this.desiredPosition.z += direction.z * (halfFollowerDepth + this.data.offset);
         }
+        // If place is [0,0,0], we're already at the target's center, so no additional offset
     },
 
     updatePosition(force = false) {
