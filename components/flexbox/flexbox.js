@@ -86,18 +86,31 @@ AFRAME.registerComponent("flexbox", {
             }
         });
 
-        // Start observing the element for attribute changes
+        // ONLY observe the container element (this.el), NOT its children
         this.observer.observe(this.el, {
             attributes: true,
             attributeFilter: ['position', 'rotation', 'scale', 'width', 'height', 'depth']
         });
 
-        // Also observe children
-        Array.from(this.el.children).forEach(child => {
-            this.observer.observe(child, {
-                attributes: true,
-                attributeFilter: ['position', 'rotation', 'scale', 'width', 'height', 'depth']
+        // Setup a separate observer for child additions/removals
+        this.childrenObserver = new MutationObserver((mutations) => {
+            let childrenChanged = false;
+
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList' &&
+                    (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)) {
+                    childrenChanged = true;
+                }
             });
+
+            if (childrenChanged) {
+                this.updateLayout();
+            }
+        });
+
+        // Observe only child additions/removals, not attribute changes
+        this.childrenObserver.observe(this.el, {
+            childList: true
         });
     },
 
@@ -219,13 +232,17 @@ AFRAME.registerComponent("flexbox", {
             }
         }
 
-        // Use Promise chain to ensure proper order of operations
-        this.applyBootstrapGrid();
+        Promise.resolve().then(() => {
+            this.applyBootstrapGrid();
+            Promise.resolve().then(() => {
+                this.applyGrow()
 
-        this.applyGrow();
-
-        this.applyJustifyContent();
-        this.applyAlignItems();
+                Promise.resolve().then(() => {
+                    this.applyJustifyContent()
+                    this.applyAlignItems()
+                })
+            })
+        })
 
         // Trigger update on any nested flexboxes
         this.updateNestedFlexboxes();
