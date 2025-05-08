@@ -220,13 +220,10 @@ AFRAME.registerComponent("flexbox", {
         }
 
         // Use Promise chain to ensure proper order of operations
-        await Promise.resolve();
         this.applyBootstrapGrid();
 
-        await Promise.resolve();
         this.applyGrow();
 
-        await Promise.resolve();
         this.applyJustifyContent();
         this.applyAlignItems();
 
