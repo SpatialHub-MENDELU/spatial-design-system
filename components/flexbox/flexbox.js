@@ -218,6 +218,8 @@ AFRAME.registerComponent("flexbox", {
         // Initialize/reset the lines array
         this.lines = [[]];
 
+        this.preCalculateColumnSizes();
+
         if(this.isDirectionRow()){
             if(this.data.wrap) {
                 this.setRowItemsLayoutWrap();
@@ -233,6 +235,7 @@ AFRAME.registerComponent("flexbox", {
         }
 
         Promise.resolve().then(() => {
+            // Apply grid after layout (now using pre-calculated sizes)
             this.applyBootstrapGrid();
             Promise.resolve().then(() => {
                 this.applyGrow()
@@ -246,6 +249,38 @@ AFRAME.registerComponent("flexbox", {
 
         // Trigger update on any nested flexboxes
         this.updateNestedFlexboxes();
+    },
+
+    preCalculateColumnSizes() {
+        // Store original sizes for later reference
+        this.originalSizes = new Map();
+        this.calculatedSizes = new Map();
+
+        // Find flex-col items
+        const colItems = this.items.filter(item => item.getAttribute("flex-col") !== null);
+
+        if (!colItems.length) return;
+
+        const columnSize = this.container[this.MAIN_DIMENSION] / 12;
+
+        colItems.forEach(colItem => {
+            if (!colItem.components || !colItem.components['flex-col']) return;
+
+            // Get original size
+            const originalSize = this.getItemBboxSize(colItem);
+            this.originalSizes.set(colItem, {...originalSize});
+
+            // Calculate flex-col size
+            const colValue = colItem.components['flex-col'].getCurrentColumn();
+            if (!colValue) return;
+
+            const newDimensionSize = columnSize * +colValue;
+
+            // Store calculated size for use during layout
+            const calculatedSize = {...originalSize};
+            calculatedSize[this.MAIN_AXIS] = newDimensionSize;
+            this.calculatedSizes.set(colItem, calculatedSize);
+        });
     },
 
     updateNestedFlexboxes() {
@@ -457,19 +492,24 @@ AFRAME.registerComponent("flexbox", {
 
                 colItem.setAttribute(this.MAIN_DIMENSION, newDimensionSize);
 
-                const sizeDiff = newDimensionSize - originalDimensionSize;
-                if(this.isDirectionRow()) {
-                    colItem.object3D.position[this.MAIN_AXIS] += sizeDiff / 2;
-                } else {
-                    colItem.object3D.position[this.MAIN_AXIS] -= sizeDiff / 2;
-                }
+                // We don't need to adjust positions since wrapping already accounts for these sizes
+                // Just update other items that might need to be repositioned
 
-                const inLineIndex = line.indexOf(colItem);
-                for (let i = inLineIndex + 1; i < line.length; i++) {
-                    if(this.isDirectionRow()) {
-                        line[i].object3D.position[this.MAIN_AXIS] += sizeDiff;
-                    } else {
-                        line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
+                // Only adjust subsequent items in the same line if needed
+                if (this.originalSizes && this.originalSizes.has(colItem)) {
+                    const originalSize = this.originalSizes.get(colItem);
+                    const sizeDiff = newDimensionSize - originalSize[this.MAIN_AXIS];
+
+                    if (Math.abs(sizeDiff) > 0.001) {
+                        // Only shift subsequent items if there's a significant difference
+                        const inLineIndex = line.indexOf(colItem);
+                        for (let i = inLineIndex + 1; i < line.length; i++) {
+                            if(this.isDirectionRow()) {
+                                line[i].object3D.position[this.MAIN_AXIS] += sizeDiff;
+                            } else {
+                                line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
+                            }
+                        }
                     }
                 }
             });
@@ -646,6 +686,12 @@ AFRAME.registerComponent("flexbox", {
     },
 
     getItemBboxSize(item) {
+        // If we have a pre-calculated size for this item, use it
+        if (this.calculatedSizes && this.calculatedSizes.has(item)) {
+            return this.calculatedSizes.get(item);
+        }
+
+        // Otherwise use the original method
         const itemBbox = computeBbox(item);
         if (itemBbox.isEmpty()) {
             // Return default size if bbox is empty
