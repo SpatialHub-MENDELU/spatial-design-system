@@ -4,14 +4,14 @@ export const PLACE_OBJECT_COMPONENT_NAME = "place-object";
 
 AFRAME.registerComponent(PLACE_OBJECT_COMPONENT_NAME, {
     schema: {
-        heightRange: { type: "vec2", default: { x: 0.3, y: 2.0 } },         // Min/max height in meters
+        heightRange: { type: "vec2", default: { x: 0, y: 2.0 } },         // Min/max height in meters
         surfaceTypes: { type: "array", default: ["horizontal"] },           // horizontal, wall, ceiling
         distanceRange: { type: "vec2", default: { x: 0.5, y: 5.0 } },       // Min/max distance from camera
         scale: { type: "number", default: 1.0 },                            // Scale of placed object
         layFlat: { type: "boolean", default: false },                      // Place object flat on surface
         adjustOrientation: { type: "boolean", default: true },              // Adjust orientation based on surface
         customRotation: { type: "vec3", default: { x: 0, y: 0, z: 0 } },    // Custom rotation in degrees
-        faceCamera: { type: "boolean", default: true},                      // Orient toward camera
+        faceCamera: { type: "boolean", default: false},                      // Orient toward camera
     },
 
     init() {

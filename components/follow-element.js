@@ -101,7 +101,6 @@ AFRAME.registerComponent('follow-element', {
         // Get normalized place values
         const place = this.normalizePlace();
 
-        // Start from target center
         this.desiredPosition.copy(this.targetPosition);
 
         // Move to the target's border

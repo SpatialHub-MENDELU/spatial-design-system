@@ -234,20 +234,12 @@ AFRAME.registerComponent("flexbox", {
             }
         }
 
-        Promise.resolve().then(() => {
-            // Apply grid after layout (now using pre-calculated sizes)
-            this.applyBootstrapGrid();
-            Promise.resolve().then(() => {
-                this.applyGrow()
+        // flexbox lifecycle
+        this.applyBootstrapGrid();
+        this.applyGrow()
+        this.applyJustifyContent()
+        this.applyAlignItems()
 
-                Promise.resolve().then(() => {
-                    this.applyJustifyContent()
-                    this.applyAlignItems()
-                })
-            })
-        })
-
-        // Trigger update on any nested flexboxes
         this.updateNestedFlexboxes();
     },
 
