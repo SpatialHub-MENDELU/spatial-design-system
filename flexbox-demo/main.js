@@ -157,7 +157,7 @@ sceneHTML += `
 sceneHTML += `
   <a-plane 
     position="0 0 -10" 
-    width="4"
+    width="6"
     height="4"
     material="color: ${CONFIG.colors.background}"
     flexbox="
