@@ -14,8 +14,6 @@ AFRAME.registerComponent("billboard", {
   },
 
   tick() {
-    if (!this.data.target) return; // Skip if no target
-
     this.camera.getWorldPosition(this.cameraPos);
     this.element.lookAt(this.cameraPos);
   },
