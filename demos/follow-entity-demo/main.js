@@ -1,5 +1,5 @@
-import "../components/follow-element.js";
-import "../components/position.js"
+import "../../components/follow-element.js";
+import "../../components/position.js"
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");

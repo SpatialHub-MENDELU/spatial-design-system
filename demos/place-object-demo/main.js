@@ -1,9 +1,9 @@
-import "../primitives/ar-button.js";
-import "../components/ar/place-object.js";
-import "../components/ar/place-object-manager.js";
-import "../primitives/ar-menu.js";
+import "../../primitives/ar-button.js";
+import "../../components/ar/place-object.js";
+import "../../components/ar/place-object-manager.js";
+import "../../primitives/ar-menu.js";
 import 'aframe-extras';
-import "../primitives/ar-menu.js";
+import "../../primitives/ar-menu.js";
 
 document.querySelector("#app").innerHTML = `
 <a-scene     
