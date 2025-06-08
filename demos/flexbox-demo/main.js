@@ -1,5 +1,5 @@
-import "../components/flexbox/flexbox.js";
-import "../components/flexbox/Properties/flex-col.js";
+import "../../components/flexbox/flexbox.js";
+import "../../components/flexbox/Properties/flex-col.js";
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
