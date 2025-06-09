@@ -1,5 +1,5 @@
-import "../components/follow-element.js";
-import "../components/position.js"
+import "../../components/follow-element.js";
+import "../../components/position.js"
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
@@ -15,12 +15,11 @@ scene.innerHTML = `
 
 <a-sphere 
   color="#101011" 
-  position="0 10 -2" 
-  radius="0.8"
+  radius="0.3"
   follow-element="
     target: #sphere1;
-    place: 1 1 0;
-    offset: 0.1;
+    place: 0 1 0;
+    offset: 0;
   "
 ></a-sphere>
 `
