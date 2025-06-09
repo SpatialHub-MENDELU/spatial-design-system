@@ -224,15 +224,27 @@ AFRAME.registerComponent("place-object-manager", {
     onObjectPlaced(event) {
         const placedEntity = event.detail.entity;
 
-        // Add to our list of placed objects
-        this.placedObjects.push(placedEntity);
-
-        // Check if we've reached the maximum
+        // Check if we've reached the maximum BEFORE adding the object
         if (this.placedObjects.length >= this.data.maxObjects) {
-            // Disable further placement - use setAttribute instead of direct assignment
-            this.removeLastObject()
-            console.log("Maximum number of objects placed");
+            console.log("Maximum number of objects reached, cannot place more");
+
+            // Remove the entity that was just placed
+            if (placedEntity.parentNode) {
+                placedEntity.parentNode.removeChild(placedEntity);
+            }
+
+            this.el.emit("object-managed", {
+                action: "rejected",
+                entity: placedEntity,
+                totalObjects: this.placedObjects.length,
+                reason: "max_objects_reached"
+            });
+
+            return;
         }
+
+        // Add to our list of placed objects only if we haven't reached the maximum
+        this.placedObjects.push(placedEntity);
 
         // Emit our own event that can be caught by application code
         this.el.emit("object-managed", {

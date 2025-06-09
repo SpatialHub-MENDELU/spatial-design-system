@@ -9,7 +9,9 @@ document.querySelector("#app").innerHTML = `
 <a-scene     
     id="scene"
     touch-raycaster
-    place-object-manager
+    place-object-manager="
+        maxObjects: 1;
+    "
     context-menu
     cross-objects
 >
