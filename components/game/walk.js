@@ -14,7 +14,7 @@ AFRAME.registerComponent("walk", {
         sprintSpeed: {type: "number", default: 8},
         rotationSpeed: {type: "number", default: 90},
 
-        turnType: {type: "string", default: "stepTurnHorizontal"}, // smoothTurn, stepTurnDiagonal, stepTurnHorizontal
+        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
         startMovingDirection: {type: "string", default: "down"} // down, up, left, right, upLeft, upRight, downLeft, downRight
     },
 
@@ -43,7 +43,7 @@ AFRAME.registerComponent("walk", {
 
         this.smoothTurn = false;
         this.stepTurnDiagonal = false;
-        this.stepTurnHorizontal = false;
+        this.stepTurnCardinal = false;
 
         // SMOOTH WALKING
         this.turnDirection = null;
@@ -71,7 +71,7 @@ AFRAME.registerComponent("walk", {
         switch (this.data.turnType) {
             case 'smoothTurn':        this.smoothTurn = true; break;
             case "stepTurnDiagonal": this.stepTurnDiagonal = true; break;
-            case "stepTurnHorizontal": this.stepTurnHorizontal = true; break;
+            case "stepTurnCardinal": this.stepTurnCardinal = true; break;
             default: this.smoothTurn = true; break;
         }
     },
@@ -100,7 +100,7 @@ AFRAME.registerComponent("walk", {
             if(this.smoothTurn) {
                 if (this.movingForward) this.isSprinting = true;
             }
-            if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
+            if(this.stepTurnDiagonal || this.stepTurnCardinal) {
                 if (this.movingForward || this.movingBackward || this.movingLeft || this.movingRight) this.isSprinting = true;
             }
         }
@@ -141,7 +141,7 @@ AFRAME.registerComponent("walk", {
 
         if (this.el.body) {
             if(this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
-            if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
+            if(this.stepTurnDiagonal || this.stepTurnCardinal) {
                 this.updateDirection();
                 this.setSmoothStepTurn();
             }
@@ -165,7 +165,7 @@ AFRAME.registerComponent("walk", {
             velocity = new Ammo.btVector3(x, 0, z);
         }
 
-        if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
+        if(this.stepTurnDiagonal || this.stepTurnCardinal) {
             const speed = this.speed;
             switch (this.movingDirection) {
                 case 'up':        velocity.setValue(0, 0, -speed); break;
@@ -187,7 +187,7 @@ AFRAME.registerComponent("walk", {
     startSprinting() {
         let sprint = false
         if(this.smoothTurn)  if (this.movingForward) sprint = true;
-        if(this.stepTurnDiagonal || this.stepTurnHorizontal) sprint = true
+        if(this.stepTurnDiagonal || this.stepTurnCardinal) sprint = true
 
         if(sprint) {
             this.speed = this.data.sprintSpeed;
@@ -204,7 +204,7 @@ AFRAME.registerComponent("walk", {
                 this.setAnimation(this.animations.idle);
             }
         }
-        if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
+        if(this.stepTurnDiagonal || this.stepTurnCardinal) {
             this.setAnimation(
                 this.movingLeft || this.movingRight || this.movingForward || this.movingBackward
                     ? this.animations.walk
@@ -257,7 +257,7 @@ AFRAME.registerComponent("walk", {
             if (diff > 4) diff -= 8;
             if (diff < -4) diff += 8;
         }
-        if(this.stepTurnHorizontal) {
+        if(this.stepTurnCardinal) {
             diff = diff >= 3 ? diff - 4 : diff;
             diff = diff <= -3 ? diff + 4 : diff;
         }
@@ -274,6 +274,7 @@ AFRAME.registerComponent("walk", {
             easing: 'easeOutQuad'
         });
 
+        // todo: move also the physics body
 
         // const angleRad = THREE.MathUtils.degToRad(this.rotationY);
         // const quaternion = new Ammo.btQuaternion();
