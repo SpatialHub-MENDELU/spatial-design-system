@@ -52,7 +52,7 @@ AFRAME.registerComponent("walk", {
         this.rotationSpeed = this.data.rotationSpeed;
         this.currentRotation = 0;
 
-        // STEP TURN DIAGONAL
+        // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
         this.rotationY = 0;
         this.movingDirection = this.data.startMovingDirection
         this.newDirection = this.data.startMovingDirection
@@ -143,7 +143,7 @@ AFRAME.registerComponent("walk", {
             if(this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
             if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
                 this.updateDirection();
-                this.setSmoothStepTurnDiagonal();
+                this.setSmoothStepTurn();
             }
         }
     },
@@ -214,7 +214,7 @@ AFRAME.registerComponent("walk", {
     },
 
     // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
-    setSmoothStepTurnDiagonal() {
+    setSmoothStepTurn() {
         if (this.movingLeft || this.movingRight || this.movingBackward || this.movingForward) {
             if (this.sprintEnabled) {
                 this.isSprinting ? this.startSprinting() : this.stopSprinting();
