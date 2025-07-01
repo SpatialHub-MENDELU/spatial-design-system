@@ -14,7 +14,7 @@ AFRAME.registerComponent("walk", {
         sprintSpeed: {type: "number", default: 8},
         rotationSpeed: {type: "number", default: 90},
 
-        turnType: {type: "string", default: "stepTurnDiagonal"}, // smoothTurn, stepTurnDiagonal, stepTurnHorizontal
+        turnType: {type: "string", default: "stepTurnHorizontal"}, // smoothTurn, stepTurnDiagonal, stepTurnHorizontal
         startMovingDirection: {type: "string", default: "down"} // down, up, left, right, upLeft, upRight, downLeft, downRight
     },
 
@@ -60,7 +60,6 @@ AFRAME.registerComponent("walk", {
         this.movingRight = false;
         // this.movingForward
         // this.movingBackward
-        this.targetRotationY = this.rotationY;
 
         this.setAnimation(this.animations.idle);
         this.bindEvents();
@@ -142,7 +141,7 @@ AFRAME.registerComponent("walk", {
 
         if (this.el.body) {
             if(this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
-            if(this.stepTurnDiagonal) {
+            if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
                 this.updateDirection();
                 this.setSmoothStepTurnDiagonal();
             }
@@ -166,7 +165,7 @@ AFRAME.registerComponent("walk", {
             velocity = new Ammo.btVector3(x, 0, z);
         }
 
-        if(this.stepTurnDiagonal) {
+        if(this.stepTurnDiagonal || this.stepTurnHorizontal) {
             const speed = this.speed;
             switch (this.movingDirection) {
                 case 'up':        velocity.setValue(0, 0, -speed); break;
@@ -214,7 +213,7 @@ AFRAME.registerComponent("walk", {
         }
     },
 
-    // STEP TURN DIAGONAL
+    // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
     setSmoothStepTurnDiagonal() {
         if (this.movingLeft || this.movingRight || this.movingBackward || this.movingForward) {
             if (this.sprintEnabled) {
@@ -231,30 +230,39 @@ AFRAME.registerComponent("walk", {
 
     updateDirection() {
         let newDir = null;
-        if (this.movingForward && this.movingRight) newDir = 'upRight';
-        else if (this.movingForward && this.movingLeft) newDir = 'upLeft';
-        else if (this.movingBackward && this.movingRight) newDir = 'downRight';
-        else if (this.movingBackward && this.movingLeft) newDir = 'downLeft';
-        else if (this.movingForward) newDir = 'up';
-        else if (this.movingBackward) newDir = 'down';
-        else if (this.movingRight) newDir = 'right';
-        else if (this.movingLeft) newDir = 'left';
+        if (this.stepTurnDiagonal) {
+            if (this.movingForward && this.movingRight) newDir = 'upRight';
+            if (this.movingForward && this.movingLeft) newDir = 'upLeft';
+            if (this.movingBackward && this.movingRight) newDir = 'downRight';
+            if (this.movingBackward && this.movingLeft) newDir = 'downLeft';
+        }
+        if (this.movingForward) newDir = 'up';
+        if (this.movingBackward) newDir = 'down';
+        if (this.movingRight) newDir = 'right';
+        if (this.movingLeft) newDir = 'left';
 
         if (newDir && newDir !== this.movingDirection) {
             this.newDirection = newDir;
-            this.rotateStepTurnDiagonal();
+            this.rotateStepTurn();
         }
     },
 
-    rotateStepTurnDiagonal() {
+    rotateStepTurn() {
         if (this.newDirection === this.movingDirection) return;
+        const angle = this.stepTurnDiagonal ? 45 : 90;
 
-        const directions = ['down', 'downRight', 'right', 'upRight', 'up', 'upLeft', 'left', 'downLeft'];
+        const directions = this.stepTurnDiagonal ? ['down', 'downRight', 'right', 'upRight', 'up', 'upLeft', 'left', 'downLeft'] : ['down', 'right', 'up', 'left'];
         let diff = directions.indexOf(this.newDirection) - directions.indexOf(this.movingDirection);
-        if (diff > 4) diff -= 8;
-        if (diff < -4) diff += 8;
+        if(this.stepTurnDiagonal) {
+            if (diff > 4) diff -= 8;
+            if (diff < -4) diff += 8;
+        }
+        if(this.stepTurnHorizontal) {
+            diff = diff >= 3 ? diff - 4 : diff;
+            diff = diff <= -3 ? diff + 4 : diff;
+        }
 
-        this.rotationY += diff * 45;
+        this.rotationY += diff * angle;
         this.movingDirection = this.newDirection;
 
         if (diff === 0) return;
