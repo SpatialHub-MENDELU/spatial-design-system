@@ -14,7 +14,7 @@ AFRAME.registerComponent("walk", {
         sprintSpeed: {type: "number", default: 8},
         rotationSpeed: {type: "number", default: 90},
 
-        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
+        turnType: {type: "string", default: "stepTurnDiagonal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
         startMovingDirection: {type: "string", default: "down"} // down, up, left, right, upLeft, upRight, downLeft, downRight
     },
 
@@ -232,14 +232,19 @@ AFRAME.registerComponent("walk", {
         let newDir = null;
         if (this.stepTurnDiagonal) {
             if (this.movingForward && this.movingRight) newDir = 'upRight';
-            if (this.movingForward && this.movingLeft) newDir = 'upLeft';
-            if (this.movingBackward && this.movingRight) newDir = 'downRight';
-            if (this.movingBackward && this.movingLeft) newDir = 'downLeft';
+            else if (this.movingForward && this.movingLeft) newDir = 'upLeft';
+            else if (this.movingBackward && this.movingRight) newDir = 'downRight';
+            else if (this.movingBackward && this.movingLeft) newDir = 'downLeft';
+            else if (this.movingForward) newDir = 'up';
+            else if (this.movingBackward) newDir = 'down';
+            else if (this.movingRight) newDir = 'right';
+            else if (this.movingLeft) newDir = 'left';
+        } else {
+            if (this.movingForward) newDir = 'up';
+            else if (this.movingBackward) newDir = 'down';
+            else if (this.movingRight) newDir = 'right';
+            else if (this.movingLeft) newDir = 'left';
         }
-        if (this.movingForward) newDir = 'up';
-        if (this.movingBackward) newDir = 'down';
-        if (this.movingRight) newDir = 'right';
-        if (this.movingLeft) newDir = 'left';
 
         if (newDir && newDir !== this.movingDirection) {
             this.newDirection = newDir;
