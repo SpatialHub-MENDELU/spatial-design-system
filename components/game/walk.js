@@ -14,8 +14,10 @@ AFRAME.registerComponent("walk", {
         sprintSpeed: {type: "number", default: 8},
         rotationSpeed: {type: "number", default: 90},
 
-        turnType: {type: "string", default: "stepTurnDiagonal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
-        startMovingDirection: {type: "string", default: "down"} // down, up, left, right, upLeft, upRight, downLeft, downRight
+        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
+        startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
+        autoWalk: {type: "boolean", default: false},
+        flyMode: {type: "boolean", default: false},
     },
 
     init() {
@@ -41,6 +43,9 @@ AFRAME.registerComponent("walk", {
 
         this.crossFadeDuration = 0.2
 
+        this.autoWalk = this.data.autoWalk;
+        this.flyMode = this.data.flyMode
+
         this.smoothTurn = false;
         this.stepTurnDiagonal = false;
         this.stepTurnCardinal = false;
@@ -64,10 +69,11 @@ AFRAME.registerComponent("walk", {
         this.setAnimation(this.animations.idle);
         this.bindEvents();
         this.setTurnType()
-
     },
 
     setTurnType() {
+        if (this.flyMode) return
+
         switch (this.data.turnType) {
             case 'smoothTurn':        this.smoothTurn = true; break;
             case "stepTurnDiagonal": this.stepTurnDiagonal = true; break;
@@ -145,6 +151,14 @@ AFRAME.registerComponent("walk", {
                 this.updateDirection();
                 this.setSmoothStepTurn();
             }
+            if(this.flyMode) {
+                this.movingDirection = null
+                this.updateDirection()
+                this.move()
+            }
+            if(this.autoWalk) {
+                this.move()
+            }
         }
     },
 
@@ -157,16 +171,17 @@ AFRAME.registerComponent("walk", {
 
     move(forward = true) {
         let velocity = new Ammo.btVector3(0, 0, 0);
+        const speed = this.speed;
+
         if(this.smoothTurn) {
             const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
             const factor = forward ? 1 : -1;
-            const x = Math.sin(angleRad) * this.speed * factor;
-            const z = Math.cos(angleRad) * this.speed * factor;
+            const x = Math.sin(angleRad) * speed * factor;
+            const z = Math.cos(angleRad) * speed * factor;
             velocity = new Ammo.btVector3(x, 0, z);
         }
 
         if(this.stepTurnDiagonal || this.stepTurnCardinal) {
-            const speed = this.speed;
             switch (this.movingDirection) {
                 case 'up':        velocity.setValue(0, 0, -speed); break;
                 case 'down':      velocity.setValue(0, 0, speed); break;
@@ -176,6 +191,16 @@ AFRAME.registerComponent("walk", {
                 case 'upRight':   velocity.setValue(speed, 0, -speed); break;
                 case 'downLeft':  velocity.setValue(-speed, 0, speed); break;
                 case 'downRight': velocity.setValue(speed, 0, speed); break;
+            }
+        }
+
+        if(this.flyMode) {
+            if(this.autoWalk) velocity.setValue(0, 0, -speed);
+            switch (this.movingDirection) {
+                case 'up':        velocity.setValue(0, speed, -speed); break;
+                case 'down':      velocity.setValue(0, -speed, -speed); break;
+                case 'left':      velocity.setValue(-speed, 0, -speed); break;
+                case 'right':     velocity.setValue(speed, 0, -speed); break;
             }
         }
 
@@ -215,6 +240,7 @@ AFRAME.registerComponent("walk", {
 
     // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
     setSmoothStepTurn() {
+        if(this.autoWalk) this.setAnimation(this.animations.walk);
         if (this.movingLeft || this.movingRight || this.movingBackward || this.movingForward) {
             if (this.sprintEnabled) {
                 this.isSprinting ? this.startSprinting() : this.stopSprinting();
@@ -244,6 +270,11 @@ AFRAME.registerComponent("walk", {
             else if (this.movingBackward) newDir = 'down';
             else if (this.movingRight) newDir = 'right';
             else if (this.movingLeft) newDir = 'left';
+        }
+
+        if(this.flyMode) {
+            this.movingDirection = newDir
+            return;
         }
 
         if (newDir && newDir !== this.movingDirection) {
@@ -300,6 +331,8 @@ AFRAME.registerComponent("walk", {
 
     // SMOOTH TURN
     setSmoothTurnMoving(deltaSec) {
+        if(this.autoWalk) this.setAnimation(this.animations.walk)
+
        if(this.sprintEnabled){
             if(this.turnDirection) {
                 if(this.isSprinting && this.movingForward) this.setAnimation(this.animations.sprint)
@@ -322,6 +355,8 @@ AFRAME.registerComponent("walk", {
         if(!this.movingForward && !this.movingBackward) {
             this.stopMovement();
         }
+
+
     },
 
     turnSmoothly(deltaSec) {
