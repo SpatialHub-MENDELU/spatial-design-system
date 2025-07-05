@@ -16,7 +16,7 @@ AFRAME.registerComponent("walk", {
 
         turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
-        autoWalk: {type: "boolean", default: true},
+        autoWalk: {type: "boolean", default: false},
         flyMode: {type: "boolean", default: false},
     },
 
