@@ -21,17 +21,17 @@ document.querySelector('#app').innerHTML = `
         </a-entity>
         
         <!-- Characters -->
-<!--        <a-entity walk id="fox-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1.8 0">-->
-<!--            <a-entity gltf-model="#fox" ammo-shape="type: hull;" position="0 -1.3 0.2" scale="1 1 1" ></a-entity>-->
-<!--        </a-entity>-->
-
-        <a-entity walk="walkClipName: *Dragon_Flying*; idleClipName: *Dragon_Flying*; sprint: false;" id="dragon-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 5 0">
-            <a-entity gltf-model="#dragon" ammo-shape="type: hull;" position="0 -2.1 0" scale="1 1 1" ></a-entity>
+        <a-entity walk id="fox-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1.8 0">
+            <a-entity gltf-model="#fox" ammo-shape="type: hull;" position="0 -1.3 0.2" scale="1 1 1" ></a-entity>
         </a-entity>
+
+<!--        <a-entity walk="walkClipName: *Dragon_Flying*; idleClipName: *Dragon_Flying*; gallopClipName: *Dragon_Flying*; sprint: true;" id="dragon-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 5 0" rotation="0 180 0">-->
+<!--            <a-entity gltf-model="#dragon" ammo-shape="type: hull;" position="0 -2.1 0" scale="1 1 1" ></a-entity>-->
+<!--        </a-entity>-->
 
         <!-- Camera -->
 <!--        <a-entity camera look-controls position="0 4 20" ></a-entity>-->
-        <a-entity camera gameview="target: #dragon-character" rotation="-30 0 0"></a-entity>
+        <a-entity camera gameview="target: #fox-character" rotation="-30 0 0"></a-entity>
         
     </a-scene>
 `

@@ -14,9 +14,10 @@ AFRAME.registerComponent("walk", {
         sprintSpeed: {type: "number", default: 8},
         rotationSpeed: {type: "number", default: 90},
 
-        turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
-        startMovingDirection: {type: "string", default: "left"}, // down, up, left, right,
-        autoWalk: {type: "boolean", default: true}
+        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
+        startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
+        autoWalk: {type: "boolean", default: true},
+        flyMode: {type: "boolean", default: false},
     },
 
     init() {
@@ -43,6 +44,7 @@ AFRAME.registerComponent("walk", {
         this.crossFadeDuration = 0.2
 
         this.autoWalk = this.data.autoWalk;
+        this.flyMode = this.data.flyMode
 
         this.smoothTurn = false;
         this.stepTurnDiagonal = false;
@@ -70,7 +72,7 @@ AFRAME.registerComponent("walk", {
     },
 
     setTurnType() {
-        if (this.autoWalk) return
+        if (this.flyMode) return
 
         switch (this.data.turnType) {
             case 'smoothTurn':        this.smoothTurn = true; break;
@@ -144,15 +146,17 @@ AFRAME.registerComponent("walk", {
         const deltaSec = deltaTime / 1000;
 
         if (this.el.body) {
-
             if(this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
             if(this.stepTurnDiagonal || this.stepTurnCardinal) {
                 this.updateDirection();
                 this.setSmoothStepTurn();
             }
-            if(this.autoWalk) {
+            if(this.flyMode) {
                 this.movingDirection = null
                 this.updateDirection()
+                this.move()
+            }
+            if(this.autoWalk) {
                 this.move()
             }
         }
@@ -190,13 +194,13 @@ AFRAME.registerComponent("walk", {
             }
         }
 
-        if(this.autoWalk) {
-            velocity.setValue(0, 0, speed); // Default auto walk direction
+        if(this.flyMode) {
+            if(this.autoWalk) velocity.setValue(0, 0, -speed);
             switch (this.movingDirection) {
-                case 'up':        velocity.setValue(0, speed, speed); break;
-                case 'down':      velocity.setValue(0, -speed, speed); break;
-                case 'left':      velocity.setValue(-speed, 0, speed); break;
-                case 'right':     velocity.setValue(speed, 0, speed); break;
+                case 'up':        velocity.setValue(0, speed, -speed); break;
+                case 'down':      velocity.setValue(0, -speed, -speed); break;
+                case 'left':      velocity.setValue(-speed, 0, -speed); break;
+                case 'right':     velocity.setValue(speed, 0, -speed); break;
             }
         }
 
@@ -236,6 +240,7 @@ AFRAME.registerComponent("walk", {
 
     // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
     setSmoothStepTurn() {
+        if(this.autoWalk) this.setAnimation(this.animations.walk);
         if (this.movingLeft || this.movingRight || this.movingBackward || this.movingForward) {
             if (this.sprintEnabled) {
                 this.isSprinting ? this.startSprinting() : this.stopSprinting();
@@ -267,7 +272,7 @@ AFRAME.registerComponent("walk", {
             else if (this.movingLeft) newDir = 'left';
         }
 
-        if(this.autoWalk) {
+        if(this.flyMode) {
             this.movingDirection = newDir
             return;
         }
@@ -326,6 +331,8 @@ AFRAME.registerComponent("walk", {
 
     // SMOOTH TURN
     setSmoothTurnMoving(deltaSec) {
+        if(this.autoWalk) this.setAnimation(this.animations.walk)
+
        if(this.sprintEnabled){
             if(this.turnDirection) {
                 if(this.isSprinting && this.movingForward) this.setAnimation(this.animations.sprint)
@@ -348,6 +355,8 @@ AFRAME.registerComponent("walk", {
         if(!this.movingForward && !this.movingBackward) {
             this.stopMovement();
         }
+
+
     },
 
     turnSmoothly(deltaSec) {
