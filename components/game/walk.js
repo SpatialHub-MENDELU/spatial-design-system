@@ -18,6 +18,7 @@ AFRAME.registerComponent("walk", {
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
         autoWalk: {type: "boolean", default: false},
         flyMode: {type: "boolean", default: false},
+        targetWalk: {type: "boolean", default: false},
     },
 
     init() {
@@ -29,6 +30,9 @@ AFRAME.registerComponent("walk", {
             idle: this.data.idleClipName,
             sprint: this.data.gallopClipName
         };
+
+        this.scene = this.el.sceneEl;
+        this.camera = this.el.sceneEl.camera
 
         this.keys = {
             up: this.data.keyUp,
@@ -45,6 +49,7 @@ AFRAME.registerComponent("walk", {
 
         this.autoWalk = this.data.autoWalk;
         this.flyMode = this.data.flyMode
+        this.targetWalk = this.data.targetWalk
 
         this.smoothTurn = false;
         this.stepTurnDiagonal = false;
@@ -66,13 +71,19 @@ AFRAME.registerComponent("walk", {
         // this.movingForward
         // this.movingBackward
 
+        // TARGET WALK
+        this.reachTarget = true;
+        this.targetPosition = this.el.object3D.position
+        this.rotationToTarget = null
+        if(this.targetWalk) this.rotationSpeed = 450
+
         this.setAnimation(this.animations.idle);
         this.bindEvents();
         this.setTurnType()
     },
 
     setTurnType() {
-        if (this.flyMode) return
+        if (this.flyMode || this.targetWalk) return
 
         switch (this.data.turnType) {
             case 'smoothTurn':        this.smoothTurn = true; break;
@@ -85,6 +96,7 @@ AFRAME.registerComponent("walk", {
     bindEvents() {
         document.addEventListener("keydown", this.onKeyDown.bind(this));
         document.addEventListener("keyup", this.onKeyUp.bind(this));
+        document.addEventListener("click", this.onClick.bind(this));
     },
 
     onKeyDown(e) {
@@ -132,6 +144,12 @@ AFRAME.registerComponent("walk", {
 
     },
 
+    onClick(e) {
+        if(this.targetWalk) {
+            this.setTargetPosition(e)
+        }
+    },
+
     setAnimation(name) {
         if (!this.characterModel || this.currentAnimation === name) return;
         this.characterModel.setAttribute('animation-mixer', {
@@ -158,6 +176,14 @@ AFRAME.registerComponent("walk", {
             }
             if(this.autoWalk) {
                 this.move()
+            }
+            if(this.targetWalk) {
+                this.checkReachedTarget()
+                if(!this.reachTarget) {
+                    this.rotateToTarget(deltaSec)
+                    this.moveToTarget()
+                }
+                if(this.reachTarget) this.stopMovement()
             }
         }
     },
@@ -207,6 +233,21 @@ AFRAME.registerComponent("walk", {
         this.el.body.setLinearVelocity(velocity);
     },
 
+    rotateCharacterSmoothly(angleRad) {
+        const quaternion = new Ammo.btQuaternion();
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
+
+        const transform = this.el.body.getWorldTransform();
+        const origin = transform.getOrigin();
+
+        const newTransform = new Ammo.btTransform();
+        newTransform.setIdentity();
+        newTransform.setOrigin(origin);
+        newTransform.setRotation(quaternion);
+
+        this.el.body.setWorldTransform(newTransform);
+        this.el.body.activate();
+    },
 
     // SPRINT
     startSprinting() {
@@ -364,20 +405,78 @@ AFRAME.registerComponent("walk", {
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
 
         const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
-
-        const quaternion = new Ammo.btQuaternion();
-        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
-
-        const transform = this.el.body.getWorldTransform();
-        const origin = transform.getOrigin();
-
-        const newTransform = new Ammo.btTransform();
-        newTransform.setIdentity();
-        newTransform.setOrigin(origin);
-        newTransform.setRotation(quaternion);
-
-        this.el.body.setWorldTransform(newTransform);
-        this.el.body.activate();
+        this.rotateCharacterSmoothly(angleRad)
     },
+
+    // TARGET WALK
+
+    moveToTarget() {
+      if(!this.reachTarget) {
+          this.setAnimation(this.animations.walk)
+          const direction = new AFRAME.THREE.Vector3().subVectors(this.targetPosition, this.el.object3D.position).normalize();
+          this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
+      }
+    },
+
+    checkReachedTarget() {
+        const currentPos = this.el.object3D.position;
+        const targetPos = this.targetPosition;
+
+        const dx = currentPos.x - targetPos.x;
+        const dz = currentPos.z - targetPos.z;
+
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+
+        if (distanceXZ < 0.5) {
+            this.reachTarget = true;
+        }
+    },
+
+    setTargetPosition(event) {
+        this.reachTarget = false
+        const mouse = new AFRAME.THREE.Vector2()
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        const raycaster = new AFRAME.THREE.Raycaster();
+        raycaster.setFromCamera(mouse, this.camera);
+        const intersects = raycaster.intersectObjects(this.scene.object3D.children);
+        this.targetPosition =  intersects[0].point
+    },
+
+    setRotationToTarget() {
+        const currentPos = this.el.object3D.position;
+        const targetPos = this.targetPosition;
+
+        const dx = targetPos.x - currentPos.x;
+        const dz = targetPos.z - currentPos.z;
+
+        const targetAngleRad = Math.atan2(dx, dz);
+        const targetAngleDeg = THREE.MathUtils.radToDeg(targetAngleRad);
+
+        this.rotationToTarget = (targetAngleDeg + 360) % 360;
+    },
+
+    rotateToTarget(deltaSec) {
+        this.setRotationToTarget()
+        this.setAnimation(this.animations.walk)
+
+        const current = this.currentRotation;
+        const target = this.rotationToTarget;
+
+        let diff = ((target - current + 540) % 360) - 180;
+
+        const maxStep = this.rotationSpeed * deltaSec;
+
+        if (Math.abs(diff) <= maxStep) {
+            this.currentRotation = target;
+        } else {
+            this.currentRotation = (current + Math.sign(diff) * maxStep + 360) % 360;
+        }
+
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+
+        this.rotateCharacterSmoothly(angleRad);
+    }
 
 })
