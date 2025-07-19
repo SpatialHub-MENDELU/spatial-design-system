@@ -10,9 +10,12 @@ AFRAME.registerComponent('npc-walk', {
         allowRotation: {type: "boolean", default: true},
         rotationSpeed: {type: "number", default: 200},
 
-        type: {type: "string", default: "pointToPoint"}, // pointToPoint, points, randomMoving
+        type: {type: "string", default: "points"}, // pointToPoint, points, randomMoving
 
         pointToPoint: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}]},
+        points: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}, {x: 5, y: 1, z: 0}]},
+        cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
+        randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
     },
 
     init() {
@@ -38,11 +41,17 @@ AFRAME.registerComponent('npc-walk', {
         this.wrongInput = false
         this.targetPosition = null
 
+        this.currentIndex = 0
+
         // POINT TO POINT
         this.pointToPointArray = this.data.pointToPoint;
         this.positionReached = false
         this.positionA = null
         this.positionB = null
+
+        // POINTS
+        this.pointsArray = this.data.points;
+        this.arrayDirection = 1 // 1 for forward, -1 for backward
 
         // SET INITIAL VALUES
         this.setType()
@@ -59,11 +68,11 @@ AFRAME.registerComponent('npc-walk', {
         if(this.wrongInput) return
         if(this.el.body) {
             if(this.pointToPointType) this.pointToPointMovement(deltaSec)
+            if(this.pointsType) this.pointsMovement(deltaSec)
         }
     },
 
     setType() {
-        console.log("setting type")
         switch (this.data.type) {
             case 'pointToPoint': this.pointToPointType = true; break;
             case 'points': this.pointsType = true; break;
@@ -72,10 +81,9 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     checkInput() {
-        console.log("checking input")
         switch (this.data.type) {
             case 'pointToPoint': this.checkPointToPointInput(); break;
-            // case 'points':  break;
+            case 'points': this.checkPointsInput(); break;
             // case 'randomMoving':  break;
         }
     },
@@ -91,7 +99,7 @@ AFRAME.registerComponent('npc-walk', {
     setPositions() {
         switch (this.data.type) {
             case 'pointToPoint': this.setPointToPointPositions(); break;
-            // case 'points':  break;
+            case 'points': this.setPointsPositions(); break;
             // case 'randomMoving':  break;
         }
     },
@@ -172,6 +180,14 @@ AFRAME.registerComponent('npc-walk', {
         this.el.body.activate();
     },
 
+    convertObjectToVector3Array(object) {
+        return new THREE.Vector3(
+            object.x,
+            object.y,
+            object.z
+        );
+    },
+
     // POINT TO POINT
 
     pointToPointMovement(deltaSec) {
@@ -186,7 +202,6 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     checkPointToPointInput() {
-        console.log(this.pointToPointArray)
       this.wrongInput = false
       if (this.pointToPointArray.length !== 2) {
           this.wrongInput = true
@@ -207,7 +222,6 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     setPointToPointPositions() {
-        console.log("setting point to point positions")
         this.positionA = new THREE.Vector3(
             this.pointToPointArray[0].x,
             this.pointToPointArray[0].y,
@@ -219,7 +233,75 @@ AFRAME.registerComponent('npc-walk', {
             this.pointToPointArray[1].z
         );
         this.targetPosition = this.positionA
-        console.log(this.positionA)
-        console.log(this.positionB)
-    }
+    },
+
+    // POINTS
+
+    checkPointsInput() {
+        this.wrongInput = false
+
+        if(this.pointToPointArray.length < 2) {
+            this.wrongInput = true
+            console.warn("Wrong input for points. Expected array with at least three objects with x, y, z properties.")
+            return
+        }
+
+        for (let i = 0; i < this.pointToPointArray.length; i++) {
+            const point = this.pointToPointArray[i];
+            if (point.x === null || point.y === null || point.z === null) {
+                this.wrongInput = true;
+                console.warn(`Wrong input for points. Point at index ${i} is missing x, y, or z property.`);
+                return;
+            }
+        }
+    },
+
+    setPointsPositions() {
+        this.targetPosition = this.convertObjectToVector3Array(this.pointsArray[0]);
+        this.currentIndex = 0;
+    },
+
+    setNextTargetPosition() {
+        this.setNewIndex()
+        this.targetPosition = this.convertObjectToVector3Array(this.pointsArray[this.currentIndex]);
+    },
+
+    setNewIndex () {
+        if(this.data.randomizePointsOrder) {
+            let newIndex = this.currentIndex;
+
+            while (newIndex === this.currentIndex && this.pointsArray.length > 1) {
+                newIndex = Math.floor(Math.random() * this.pointsArray.length);
+            }
+
+            this.currentIndex = newIndex;
+        }
+
+        else if(this.data.cyclePath) {
+            this.currentIndex++;
+            if(this.currentIndex === this.pointsArray.length) {
+                this.currentIndex = 0;
+            }
+        }
+        else {
+            this.currentIndex += this.arrayDirection;
+
+            if (this.currentIndex === this.pointsArray.length - 1 || this.currentIndex === 0) {
+                this.arrayDirection *= -1;
+            }
+        }
+    },
+
+    pointsMovement(deltaSec) {
+        if(!this.positionReached) {
+            this.checkReachedPosition(this.targetPosition)
+            if(this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
+            this.moveToPosition(this.targetPosition);
+        } else {
+            this.setNextTargetPosition();
+            this.positionReached = false;
+        }
+    },
+
+
 })
