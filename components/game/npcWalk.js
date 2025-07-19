@@ -4,9 +4,11 @@ AFRAME.registerComponent('npc-walk', {
         idleClipName: {type: "string", default: "*Idle*"},
 
         speed: {type: "number", default: 2},
-        rotationSpeed: {type: "number", default: 500},
-        allowRotation: {type: "boolean", default: false},
         checkHeight: {type: "boolean", default: false},
+        pauseAtPoints: {type: "number", default: 0},
+
+        allowRotation: {type: "boolean", default: true},
+        rotationSpeed: {type: "number", default: 200},
 
         type: {type: "string", default: "pointToPoint"}, // pointToPoint, points, randomMoving
 
@@ -22,9 +24,12 @@ AFRAME.registerComponent('npc-walk', {
         }
 
         this.speed = this.data.speed
-        this.rotationSpeed = this.data.rotationSpeed
-        this.allowRsotation = this.data.allowRotation
         this.checkHeight = this.data.checkHeight
+
+        this.rotationSpeed = this.data.rotationSpeed
+        this.allowRotation = this.data.allowRotation
+        this.rotationToTarget = null
+        this.currentRotation = 90
 
         this.pointToPointType = false
         this.pointsType = false
@@ -48,10 +53,12 @@ AFRAME.registerComponent('npc-walk', {
 
     },
 
-    tick() {
+    tick(deltaTime) {
+        const deltaSec = deltaTime / 1000;
+
         if(this.wrongInput) return
         if(this.el.body) {
-            if(this.pointToPointType) this.pointToPointMovement()
+            if(this.pointToPointType) this.pointToPointMovement(deltaSec)
         }
     },
 
@@ -115,16 +122,62 @@ AFRAME.registerComponent('npc-walk', {
         }
     },
 
-    rotateToPosition(targetPosition) {
-        // todo - add rotation to target position
+    setRotationToTarget() {
+        const currPos = this.el.object3D.position;
+        const targetPosition = this.targetPosition;
+
+        const dx = targetPosition.x - currPos.x;
+        const dz = targetPosition.z - currPos.z;
+
+        const targetAngleRad = Math.atan2(dx, dz);
+        const targetAngleDeg = THREE.MathUtils.radToDeg(targetAngleRad);
+
+        this.rotationToTarget = (targetAngleDeg + 360) % 360;
+    },
+
+    rotateToPosition(targetPosition, deltaSec) {
+        this.setRotationToTarget(targetPosition);
+        if(!this.allowRotation) return;
+
+        const currentRotation = this.currentRotation
+        const targetRotation = this.rotationToTarget
+
+        let diff = ((targetRotation - currentRotation + 540) % 360) - 180;
+
+        const maxStep = this.rotationSpeed * deltaSec;
+
+        if(Math.abs(diff) <= maxStep) {
+            this.currentRotation = targetRotation;
+        } else {
+            this.currentRotation = (currentRotation + Math.sign(diff) * maxStep + 540) % 360;
+        }
+
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        this.rotateCharacter(angleRad);
+    },
+
+    rotateCharacter(angleRad) {
+        const quaternion = new Ammo.btQuaternion();
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
+
+        const transform = this.el.body.getWorldTransform();
+        const origin = transform.getOrigin();
+
+        const newTransform = new Ammo.btTransform();
+        newTransform.setIdentity();
+        newTransform.setOrigin(origin);
+        newTransform.setRotation(quaternion);
+
+        this.el.body.setWorldTransform(newTransform);
+        this.el.body.activate();
     },
 
     // POINT TO POINT
 
-    pointToPointMovement() {
+    pointToPointMovement(deltaSec) {
         if(!this.positionReached) {
             this.checkReachedPosition(this.targetPosition)
-            if(this.allowRotation) this.rotateToPosition(this.targetPosition)
+            if(this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
             this.moveToPosition(this.targetPosition);
         } else {
             this.targetPosition = (this.targetPosition === this.positionA) ? this.positionB : this.positionA;
