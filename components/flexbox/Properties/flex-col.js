@@ -14,11 +14,11 @@ AFRAME.registerComponent("flex-col", {
         this.updateBreakpoint = this.updateBreakpoint.bind(this);
         this.currentBreakpoint = 'sm';
 
-        // Inicializace
+        // Initialization
         this.el.sceneEl.addEventListener('loaded', () => {
             this.updateBreakpoint();
 
-            // Pokud má rodič flexbox komponentu, poslouchejme na její události
+            // If the parent has a flexbox component, listen to its events
             if (this.el.parentEl && this.el.parentEl.components.flexbox) {
                 this.el.parentEl.addEventListener('object3dset', this.updateBreakpoint);
                 this.el.parentEl.addEventListener('componentchanged', (evt) => {
@@ -33,11 +33,11 @@ AFRAME.registerComponent("flex-col", {
     updateBreakpoint() {
         if (!this.el.parentEl) return;
 
-        // Získání šířky rodičovského ThreeJS objektu v metrech
+        // Get the width of the parent ThreeJS object in meters
         let containerWidth = 0;
 
         if (this.el.parentEl.object3D) {
-            // Pokud má objekt bounding box, použijeme ho
+            // If the object has a bounding box, use it
             const bbox = new THREE.Box3().setFromObject(this.el.parentEl.object3D);
             const size = new THREE.Vector3();
             bbox.getSize(size);
@@ -46,14 +46,14 @@ AFRAME.registerComponent("flex-col", {
             console.error('Flex-col: Parent element does not have a valid object3D');
         }
 
-        // Určení breakpointu podle šířky rodičovského kontejneru v metrech
+        // Determine the breakpoint based on the width of the parent container in meters
         this.currentBreakpoint =
             containerWidth >= 15 && this.data['3xl'] ? '3xl' :  // 15m ~ 1500px
                 containerWidth >= 12 && this.data['2xl'] ? '2xl' :  // 12m ~ 1200px
                     containerWidth >= 10 && this.data.xl ? 'xl' :   // 10m ~ 1000px
                         containerWidth >= 7 && this.data.lg ? 'lg' :    // 7m ~ 700px
                             containerWidth >= 4 && this.data.md ? 'md' :    // 4m ~ 400px
-                                'sm';                          // výchozí hodnota
+                                'sm';                          // default value
 
         this.el.emit('breakpoint-changed', {
             breakpoint: this.currentBreakpoint,
