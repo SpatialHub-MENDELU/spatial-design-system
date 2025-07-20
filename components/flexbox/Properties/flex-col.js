@@ -10,6 +10,41 @@ AFRAME.registerComponent("flex-col", {
         '3xl': { type: "number" },
     },
 
+    // Override parse to handle custom numeric breakpoints
+    parse(value) {
+        const data = {};
+        
+        if (typeof value === 'string') {
+            // Parse string like "sm: 4; md: 6; 5.5: 8"
+            const pairs = value.split(';').map(s => s.trim()).filter(s => s);
+            
+            for (const pair of pairs) {
+                const [key, val] = pair.split(':').map(s => s.trim());
+                if (key && val) {
+                    // Check if key is a number or predefined breakpoint
+                    if (!isNaN(parseFloat(key)) || ['sm', 'md', 'lg', 'xl', '2xl', '3xl'].includes(key)) {
+                        const numValue = parseFloat(val);
+                        if (!isNaN(numValue)) {
+                            data[key] = numValue;
+                        }
+                    }
+                }
+            }
+        } else if (typeof value === 'object' && value !== null) {
+            // Handle object format
+            for (const [key, val] of Object.entries(value)) {
+                if (!isNaN(parseFloat(key)) || ['sm', 'md', 'lg', 'xl', '2xl', '3xl'].includes(key)) {
+                    const numValue = parseFloat(val);
+                    if (!isNaN(numValue)) {
+                        data[key] = numValue;
+                    }
+                }
+            }
+        }
+        
+        return data;
+    },
+
     init() {
         this.updateBreakpoint = this.updateBreakpoint.bind(this);
         this.currentBreakpoint = 'sm';
@@ -46,14 +81,11 @@ AFRAME.registerComponent("flex-col", {
             console.error('Flex-col: Parent element does not have a valid object3D');
         }
 
-        // Determine the breakpoint based on the width of the parent container in meters
-        this.currentBreakpoint =
-            containerWidth >= 15 && this.data['3xl'] ? '3xl' :  // 15m ~ 1500px
-                containerWidth >= 12 && this.data['2xl'] ? '2xl' :  // 12m ~ 1200px
-                    containerWidth >= 10 && this.data.xl ? 'xl' :   // 10m ~ 1000px
-                        containerWidth >= 7 && this.data.lg ? 'lg' :    // 7m ~ 700px
-                            containerWidth >= 4 && this.data.md ? 'md' :    // 4m ~ 400px
-                                'sm';                          // default value
+        // Get all available breakpoints (both predefined and custom)
+        const breakpoints = this.getAvailableBreakpoints();
+        
+        // Find the best matching breakpoint
+        this.currentBreakpoint = this.findBestBreakpoint(containerWidth, breakpoints);
 
         this.el.emit('breakpoint-changed', {
             breakpoint: this.currentBreakpoint,
@@ -61,16 +93,78 @@ AFRAME.registerComponent("flex-col", {
         });
     },
 
-    getCurrentColumn() {
-        const result = this.data[this.currentBreakpoint] ||
-            this.data.md ||
-            this.data.lg ||
-            this.data.xl ||
-            this.data['2xl'] ||
-            this.data['3xl'] ||
-            this.data.sm;
+    getAvailableBreakpoints() {
+        const breakpoints = [];
+        
+        // Add predefined breakpoints with their thresholds ONLY if they are actually defined
+        const predefinedBreakpoints = {
+            '3xl': 15,  // 15m ~ 1500px
+            '2xl': 12,  // 12m ~ 1200px
+            'xl': 10,   // 10m ~ 1000px
+            'lg': 7,    // 7m ~ 700px
+            'md': 4,    // 4m ~ 400px
+            'sm': 0     // default value
+        };
+        
+        for (const [name, threshold] of Object.entries(predefinedBreakpoints)) {
+            // Only add if the breakpoint is actually defined in the data
+            if (this.data[name] !== undefined && this.data[name] !== 0) {
+                breakpoints.push({ name, threshold, value: this.data[name] });
+            }
+        }
+        
+        // Add custom numeric breakpoints ONLY if they are actually defined
+        for (const [key, value] of Object.entries(this.data)) {
+            if (!isNaN(parseFloat(key)) && value !== undefined && value !== 0) {
+                const threshold = parseFloat(key);
+                breakpoints.push({ name: key, threshold, value });
+            }
+        }
+        
+        // Sort by threshold descending (largest first)
+        return breakpoints.sort((a, b) => b.threshold - a.threshold);
+    },
 
-        return result;
+    findBestBreakpoint(containerWidth, breakpoints) {
+        // Find the largest breakpoint where containerWidth >= threshold
+        for (const breakpoint of breakpoints) {
+            if (containerWidth >= breakpoint.threshold) {
+                return breakpoint.name;
+            }
+        }
+        
+        // If no breakpoint matches, return the smallest available one or 'sm' as fallback
+        if (breakpoints.length > 0) {
+            return breakpoints[breakpoints.length - 1].name;
+        }
+        
+        return 'sm'; // Ultimate fallback
+    },
+
+    getCurrentColumn() {
+        // Always recalculate the best breakpoint when this method is called
+        let containerWidth = 0;
+        if (this.el.parentEl && this.el.parentEl.object3D) {
+            const bbox = new THREE.Box3().setFromObject(this.el.parentEl.object3D);
+            const size = new THREE.Vector3();
+            bbox.getSize(size);
+            containerWidth = size.x;
+        }
+
+        // Get only the breakpoints that are actually defined (not 0 or undefined)
+        const breakpoints = this.getAvailableBreakpoints();
+        
+        // Find the largest breakpoint that is <= containerWidth
+        // This ensures we only use breakpoints that should actually apply
+        for (const breakpoint of breakpoints) {
+            if (containerWidth >= breakpoint.threshold) {
+                return breakpoint.value;
+            }
+        }
+        
+        // If no breakpoint applies (container is smaller than all defined breakpoints),
+        // return undefined since no breakpoint should apply
+        return undefined;
     },
 
     remove() {

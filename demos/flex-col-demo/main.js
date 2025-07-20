@@ -14,38 +14,20 @@ document.querySelector("#app").innerHTML = `
   <a-plane 
     id="flex-container"
     position="0 1.5 -8"
-    width="3"
+    width="5"
     height="3"
     color="green"
     flexbox="direction: row; justify: center; items: start; wrap: true; gap: 1 0"
   >
-    <!-- První řada boxů - různé flex-col hodnoty -->
     <a-box 
       width="1" 
       height="0.5" 
       depth="0.1" 
       color="red" 
-      flex-col="sm:4; md:1"
+      flex-col="3: 6;4: 11;"
       material="opacity: 0.7"
     ></a-box>
     
-    <a-box 
-      width="1" 
-      height="0.5" 
-      depth="0.1" 
-      color="blue" 
-      flex-col="sm:4; md:11"
-      material="opacity: 0.7"
-    ></a-box>
-    
-    <a-box 
-      width="1" 
-      height="0.5" 
-      depth="0.1" 
-      color="yellow" 
-      flex-col="sm: 4; md: 4; lg: 3"
-      material="opacity: 0.7"
-    ></a-box>
 <!--    -->
 <!--    <a-box -->
 <!--      width="1" -->
@@ -56,7 +38,7 @@ document.querySelector("#app").innerHTML = `
 <!--      material="opacity: 0.7"-->
 <!--    ></a-box>-->
 <!--    -->
-<!--    &lt;!&ndash; Druhá řada boxů - s flex-grow &ndash;&gt;-->
+
 <!--    <a-box -->
 <!--      width="1" -->
 <!--      height="0.5" -->
