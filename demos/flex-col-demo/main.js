@@ -1,7 +1,7 @@
 // Import A-Frame
 import 'aframe';
 
-// Import potřebné komponenty
+// Import required components
 import '../../components/flexbox/constants/constants.js';
 import '../../components/flexbox/flexbox.js';
 import '../../components/flexbox/Properties/flex-grow.js';
@@ -90,7 +90,7 @@ document.querySelector("#app").innerHTML = `
 </a-scene>
 `;
 
-// Pro testování - vypíše na konzoli aktuální breakpoint, když se změní
+// For testing - prints the current breakpoint to console when it changes
 document.addEventListener('DOMContentLoaded', function() {
     const scene = document.querySelector('a-scene');
 

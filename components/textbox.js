@@ -326,7 +326,7 @@ AFRAME.registerComponent('textbox', {
     this.el.toggleListeningToKeydown = toggleListeningToKeydown;
     const scene = this.el.sceneEl;
 
-    // misto click nothing, click cokooliv co neni komponenta
+    // instead of click nothing, click anything that is not a component
     scene.addEventListener('click-nothing', e => {
       // If the textbox is not activated, or clicking on a object, do nothing
       if (!this.el.object3D.visible || !this.data.isactivated) return ;
