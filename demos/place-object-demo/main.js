@@ -10,7 +10,7 @@ document.querySelector("#app").innerHTML = `
     id="scene"
     touch-raycaster
     place-object-manager="
-        maxObjects: 1;
+        maxObjects: 10;
     "
     context-menu
     cross-objects
@@ -22,10 +22,11 @@ document.querySelector("#app").innerHTML = `
     textcolor="white"
     size="small"
     place-object="
-    surfaceTypes: horizontal, wall;
-    layFlat: false;
+    surfaceTypes: horizontal, wall, ceiling;
+    layFlat: true;
     scale: 0.3;
     faceCamera: true;
+    heightRange: 0 10;
     "
 ></a-ar-button>
 </a-scene>
