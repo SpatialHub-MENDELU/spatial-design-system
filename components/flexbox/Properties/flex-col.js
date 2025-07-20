@@ -96,13 +96,12 @@ AFRAME.registerComponent("flex-col", {
     getAvailableBreakpoints() {
         const breakpoints = [];
         
-        // Add predefined breakpoints with their thresholds ONLY if they are actually defined
         const predefinedBreakpoints = {
-            '3xl': 15,  // 15m ~ 1500px
-            '2xl': 12,  // 12m ~ 1200px
-            'xl': 10,   // 10m ~ 1000px
-            'lg': 7,    // 7m ~ 700px
-            'md': 4,    // 4m ~ 400px
+            '3xl': 15,  // 15m 
+            '2xl': 12,  // 12m 
+            'xl': 10,   // 10m 
+            'lg': 7,    // 7m 
+            'md': 4,    // 4m 
             'sm': 0     // default value
         };
         
