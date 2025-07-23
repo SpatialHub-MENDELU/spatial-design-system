@@ -12,7 +12,7 @@ AFRAME.registerPrimitive('a-ar-menu', {
     menuopacity: 'menu.menuopacity',
     itemsopacity: 'menu.itemsopacity',
     position: 'geometry.position',
-    primary: 'menu.primary',
+    color: 'menu.color',
     highlighted: 'menu.highlighted',
     highlight: 'menu.highlight',
     items: 'menu.items',
