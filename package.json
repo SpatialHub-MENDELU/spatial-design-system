@@ -12,6 +12,7 @@
   "scripts": {
     "demo": "vite demo",
     "demo-follow-entity": "vite follow-entity-demo",
+    "demo-tereza": "vite tereza-demo",
     "dev": "vite debug/",
     "build": "vite build"
   },
