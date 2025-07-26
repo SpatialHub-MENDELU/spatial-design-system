@@ -1,12 +1,16 @@
 import * as AFRAME from "aframe";
 
+/**
+ * @deprecated - Merged into autoXr.js
+ */
+
 AFRAME.registerComponent("auto-vr", {
   schema: {
     autoEnter: { type: "boolean", default: true },
     createButton: { type: "boolean", default: true },
     buttonText: { type: "string", default: "Enter VR" },
     pollInterval: { type: "number", default: 2000 },
-    maxAttempts: { type: "number", default: 10 }
+    maxAttempts: { type: "number", default: 10 },
   },
 
   init() {
@@ -27,29 +31,29 @@ AFRAME.registerComponent("auto-vr", {
     this.onSceneLoaded = this.onSceneLoaded.bind(this);
     this.pollForVR = this.pollForVR.bind(this);
 
-    window.addEventListener('vrdisplayconnect', this.onVRDisplayConnect);
-    window.addEventListener('vrdisplaydisconnect', this.onVRDisplayDisconnect);
-    
-    this.el.addEventListener('enter-vr', this.onEnterVR);
-    this.el.addEventListener('exit-vr', this.onExitVR);
-    
+    window.addEventListener("vrdisplayconnect", this.onVRDisplayConnect);
+    window.addEventListener("vrdisplaydisconnect", this.onVRDisplayDisconnect);
+
+    this.el.addEventListener("enter-vr", this.onEnterVR);
+    this.el.addEventListener("exit-vr", this.onExitVR);
+
     if (this.el.hasLoaded) {
       this.isSceneLoaded = true;
       this.onSceneLoaded();
     } else {
-      this.el.addEventListener('loaded', this.onSceneLoaded);
+      this.el.addEventListener("loaded", this.onSceneLoaded);
     }
-    
+
     if (this.data.createButton) {
       this.createVRButton();
     }
-    
+
     this.checkVRSupport();
   },
 
   onSceneLoaded() {
     this.isSceneLoaded = true;
-    
+
     if (this.data.autoEnter && !this.hasEntered) {
       this.startPolling();
     }
@@ -57,7 +61,7 @@ AFRAME.registerComponent("auto-vr", {
 
   startPolling() {
     this.stopPolling();
-    
+
     this.attemptCount = 0;
     this.pollIntervalId = setInterval(this.pollForVR, this.data.pollInterval);
   },
@@ -71,17 +75,17 @@ AFRAME.registerComponent("auto-vr", {
 
   pollForVR() {
     this.attemptCount++;
-    
+
     if (this.attemptCount > this.data.maxAttempts) {
       this.stopPolling();
       return;
     }
-    
+
     if (this.hasEntered) {
       this.stopPolling();
       return;
     }
-    
+
     if (this.isSceneLoaded && this.isVrSupported) {
       this.enterVR();
     } else {
@@ -93,17 +97,19 @@ AFRAME.registerComponent("auto-vr", {
 
   checkVRSupport() {
     if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-vr')
-        .then(supported => {
+      navigator.xr
+        .isSessionSupported("immersive-vr")
+        .then((supported) => {
           this.isVrSupported = supported;
         })
-        .catch(error => {});
+        .catch((error) => {});
     } else if (navigator.getVRDisplays) {
-      navigator.getVRDisplays()
-        .then(displays => {
+      navigator
+        .getVRDisplays()
+        .then((displays) => {
           this.isVrSupported = displays && displays.length > 0;
         })
-        .catch(error => {});
+        .catch((error) => {});
     } else {
       this.isVrSupported = false;
     }
@@ -113,7 +119,7 @@ AFRAME.registerComponent("auto-vr", {
     if (this.hasEntered) {
       return;
     }
-    
+
     try {
       this.el.enterVR();
     } catch (error) {
@@ -125,7 +131,7 @@ AFRAME.registerComponent("auto-vr", {
 
   exitVR() {
     if (!this.hasEntered) return;
-    
+
     try {
       this.el.exitVR();
     } catch (error) {}
@@ -133,7 +139,7 @@ AFRAME.registerComponent("auto-vr", {
 
   onVRDisplayConnect() {
     this.isVrSupported = true;
-    
+
     if (this.data.autoEnter && !this.hasEntered && this.isSceneLoaded) {
       this.startPolling();
     }
@@ -142,7 +148,7 @@ AFRAME.registerComponent("auto-vr", {
   onVRDisplayDisconnect() {
     this.isVrSupported = false;
     this.stopPolling();
-    
+
     if (this.hasEntered) {
       this.exitVR();
     }
@@ -151,7 +157,7 @@ AFRAME.registerComponent("auto-vr", {
   onEnterVR() {
     this.hasEntered = true;
     this.stopPolling();
-    
+
     if (this.vrButton) {
       this.vrButton.textContent = "Exit VR";
     }
@@ -159,7 +165,7 @@ AFRAME.registerComponent("auto-vr", {
 
   onExitVR() {
     this.hasEntered = false;
-    
+
     if (this.vrButton) {
       this.vrButton.textContent = this.data.buttonText;
     }
@@ -170,41 +176,43 @@ AFRAME.registerComponent("auto-vr", {
       this.vrButton.parentNode.removeChild(this.vrButton);
       this.vrButton = null;
     }
-    
-    const existingButton = document.getElementById('auto-vr-button');
+
+    const existingButton = document.getElementById("auto-vr-button");
     if (existingButton && existingButton.parentNode) {
       existingButton.parentNode.removeChild(existingButton);
     }
-    
-    this.vrButton = document.createElement('button');
-    this.vrButton.textContent = this.hasEntered ? "Exit VR" : this.data.buttonText;
-    this.vrButton.id = 'auto-vr-button';
-    
+
+    this.vrButton = document.createElement("button");
+    this.vrButton.textContent = this.hasEntered
+      ? "Exit VR"
+      : this.data.buttonText;
+    this.vrButton.id = "auto-vr-button";
+
     Object.assign(this.vrButton.style, {
-      position: 'fixed',
-      padding: '10px 20px',
-      zIndex: '9999',
-      fontSize: '16px',
-      fontFamily: 'Arial, sans-serif',
-      cursor: 'pointer',
-      border: 'none',
-      borderRadius: '4px',
-      color: '#ffffff',
-      backgroundColor: '#000000',
-      boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)'
+      position: "fixed",
+      padding: "10px 20px",
+      zIndex: "9999",
+      fontSize: "16px",
+      fontFamily: "Arial, sans-serif",
+      cursor: "pointer",
+      border: "none",
+      borderRadius: "4px",
+      color: "#ffffff",
+      backgroundColor: "#000000",
+      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+      bottom: "20px",
+      left: "50%",
+      transform: "translateX(-50%)",
     });
-    
-    this.vrButton.addEventListener('click', () => {
+
+    this.vrButton.addEventListener("click", () => {
       if (this.hasEntered) {
         this.exitVR();
       } else {
         this.enterVR();
       }
     });
-    
+
     document.body.appendChild(this.vrButton);
   },
 
@@ -217,7 +225,7 @@ AFRAME.registerComponent("auto-vr", {
         this.vrButton = null;
       }
     }
-    
+
     if (oldData && oldData.autoEnter !== this.data.autoEnter) {
       if (this.data.autoEnter && this.isSceneLoaded && !this.hasEntered) {
         this.startPolling();
@@ -225,27 +233,32 @@ AFRAME.registerComponent("auto-vr", {
         this.stopPolling();
       }
     }
-    
-    if (oldData && 
-        (oldData.pollInterval !== this.data.pollInterval || 
-         oldData.maxAttempts !== this.data.maxAttempts) && 
-        this.pollIntervalId) {
+
+    if (
+      oldData &&
+      (oldData.pollInterval !== this.data.pollInterval ||
+        oldData.maxAttempts !== this.data.maxAttempts) &&
+      this.pollIntervalId
+    ) {
       this.startPolling();
     }
   },
 
   remove() {
     this.stopPolling();
-    
-    window.removeEventListener('vrdisplayconnect', this.onVRDisplayConnect);
-    window.removeEventListener('vrdisplaydisconnect', this.onVRDisplayDisconnect);
-    this.el.removeEventListener('enter-vr', this.onEnterVR);
-    this.el.removeEventListener('exit-vr', this.onExitVR);
-    this.el.removeEventListener('loaded', this.onSceneLoaded);
-    
+
+    window.removeEventListener("vrdisplayconnect", this.onVRDisplayConnect);
+    window.removeEventListener(
+      "vrdisplaydisconnect",
+      this.onVRDisplayDisconnect
+    );
+    this.el.removeEventListener("enter-vr", this.onEnterVR);
+    this.el.removeEventListener("exit-vr", this.onExitVR);
+    this.el.removeEventListener("loaded", this.onSceneLoaded);
+
     if (this.vrButton && this.vrButton.parentNode) {
       this.vrButton.parentNode.removeChild(this.vrButton);
       this.vrButton = null;
     }
-  }
+  },
 });
