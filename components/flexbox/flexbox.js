@@ -10,7 +10,7 @@ import {DIRECTION, ITEMS, JUSTIFY} from "./constants/constants.js";
 AFRAME.registerComponent("flexbox", {
     schema: {
         direction: { default: DIRECTION.ROW },     // row | col
-        justify: { default: JUSTIFY.START },    // start | end | center | between | around
+        justify: { default: JUSTIFY.START  },    // start | end | center | between | around
         items: { default: ITEMS.START },        // start | end | center
         wrap: { default: false },
         gap: { type: "vec2", default: { x: 0, y: 0 } }
@@ -31,24 +31,116 @@ AFRAME.registerComponent("flexbox", {
     // height | width
     CROSS_DIMENSION: "",
 
+    pendingUpdate: false,
+
     init() {
-        onSceneLoaded(this.el.sceneEl, () => this.handleSceneLoaded());
+        this.handleSceneLoaded = this.handleSceneLoaded.bind(this);
+        this.handleChildrenChanges = this.handleChildrenChanges.bind(this);
+        this.setupObservers = this.setupObservers.bind(this);
+        this.updateLayout = this.updateLayout.bind(this);
+
+        // Initialize lines array to prevent undefined errors
+        this.lines = [[]];
+
+        // Setup a timeout to debounce rapid updates
+        this.updateTimeout = null;
+
+        onSceneLoaded(this.el.sceneEl, this.handleSceneLoaded);
+
+        // Listen for changes to this element
+        this.el.addEventListener('componentchanged', this.updateLayout);
+
+        // Listen for child-attached events
+        this.el.addEventListener('child-attached', this.handleChildrenChanges);
+        this.el.addEventListener('child-detached', this.handleChildrenChanges);
+
+        // Listen for model loading
+        this.el.addEventListener('model-loaded', this.updateLayout);
     },
 
-    handleSceneLoaded() {
-        if (!this.validateContainer()) {
+    handleChildrenChanges(event) {
+        // Debounce the update to avoid multiple rapid recalculations
+        clearTimeout(this.updateTimeout);
+        this.updateTimeout = setTimeout(() => {
+            this.updateLayout();
+        }, 50);
+    },
+
+    setupObservers() {
+        // Create a new MutationObserver to watch for attribute changes
+        this.observer = new MutationObserver((mutations) => {
+            let needsUpdate = false;
+
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes') {
+                    const attr = mutation.attributeName;
+                    if (attr === 'position' || attr === 'rotation' || attr === 'scale' ||
+                        attr === 'width' || attr === 'height' || attr === 'depth') {
+                        needsUpdate = true;
+                    }
+                }
+            });
+
+            if (needsUpdate) {
+                this.updateLayout();
+            }
+        });
+
+        // ONLY observe the container element (this.el), NOT its children
+        this.observer.observe(this.el, {
+            attributes: true,
+            attributeFilter: ['position', 'rotation', 'scale', 'width', 'height', 'depth']
+        });
+
+        // Setup a separate observer for child additions/removals
+        this.childrenObserver = new MutationObserver((mutations) => {
+            let childrenChanged = false;
+
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList' &&
+                    (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)) {
+                    childrenChanged = true;
+                }
+            });
+
+            if (childrenChanged) {
+                this.updateLayout();
+            }
+        });
+
+        // Observe only child additions/removals, not attribute changes
+        this.childrenObserver.observe(this.el, {
+            childList: true
+        });
+    },
+
+    updateLayout() {
+        // Prevent multiple simultaneous updates
+        if (this.pendingUpdate) {
             return;
         }
 
-        this.initializeContainer();
-        this.handleModels();
+        this.pendingUpdate = true;
+
+        // Use requestAnimationFrame to ensure DOM updates have completed
+        requestAnimationFrame(() => {
+            if (this.validateContainer()) {
+                this.initializeContainer();
+                this.handleModels();
+            }
+            this.pendingUpdate = false;
+        });
+    },
+
+    handleSceneLoaded() {
+        this.updateLayout();
+        this.setupObservers();
     },
 
     validateContainer() {
         const bbox = computeBbox(this.el);
         if (bbox.isEmpty() || this.el.children.length === 0) {
             console.warn("Warning flexbox: the container has invalid bounding box or has no children");
-
             return false;
         }
 
@@ -66,7 +158,7 @@ AFRAME.registerComponent("flexbox", {
             height: bboxSizeWithoutScale.y,
             depth: bboxSizeWithoutScale.z
         };
-        this.items = this.el.children;
+        this.items = Array.from(this.el.children);
 
         switch(this.isDirectionRow()) {
             case true:
@@ -82,7 +174,6 @@ AFRAME.registerComponent("flexbox", {
                 this.CROSS_DIMENSION = "width";
         }
     },
-
 
     handleModels() {
         const gltfModels = this.el.querySelectorAll("[gltf-model]");
@@ -124,32 +215,77 @@ AFRAME.registerComponent("flexbox", {
     },
 
     async setItemsLayout() {
+        // Initialize/reset the lines array
+        this.lines = [[]];
+
+        this.preCalculateColumnSizes();
+
         if(this.isDirectionRow()){
             if(this.data.wrap) {
-                this.setRowItemsLayoutWrap()
+                this.setRowItemsLayoutWrap();
             } else {
-                this.setRowItemsLayout()
+                this.setRowItemsLayout();
             }
         } else{
             if(this.data.wrap) {
-                this.setColItemsLayoutWrap()
+                this.setColItemsLayoutWrap();
             } else {
-                this.setColItemsLayout()
+                this.setColItemsLayout();
             }
         }
-        // It is necessary to wait for grow to be applied for further size calculations
-        Promise.resolve().then(() => {
-            this.applyBootstrapGrid()
-            Promise.resolve().then(() => {
-                this.applyGrow()
 
-                Promise.resolve().then(() => {
-                    this.applyJustifyContent()
-                    this.applyAlignItems()
-                })
-            })
-        })
+        // flexbox lifecycle
+        this.applyBootstrapGrid();
+        this.applyGrow()
+        this.applyJustifyContent()
+        this.applyAlignItems()
 
+        this.updateNestedFlexboxes();
+    },
+
+    preCalculateColumnSizes() {
+        // Store original sizes for later reference
+        this.originalSizes = new Map();
+        this.calculatedSizes = new Map();
+
+        // Find flex-col items
+        const colItems = this.items.filter(item => item.getAttribute("flex-col") !== null);
+
+        if (!colItems.length) return;
+
+        const columnSize = this.container[this.MAIN_DIMENSION] / 12;
+
+        colItems.forEach(colItem => {
+            if (!colItem.components || !colItem.components['flex-col']) return;
+
+            // Get original size
+            const originalSize = this.getItemBboxSize(colItem);
+            this.originalSizes.set(colItem, {...originalSize});
+
+            // Calculate flex-col size
+            const colValue = colItem.components['flex-col'].getCurrentColumn();
+            if (!colValue) return;
+
+            const newDimensionSize = columnSize * +colValue;
+
+            // Store calculated size for use during layout
+            const calculatedSize = {...originalSize};
+            calculatedSize[this.MAIN_AXIS] = newDimensionSize;
+            this.calculatedSizes.set(colItem, calculatedSize);
+        });
+    },
+
+    updateNestedFlexboxes() {
+        // Find any child elements that have flexbox component
+        Array.from(this.el.children).forEach(child => {
+            const flexboxComponent = child.components && child.components.flexbox;
+            if (flexboxComponent) {
+                // Schedule update for next frame to ensure parent is done
+                requestAnimationFrame(() => {
+                    flexboxComponent.updateLayout();
+                });
+            }
+        });
     },
 
     setRowItemsLayout() {
@@ -158,7 +294,7 @@ AFRAME.registerComponent("flexbox", {
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemBboxSize = this.getItemBboxSize(item)
+            const itemBboxSize = this.getItemBboxSize(item);
 
             currentX += itemBboxSize.x / 2; // Start position + half of the item's width
             item.object3D.position.set(
@@ -169,6 +305,8 @@ AFRAME.registerComponent("flexbox", {
             currentX += (itemBboxSize.x / 2) + this.data.gap.x; // Move currentX for the next item + gap
             lines[0].push(item);
         }
+
+        this.lines = lines;
     },
 
     setColItemsLayout() {
@@ -177,10 +315,7 @@ AFRAME.registerComponent("flexbox", {
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemBbox = computeBbox(item);
-            const itemBboxSize = itemBbox
-                .getSize(new AFRAME.THREE.Vector3())
-                .divide(this.el.object3D.scale);
+            const itemBboxSize = this.getItemBboxSize(item);
 
             currentY -= itemBboxSize.y / 2;
             item.object3D.position.set(
@@ -191,29 +326,31 @@ AFRAME.registerComponent("flexbox", {
             currentY -= (itemBboxSize.y / 2) + this.data.gap.y;
             lines[0].push(item);
         }
+
+        this.lines = lines;
     },
 
     setRowItemsLayoutWrap() {
-        this.lines = [[]]; // Initialize lines array
-        let currentLine = this.lines[0];
+        const lines = [[]]; // Initialize lines array
+        let currentLine = lines[0];
         let currentX = -this.container.width / 2;
         let currentY = this.container.height / 2;
         let currentLineHeight = 0;
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemBboxSize = this.getItemBboxSize(item)
+            const itemBboxSize = this.getItemBboxSize(item);
 
             currentX += itemBboxSize.x / 2;
 
-            const itemDoesNotFit = currentX + itemBboxSize.x / 2 > this.container.width / 2
+            const itemDoesNotFit = currentX + itemBboxSize.x / 2 > this.container.width / 2;
             if (itemDoesNotFit) {
                 // Move to the next line
                 currentX = -this.container.width / 2 + itemBboxSize.x / 2;
                 currentY -= currentLineHeight + this.data.gap.y;
                 currentLineHeight = 0; // Reset line height for the new line
                 currentLine = []; // Start a new line
-                this.lines.push(currentLine);
+                lines.push(currentLine);
             }
 
             item.object3D.position.set(
@@ -226,32 +363,31 @@ AFRAME.registerComponent("flexbox", {
             currentLineHeight = Math.max(currentLineHeight, itemBboxSize.y); // Update line height
             currentLine.push(item); // Add item to the current line
         }
+
+        this.lines = lines;
     },
 
     setColItemsLayoutWrap() {
-        this.lines = [[]]; // Initialize lines array
-        let currentLine = this.lines[0];
+        const lines = [[]]; // Initialize lines array
+        let currentLine = lines[0];
         let currentX = -this.container.width / 2;
         let currentY = this.container.height / 2;
         let currentLineWidth = 0;
 
         for (let i = 0; i < this.items.length; i++) {
             const item = this.items[i];
-            const itemBbox = computeBbox(item);
-            const itemBboxSize = itemBbox
-                .getSize(new AFRAME.THREE.Vector3())
-                .divide(this.el.object3D.scale);
+            const itemBboxSize = this.getItemBboxSize(item);
 
             currentY -= itemBboxSize.y / 2;
 
-            const doesItemNotFit = currentY - itemBboxSize.y / 2 < -this.container.height / 2
+            const doesItemNotFit = currentY - itemBboxSize.y / 2 < -this.container.height / 2;
             if (doesItemNotFit) {
                 // Move to the next column
                 currentY = this.container.height / 2 - itemBboxSize.y / 2;
                 currentX += currentLineWidth + this.data.gap.x;
                 currentLineWidth = 0; // Reset line width for the new column
                 currentLine = []; // Start a new column
-                this.lines.push(currentLine);
+                lines.push(currentLine);
             }
 
             item.object3D.position.set(
@@ -264,22 +400,30 @@ AFRAME.registerComponent("flexbox", {
             currentLineWidth = Math.max(currentLineWidth, itemBboxSize.x); // Update column width
             currentLine.push(item); // Add item to the current column
         }
+
+        this.lines = lines;
     },
 
     applyGrow() {
+        if (!this.lines || !this.lines.length) return;
+
         this.lines.forEach(line => {
+            if (!line || !line.length) return;
+
             let freeSpace = this.container[this.MAIN_DIMENSION] - this.data.gap[this.MAIN_AXIS] * (line.length - 1);
 
             line.forEach(item => {
-                const itemBboxSize = this.getItemBboxSize(item)
-
+                const itemBboxSize = this.getItemBboxSize(item);
                 freeSpace -= itemBboxSize[this.MAIN_AXIS];
-            })
+            });
 
             const growItems = line.filter(item => (
                 item.getAttribute("flex-grow") !== null
                 && item.getAttribute("flex-grow") !== "false"
             ));
+
+            if (!growItems.length) return;
+
             const freeSpacePerItem = freeSpace / growItems.length;
 
             const ORIGINAL_DIRECTION_ATTRIBUTE = `original-${this.MAIN_DIMENSION}`;
@@ -297,7 +441,6 @@ AFRAME.registerComponent("flexbox", {
                     growItem.object3D.position[this.MAIN_AXIS] -= freeSpacePerItem / 2;
                 }
 
-
                 const inLineIndex = line.indexOf(growItem);
                 for (let i = inLineIndex + 1; i < line.length; i++) {
                     if(this.isDirectionRow()) {
@@ -306,30 +449,34 @@ AFRAME.registerComponent("flexbox", {
                         line[i].object3D.position[this.MAIN_AXIS] -= freeSpacePerItem;
                     }
                 }
-            })
-        })
+            });
+        });
     },
 
     applyBootstrapGrid() {
+        if (!this.lines || !this.lines.length) return;
+
         this.lines.forEach(line => {
-            let freeSpace = this.container[this.MAIN_DIMENSION] - this.data.gap[this.MAIN_AXIS] * (line.length - 1);
-
-            line.forEach(item => {
-                const itemBboxSize = this.getItemBboxSize(item)
-
-                freeSpace -= itemBboxSize[this.MAIN_AXIS];
-            })
+            if (!line || !line.length) return;
 
             const colItems = line.filter(item => (
                 item.getAttribute("flex-col") !== null
             ));
 
+            if (!colItems.length) return;
+
             const ORIGINAL_DIRECTION_ATTRIBUTE = `original-${this.MAIN_DIMENSION}`;
+            const columnSize = this.container[this.MAIN_DIMENSION] / 12;
 
             colItems.forEach(colItem => {
+                if (!colItem.components || !colItem.components['flex-col']) return;
+
                 const originalDimensionSize = colItem.getAttribute(this.MAIN_DIMENSION) || '1';
                 const colValue = colItem.components['flex-col'].getCurrentColumn();
-                const newDimensionSize = (this.container[this.MAIN_DIMENSION]/12) * +colValue;
+
+                if (!colValue) return;
+
+                const newDimensionSize = columnSize * +colValue;
 
                 if(!colItem.hasAttribute(ORIGINAL_DIRECTION_ATTRIBUTE)) {
                     colItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, originalDimensionSize);
@@ -337,37 +484,45 @@ AFRAME.registerComponent("flexbox", {
 
                 colItem.setAttribute(this.MAIN_DIMENSION, newDimensionSize);
 
-                const sizeDiff = newDimensionSize - originalDimensionSize
-                if(this.isDirectionRow()) {
-                    colItem.object3D.position[this.MAIN_AXIS] += sizeDiff / 2;
-                } else {
-                    colItem.object3D.position[this.MAIN_AXIS] -= sizeDiff / 2;
-                }
+                // We don't need to adjust positions since wrapping already accounts for these sizes
+                // Just update other items that might need to be repositioned
 
+                // Only adjust subsequent items in the same line if needed
+                if (this.originalSizes && this.originalSizes.has(colItem)) {
+                    const originalSize = this.originalSizes.get(colItem);
+                    const sizeDiff = newDimensionSize - originalSize[this.MAIN_AXIS];
 
-                const inLineIndex = line.indexOf(colItem);
-                for (let i = inLineIndex + 1; i < line.length; i++) {
-                    if(this.isDirectionRow()) {
-                        line[i].object3D.position[this.MAIN_AXIS] += sizeDiff;
-                    } else {
-                        line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
+                    if (Math.abs(sizeDiff) > 0.001) {
+                        // Only shift subsequent items if there's a significant difference
+                        const inLineIndex = line.indexOf(colItem);
+                        for (let i = inLineIndex + 1; i < line.length; i++) {
+                            if(this.isDirectionRow()) {
+                                line[i].object3D.position[this.MAIN_AXIS] += sizeDiff;
+                            } else {
+                                line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
+                            }
+                        }
                     }
                 }
-            })
-        })
+            });
+        });
     },
 
     handleColumnBreakpoint() {
         this.el.addEventListener('breakpoint-changed', () => {
             this.initializeContainer();
-            // this.applyColumnWidths();
             this.setItemsLayout();
         });
     },
 
     applyJustifyContent() {
+        if (!this.lines || !this.lines.length) return;
+
         this.lines.forEach(line => {
+            if (!line || !line.length) return;
+
             const freeSpace = this.getFreeSpaceForLineJustify(line);
+            if (freeSpace <= 0) return;
 
             switch (this.data.justify) {
                 case JUSTIFY.START:
@@ -380,10 +535,14 @@ AFRAME.registerComponent("flexbox", {
                     this.shiftJustifiedLine(line, freeSpace / 2);
                     break;
                 case JUSTIFY.BETWEEN:
-                    this.distributeSpaceBetween(line, freeSpace);
+                    if (line.length > 1) {
+                        this.distributeSpaceBetween(line, freeSpace);
+                    }
                     break;
                 case JUSTIFY.AROUND:
-                    this.distributeSpaceAround(line, freeSpace);
+                    if (line.length > 0) {
+                        this.distributeSpaceAround(line, freeSpace);
+                    }
                     break;
             }
         });
@@ -391,13 +550,20 @@ AFRAME.registerComponent("flexbox", {
 
     // Helper functions for justify-content
     getFreeSpaceForLineJustify(line) {
+        if (!line || !line.length) return 0;
+
         let usedSpace = this.data.gap[this.MAIN_AXIS] * (line.length - 1);
-        line.forEach(item => usedSpace += this.getItemBboxSize(item)[this.MAIN_AXIS]);
+        line.forEach(item => {
+            const size = this.getItemBboxSize(item);
+            if (size) usedSpace += size[this.MAIN_AXIS];
+        });
 
         return this.container[this.MAIN_DIMENSION] - usedSpace;
     },
 
     shiftJustifiedLine(line, freeSpace) {
+        if (!line || !line.length) return;
+
         line.forEach(item => {
             if(this.isDirectionRow()) {
                 item.object3D.position.x += freeSpace;
@@ -408,6 +574,8 @@ AFRAME.registerComponent("flexbox", {
     },
 
     distributeSpaceBetween(line, freeSpace) {
+        if (!line || line.length <= 1) return;
+
         const spacing = freeSpace / (line.length - 1);
 
         for (let i = 1; i < line.length; i++) {
@@ -420,6 +588,8 @@ AFRAME.registerComponent("flexbox", {
     },
 
     distributeSpaceAround(line, freeSpace) {
+        if (!line || !line.length) return;
+
         const spacing = freeSpace / line.length;
 
         line.forEach((item, i) => {
@@ -428,14 +598,18 @@ AFRAME.registerComponent("flexbox", {
             } else {
                 item.object3D.position.y -= spacing * (i + 0.5);
             }
-
         });
     },
 
     applyAlignItems() {
+        if (!this.lines || !this.lines.length || !this.lines[0] || !this.lines[0].length) return;
+
+        // Safety check has been added
         const freeSpace = this.getFreeSpaceForLineItems(this.lines[0]);
 
         this.lines.forEach((line) => {
+            if (!line || !line.length) return;
+
             const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, this.CROSS_AXIS);
 
             switch (this.data.items) {
@@ -449,17 +623,17 @@ AFRAME.registerComponent("flexbox", {
                             item.object3D.position.y -= (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]) / 2;
                         } else {
                             item.object3D.position.x += (freeSpace/2);
-                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]) / 2
+                            item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]) / 2;
                         }
                     });
                     break;
                 case ITEMS.END:
                     line.forEach(item => {
                         if(this.isDirectionRow()) {
-                            item.object3D.position.y -= (freeSpace);
-                            item.object3D.position.y -= ((maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]));
+                            item.object3D.position.y -= freeSpace;
+                            item.object3D.position.y -= (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]);
                         } else {
-                            item.object3D.position.x += (freeSpace);
+                            item.object3D.position.x += freeSpace;
                             item.object3D.position.x += (maxCrossSizeInLine - this.getItemBboxSize(item)[this.CROSS_AXIS]);
                         }
                     });
@@ -469,16 +643,28 @@ AFRAME.registerComponent("flexbox", {
     },
 
     getFreeSpaceForLineItems(line) {
-        let usedSpace = this.data.gap[this.CROSS_AXIS] * (line.length - 1);
+        if (!line || !Array.isArray(line) || line.length === 0) {
+            return 0;
+        }
 
+        let usedSpace = 0;
+
+        // Get maximum cross size for first line
         const maxCrossSizeInLine = this.getMaxLineSizeInAxis(line, this.CROSS_AXIS);
         usedSpace += maxCrossSizeInLine;
 
-        // Add size of next lines
+        // Add size of next lines including gaps
         const lineIndex = this.lines.indexOf(line);
-        for(let i = lineIndex + 1; i < this.lines.length; i++) {
-            const maxCrossSizeInNextLine = Math.max(...this.lines[i].map(item => this.getItemBboxSize(item)[this.CROSS_AXIS]));
-            usedSpace += maxCrossSizeInNextLine;
+        for(let i = 1; i < this.lines.length; i++) {
+            if (this.lines[i] && this.lines[i].length > 0) {
+                const maxCrossSizeInNextLine = this.getMaxLineSizeInAxis(this.lines[i], this.CROSS_AXIS);
+                usedSpace += maxCrossSizeInNextLine;
+
+                // Add gap if not the last line
+                if (i < this.lines.length - 1) {
+                    usedSpace += this.data.gap[this.CROSS_AXIS];
+                }
+            }
         }
 
         return this.container[this.CROSS_DIMENSION] - usedSpace;
@@ -492,7 +678,17 @@ AFRAME.registerComponent("flexbox", {
     },
 
     getItemBboxSize(item) {
+        // If we have a pre-calculated size for this item, use it
+        if (this.calculatedSizes && this.calculatedSizes.has(item)) {
+            return this.calculatedSizes.get(item);
+        }
+
+        // Otherwise use the original method
         const itemBbox = computeBbox(item);
+        if (itemBbox.isEmpty()) {
+            // Return default size if bbox is empty
+            return new AFRAME.THREE.Vector3(0.1, 0.1, 0.1);
+        }
 
         return itemBbox
             .getSize(new AFRAME.THREE.Vector3())
@@ -500,7 +696,14 @@ AFRAME.registerComponent("flexbox", {
     },
 
     getMaxLineSizeInAxis(line, axis) {
-        return Math.max(...line.map(item => this.getItemBboxSize(item)[axis]))
+        if (!line || !line.length) return 0;
+
+        const sizes = line.map(item => {
+            const size = this.getItemBboxSize(item);
+            return size ? size[axis] : 0;
+        });
+
+        return Math.max(...sizes);
     },
 
     /**
@@ -510,18 +713,56 @@ AFRAME.registerComponent("flexbox", {
      * @returns {number} - The total size of the content along the specified axis.
      */
     getContentSize(axis) {
+        if (!this.lines || !this.lines.length) return 0;
+
         return this.lines
                 .map(line => {
+                    if (!line || !line.length) return 0;
+
                     let lineSize = 0;
 
                     line.forEach(item => {
-                        lineSize = Math.max(this.getItemBboxSize(item)[axis], lineSize)
+                        lineSize = Math.max(this.getItemBboxSize(item)[axis], lineSize);
                     });
 
-                    return lineSize
+                    return lineSize;
                 })
                 .reduce((acc, val) => acc + val, 0)
             // Add gaps
             + (this.data.gap[axis] * (this.lines.length - 1));
     },
-})
+
+    update(oldData) {
+        // Only update if the component is fully initialized
+        if (!this.el.sceneEl.hasLoaded) {
+            return;
+        }
+
+        // Check if any relevant properties changed
+        const relevantProps = ['direction', 'justify', 'items', 'wrap'];
+        const hasRelevantChanges = relevantProps.some(prop => oldData[prop] !== undefined && oldData[prop] !== this.data[prop]);
+
+        if (hasRelevantChanges ||
+            (oldData.gap && (oldData.gap.x !== this.data.gap.x || oldData.gap.y !== this.data.gap.y))) {
+            this.updateLayout();
+        }
+    },
+
+    remove() {
+        // Clean up event listeners
+        this.el.removeEventListener('componentchanged', this.updateLayout);
+        this.el.removeEventListener('child-attached', this.handleChildrenChanges);
+        this.el.removeEventListener('child-detached', this.handleChildrenChanges);
+        this.el.removeEventListener('model-loaded', this.updateLayout);
+
+        // Clean up timeout
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+        }
+
+        // Clean up MutationObserver
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+    }
+});
