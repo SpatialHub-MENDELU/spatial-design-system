@@ -17,7 +17,6 @@ AFRAME.registerComponent("walk", {
         turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
         autoWalk: {type: "boolean", default: false},
-        flyMode: {type: "boolean", default: false},
         targetWalk: {type: "boolean", default: false},
     },
 
@@ -48,7 +47,6 @@ AFRAME.registerComponent("walk", {
         this.crossFadeDuration = 0.2
 
         this.autoWalk = this.data.autoWalk;
-        this.flyMode = this.data.flyMode
         this.targetWalk = this.data.targetWalk
 
         this.smoothTurn = false;
@@ -83,7 +81,7 @@ AFRAME.registerComponent("walk", {
     },
 
     setTurnType() {
-        if (this.flyMode || this.targetWalk) return
+        if (this.targetWalk) return
 
         switch (this.data.turnType) {
             case 'smoothTurn':        this.smoothTurn = true; break;
@@ -169,11 +167,6 @@ AFRAME.registerComponent("walk", {
                 this.updateDirection();
                 this.setSmoothStepTurn();
             }
-            if(this.flyMode) {
-                this.movingDirection = null
-                this.updateDirection()
-                this.move()
-            }
             if(this.autoWalk) {
                 this.move()
             }
@@ -217,16 +210,6 @@ AFRAME.registerComponent("walk", {
                 case 'upRight':   velocity.setValue(speed, 0, -speed); break;
                 case 'downLeft':  velocity.setValue(-speed, 0, speed); break;
                 case 'downRight': velocity.setValue(speed, 0, speed); break;
-            }
-        }
-
-        if(this.flyMode) {
-            if(this.autoWalk) velocity.setValue(0, 0, -speed);
-            switch (this.movingDirection) {
-                case 'up':        velocity.setValue(0, speed, -speed); break;
-                case 'down':      velocity.setValue(0, -speed, -speed); break;
-                case 'left':      velocity.setValue(-speed, 0, -speed); break;
-                case 'right':     velocity.setValue(speed, 0, -speed); break;
             }
         }
 
@@ -311,11 +294,6 @@ AFRAME.registerComponent("walk", {
             else if (this.movingBackward) newDir = 'down';
             else if (this.movingRight) newDir = 'right';
             else if (this.movingLeft) newDir = 'left';
-        }
-
-        if(this.flyMode) {
-            this.movingDirection = newDir
-            return;
         }
 
         if (newDir && newDir !== this.movingDirection) {
