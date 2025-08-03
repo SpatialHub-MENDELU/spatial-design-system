@@ -123,7 +123,6 @@ AFRAME.registerComponent("walk", {
             this.movingForward = true;
         }
         if (key === this.keys.down) this.movingBackward = true;
-        console.log(key)
         if (this.sprintEnabled && key === this.keys.sprint) {
             if (this.smoothTurn) {
                 if (this.movingForward) this.isSprinting = true;
