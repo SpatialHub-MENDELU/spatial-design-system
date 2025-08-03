@@ -1,23 +1,26 @@
 AFRAME.registerComponent("walk", {
     schema: {
-        walkClipName: {type: "string", default: "Walk"},
-        idleClipName: {type: "string", default: "Idle"},
-        gallopClipName: {type: "string", default: "Gallop"},
+        walkClipName: {type: "string", default: "Walk"}, // Name of the animation clip used when the character is walking.
+        idleClipName: {type: "string", default: "Idle"}, // Name of the animation clip used when the character is idle.
+        sprintClipName: {type: "string", default: "Gallop"}, // Name of the animation clip used when the character is sprinting.
 
-        keyUp: {type: "string", default: "w"},
-        keyDown: {type: "string", default: "s"},
-        keyLeft: {type: "string", default: "a"},
-        keyRight: {type: "string", default: "d"},
+        keyUp: {type: "string", default: "w"}, // Key used to move the character forward.
+        keyDown: {type: "string", default: "s"}, // Key used to move the character backward.
+        keyLeft: {type: "string", default: "a"}, // Key used to move the character left.
+        keyRight: {type: "string", default: "d"}, // Key used to move the character right.
 
-        speed: {type: "number", default: 4},
-        sprint: {type: "boolean", default: true},
-        sprintSpeed: {type: "number", default: 8},
-        rotationSpeed: {type: "number", default: 90},
+        speed: {type: "number", default: 5}, // Defines the player's base walking speed.
+        rotationSpeed: {type: "number", default: 90}, // Defines the turning speed for smoothTurn mode.
 
-        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal
+        sprint: {type: "boolean", default: false}, // If true, the player can sprint when holding the sprintKey, increasing their speed to sprintSpeed.
+        keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
+        sprintSpeed: {type: "number", default: 8}, // Defines the sprinting speed when the sprint mode is active.
+
+        turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal, noTurn. Defines the walking mode and how the player turns and moves.
+        autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
+        targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
+
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
-        autoWalk: {type: "boolean", default: false},
-        targetWalk: {type: "boolean", default: false},
     },
 
     init() {
@@ -27,7 +30,7 @@ AFRAME.registerComponent("walk", {
         this.animations = {
             walk: this.data.walkClipName,
             idle: this.data.idleClipName,
-            sprint: this.data.gallopClipName
+            sprint: this.data.sprintClipName
         };
 
         this.scene = this.el.sceneEl;
@@ -37,7 +40,8 @@ AFRAME.registerComponent("walk", {
             up: this.data.keyUp,
             down: this.data.keyDown,
             left: this.data.keyLeft,
-            right: this.data.keyRight
+            right: this.data.keyRight,
+            sprint: this.data.keySprint,
         };
 
         this.speed = this.data.speed;
@@ -73,7 +77,7 @@ AFRAME.registerComponent("walk", {
         this.reachTarget = true;
         this.targetPosition = this.el.object3D.position
         this.rotationToTarget = null
-        if(this.targetWalk) this.rotationSpeed = 450
+        if (this.targetWalk) this.rotationSpeed = 450
 
         this.setAnimation(this.animations.idle);
         this.bindEvents();
@@ -84,10 +88,18 @@ AFRAME.registerComponent("walk", {
         if (this.targetWalk) return
 
         switch (this.data.turnType) {
-            case 'smoothTurn':        this.smoothTurn = true; break;
-            case "stepTurnDiagonal": this.stepTurnDiagonal = true; break;
-            case "stepTurnCardinal": this.stepTurnCardinal = true; break;
-            default: this.smoothTurn = true; break;
+            case 'smoothTurn':
+                this.smoothTurn = true;
+                break;
+            case "stepTurnDiagonal":
+                this.stepTurnDiagonal = true;
+                break;
+            case "stepTurnCardinal":
+                this.stepTurnCardinal = true;
+                break;
+            default:
+                this.smoothTurn = true;
+                break;
         }
     },
 
@@ -111,12 +123,12 @@ AFRAME.registerComponent("walk", {
             this.movingForward = true;
         }
         if (key === this.keys.down) this.movingBackward = true;
-
-        if(this.sprintEnabled && key === 'shift') {
-            if(this.smoothTurn) {
+        console.log(key)
+        if (this.sprintEnabled && key === this.keys.sprint) {
+            if (this.smoothTurn) {
                 if (this.movingForward) this.isSprinting = true;
             }
-            if(this.stepTurnDiagonal || this.stepTurnCardinal) {
+            if (this.stepTurnDiagonal || this.stepTurnCardinal) {
                 if (this.movingForward || this.movingBackward || this.movingLeft || this.movingRight) this.isSprinting = true;
             }
         }
@@ -126,24 +138,24 @@ AFRAME.registerComponent("walk", {
         const key = e.key.toLowerCase();
         if (key === this.keys.left) {
             this.movingLeft = false;
-            if(this.turnDirection === 'left') this.turnDirection = null;
+            if (this.turnDirection === 'left') this.turnDirection = null;
         }
         if (key === this.keys.right) {
             this.movingRight = false
-            if(this.turnDirection === 'right') this.turnDirection = null;
+            if (this.turnDirection === 'right') this.turnDirection = null;
         }
         if (key === this.keys.up) this.movingForward = false;
         if (key === this.keys.down) this.movingBackward = false;
 
-        if(this.sprintEnabled) {
-            if (key === 'shift') this.isSprinting = false
-            if(this.smoothTurn) if (this.isSprinting && !this.movingForward) this.isSprinting = false;
+        if (this.sprintEnabled) {
+            if (key === this.keys.sprint) this.isSprinting = false
+            if (this.smoothTurn) if (this.isSprinting && !this.movingForward) this.isSprinting = false;
         }
 
     },
 
     onClick(e) {
-        if(this.targetWalk) {
+        if (this.targetWalk) {
             this.setTargetPosition(e)
         }
     },
@@ -162,21 +174,21 @@ AFRAME.registerComponent("walk", {
         const deltaSec = deltaTime / 1000;
 
         if (this.el.body) {
-            if(this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
-            if(this.stepTurnDiagonal || this.stepTurnCardinal) {
+            if (this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
+            if (this.stepTurnDiagonal || this.stepTurnCardinal) {
                 this.updateDirection();
                 this.setSmoothStepTurn();
             }
-            if(this.autoWalk) {
+            if (this.autoWalk) {
                 this.move()
             }
-            if(this.targetWalk) {
+            if (this.targetWalk) {
                 this.checkReachedTarget()
-                if(!this.reachTarget) {
+                if (!this.reachTarget) {
                     this.rotateToTarget(deltaSec)
                     this.moveToTarget()
                 }
-                if(this.reachTarget) this.stopMovement()
+                if (this.reachTarget) this.stopMovement()
             }
         }
     },
@@ -192,7 +204,7 @@ AFRAME.registerComponent("walk", {
         let velocity = new Ammo.btVector3(0, 0, 0);
         const speed = this.speed;
 
-        if(this.smoothTurn) {
+        if (this.smoothTurn) {
             const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
             const factor = forward ? 1 : -1;
             const x = Math.sin(angleRad) * speed * factor;
@@ -200,16 +212,32 @@ AFRAME.registerComponent("walk", {
             velocity = new Ammo.btVector3(x, 0, z);
         }
 
-        if(this.stepTurnDiagonal || this.stepTurnCardinal) {
+        if (this.stepTurnDiagonal || this.stepTurnCardinal) {
             switch (this.movingDirection) {
-                case 'up':        velocity.setValue(0, 0, -speed); break;
-                case 'down':      velocity.setValue(0, 0, speed); break;
-                case 'left':      velocity.setValue(-speed, 0, 0); break;
-                case 'right':     velocity.setValue(speed, 0, 0); break;
-                case 'upLeft':    velocity.setValue(-speed, 0, -speed); break;
-                case 'upRight':   velocity.setValue(speed, 0, -speed); break;
-                case 'downLeft':  velocity.setValue(-speed, 0, speed); break;
-                case 'downRight': velocity.setValue(speed, 0, speed); break;
+                case 'up':
+                    velocity.setValue(0, 0, -speed);
+                    break;
+                case 'down':
+                    velocity.setValue(0, 0, speed);
+                    break;
+                case 'left':
+                    velocity.setValue(-speed, 0, 0);
+                    break;
+                case 'right':
+                    velocity.setValue(speed, 0, 0);
+                    break;
+                case 'upLeft':
+                    velocity.setValue(-speed, 0, -speed);
+                    break;
+                case 'upRight':
+                    velocity.setValue(speed, 0, -speed);
+                    break;
+                case 'downLeft':
+                    velocity.setValue(-speed, 0, speed);
+                    break;
+                case 'downRight':
+                    velocity.setValue(speed, 0, speed);
+                    break;
             }
         }
 
@@ -235,10 +263,10 @@ AFRAME.registerComponent("walk", {
     // SPRINT
     startSprinting() {
         let sprint = false
-        if(this.smoothTurn)  if (this.movingForward) sprint = true;
-        if(this.stepTurnDiagonal || this.stepTurnCardinal) sprint = true
+        if (this.smoothTurn) if (this.movingForward) sprint = true;
+        if (this.stepTurnDiagonal || this.stepTurnCardinal) sprint = true
 
-        if(sprint) {
+        if (sprint) {
             this.speed = this.data.sprintSpeed;
             this.setAnimation(this.animations.sprint);
         }
@@ -246,14 +274,14 @@ AFRAME.registerComponent("walk", {
 
     stopSprinting() {
         this.speed = this.data.speed;
-        if(this.smoothTurn) {
+        if (this.smoothTurn) {
             if (this.movingForward || this.movingBackward || this.turnDirection) {
                 this.setAnimation(this.animations.walk);
             } else {
                 this.setAnimation(this.animations.idle);
             }
         }
-        if(this.stepTurnDiagonal || this.stepTurnCardinal) {
+        if (this.stepTurnDiagonal || this.stepTurnCardinal) {
             this.setAnimation(
                 this.movingLeft || this.movingRight || this.movingForward || this.movingBackward
                     ? this.animations.walk
@@ -264,7 +292,7 @@ AFRAME.registerComponent("walk", {
 
     // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
     setSmoothStepTurn() {
-        if(this.autoWalk) this.setAnimation(this.animations.walk);
+        if (this.autoWalk) this.setAnimation(this.animations.walk);
         if (this.movingLeft || this.movingRight || this.movingBackward || this.movingForward) {
             if (this.sprintEnabled) {
                 this.isSprinting ? this.startSprinting() : this.stopSprinting();
@@ -308,11 +336,11 @@ AFRAME.registerComponent("walk", {
 
         const directions = this.stepTurnDiagonal ? ['down', 'downRight', 'right', 'upRight', 'up', 'upLeft', 'left', 'downLeft'] : ['down', 'right', 'up', 'left'];
         let diff = directions.indexOf(this.newDirection) - directions.indexOf(this.movingDirection);
-        if(this.stepTurnDiagonal) {
+        if (this.stepTurnDiagonal) {
             if (diff > 4) diff -= 8;
             if (diff < -4) diff += 8;
         }
-        if(this.stepTurnCardinal) {
+        if (this.stepTurnCardinal) {
             diff = diff >= 3 ? diff - 4 : diff;
             diff = diff <= -3 ? diff + 4 : diff;
         }
@@ -324,7 +352,7 @@ AFRAME.registerComponent("walk", {
 
         this.characterModel.setAttribute('animation', {
             property: 'rotation',
-            to: { x: 0, y: this.rotationY, z: 0 },
+            to: {x: 0, y: this.rotationY, z: 0},
             dur: 200,
             easing: 'easeOutQuad'
         });
@@ -350,28 +378,28 @@ AFRAME.registerComponent("walk", {
 
     // SMOOTH TURN
     setSmoothTurnMoving(deltaSec) {
-        if(this.autoWalk) this.setAnimation(this.animations.walk)
+        if (this.autoWalk) this.setAnimation(this.animations.walk)
 
-       if(this.sprintEnabled){
-            if(this.turnDirection) {
-                if(this.isSprinting && this.movingForward) this.setAnimation(this.animations.sprint)
-                if(!this.movingForward) this.setAnimation(this.animations.walk)
+        if (this.sprintEnabled) {
+            if (this.turnDirection) {
+                if (this.isSprinting && this.movingForward) this.setAnimation(this.animations.sprint)
+                if (!this.movingForward) this.setAnimation(this.animations.walk)
             }
             this.isSprinting ? this.startSprinting() : this.stopSprinting();
         }
 
-        if(this.movingForward || this.movingBackward) {
+        if (this.movingForward || this.movingBackward) {
             this.move(this.movingForward)
-            if(this.movingForward || this.movingBackward) this.setAnimation(this.animations.walk);
+            if (this.movingForward || this.movingBackward) this.setAnimation(this.animations.walk);
 
         }
 
-        if(this.turnDirection) {
+        if (this.turnDirection) {
             this.turnSmoothly(deltaSec);
             this.setAnimation(this.animations.walk);
         }
 
-        if(!this.movingForward && !this.movingBackward) {
+        if (!this.movingForward && !this.movingBackward) {
             this.stopMovement();
         }
 
@@ -389,11 +417,11 @@ AFRAME.registerComponent("walk", {
     // TARGET WALK
 
     moveToTarget() {
-      if(!this.reachTarget) {
-          this.setAnimation(this.animations.walk)
-          const direction = new AFRAME.THREE.Vector3().subVectors(this.targetPosition, this.el.object3D.position).normalize();
-          this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
-      }
+        if (!this.reachTarget) {
+            this.setAnimation(this.animations.walk)
+            const direction = new AFRAME.THREE.Vector3().subVectors(this.targetPosition, this.el.object3D.position).normalize();
+            this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
+        }
     },
 
     checkReachedTarget() {
@@ -419,7 +447,7 @@ AFRAME.registerComponent("walk", {
         const raycaster = new AFRAME.THREE.Raycaster();
         raycaster.setFromCamera(mouse, this.camera);
         const intersects = raycaster.intersectObjects(this.scene.object3D.children);
-        this.targetPosition =  intersects[0].point
+        this.targetPosition = intersects[0].point
     },
 
     setRotationToTarget() {
