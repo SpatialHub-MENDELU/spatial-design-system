@@ -16,7 +16,7 @@ AFRAME.registerComponent("walk", {
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
         sprintSpeed: {type: "number", default: 8}, // Defines the sprinting speed when the sprint mode is active.
 
-        turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal, noTurn. Defines the walking mode and how the player turns and moves.
+        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal, noTurn. Defines the walking mode and how the player turns and moves.
         autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
         targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
@@ -200,7 +200,8 @@ AFRAME.registerComponent("walk", {
     },
 
     move(forward = true) {
-        let velocity = new Ammo.btVector3(0, 0, 0);
+        const currentVelocity = this.el.body.getLinearVelocity();
+        let velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
         const speed = this.speed;
 
         if (this.smoothTurn) {
@@ -208,34 +209,34 @@ AFRAME.registerComponent("walk", {
             const factor = forward ? 1 : -1;
             const x = Math.sin(angleRad) * speed * factor;
             const z = Math.cos(angleRad) * speed * factor;
-            velocity = new Ammo.btVector3(x, 0, z);
+            velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
         }
 
         if (this.stepTurnDiagonal || this.stepTurnCardinal) {
             switch (this.movingDirection) {
                 case 'up':
-                    velocity.setValue(0, 0, -speed);
+                    velocity.setValue(0, currentVelocity.y(), -speed);
                     break;
                 case 'down':
-                    velocity.setValue(0, 0, speed);
+                    velocity.setValue(0, currentVelocity.y(), speed);
                     break;
                 case 'left':
-                    velocity.setValue(-speed, 0, 0);
+                    velocity.setValue(-speed, currentVelocity.y(), 0);
                     break;
                 case 'right':
-                    velocity.setValue(speed, 0, 0);
+                    velocity.setValue(speed, currentVelocity.y(), 0);
                     break;
                 case 'upLeft':
-                    velocity.setValue(-speed, 0, -speed);
+                    velocity.setValue(-speed, currentVelocity.y(), -speed);
                     break;
                 case 'upRight':
-                    velocity.setValue(speed, 0, -speed);
+                    velocity.setValue(speed, currentVelocity.y(), -speed);
                     break;
                 case 'downLeft':
-                    velocity.setValue(-speed, 0, speed);
+                    velocity.setValue(-speed, currentVelocity.y(), speed);
                     break;
                 case 'downRight':
-                    velocity.setValue(speed, 0, speed);
+                    velocity.setValue(speed, currentVelocity.y(), speed);
                     break;
             }
         }
