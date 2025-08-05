@@ -2,7 +2,7 @@ export function doesGLTFAnimationExist(model, animationName) {
     const animations = model.animations || model.scene?.animations;
 
     if (!animations || animations.length === 0) {
-        console.warn('The model does not contain any animations.');
+        console.error('The model does not contain any animations.');
         return false;
     }
 
@@ -17,7 +17,7 @@ export function doesGLTFAnimationExist(model, animationName) {
 
 
     if (!exists) {
-        console.warn(`The animation "${animationName}" was not found in the model. Available animations: ${animations.map((clip) => clip.name).join(', ')}`);
+        console.error(`The animation "${animationName}" was not found in the model. Available animations: ${animations.map((clip) => clip.name).join(', ')}`);
         return false;
     }
 
@@ -26,7 +26,7 @@ export function doesGLTFAnimationExist(model, animationName) {
 
 export function isPositiveNumber(input, name){
     if (input <= 0) {
-        console.warn(`Property "${name}" is not a positive number: ${input}`);
+        console.error(`Property "${name}" is not a positive number: ${input}`);
         return false;
     }
     return true;
