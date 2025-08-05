@@ -1,3 +1,5 @@
+import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
+
 AFRAME.registerComponent("walk", {
     schema: {
         walkClipName: {type: "string", default: "Walk"}, // Name of the animation clip used when the character is walking.
@@ -16,7 +18,7 @@ AFRAME.registerComponent("walk", {
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
         sprintSpeed: {type: "number", default: 8}, // Defines the sprinting speed when the sprint mode is active.
 
-        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal, noTurn. Defines the walking mode and how the player turns and moves.
+        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
         autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
         targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
@@ -79,10 +81,42 @@ AFRAME.registerComponent("walk", {
         this.rotationToTarget = null
         if (this.targetWalk) this.rotationSpeed = 450
 
+        // Check inputs
+        this.wrongInput = false;
+        this.checkInputs()
+
+        if (this.wrongInput) return;
+
+
         this.setAnimation(this.animations.idle);
         this.bindEvents();
         this.setTurnType()
     },
+
+    checkInputs() {
+        this.el.addEventListener('model-loaded', (e) => {
+                const model = e.detail.model;
+            if (!doesGLTFAnimationExist(model, this.animations.walk)) this.wrongInput = true
+            if (!doesGLTFAnimationExist(model, this.animations.idle)) this.wrongInput = true
+            if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.animations.idle)) this.wrongInput = true
+        })
+
+        if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
+        if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
+
+        if (!this.isValidTurnType(this.data.turnType)) this.wrongInput = true
+    },
+
+    isValidTurnType(value) {
+        const validTypes = ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal'];
+        if (!validTypes.includes(value)) {
+            console.warn(`Invalid turnType: "${value}". Valid options are: ${validTypes.join(', ')}.`);
+            return false
+        }
+        return true
+    },
+
 
     setTurnType() {
         if (this.targetWalk) return
