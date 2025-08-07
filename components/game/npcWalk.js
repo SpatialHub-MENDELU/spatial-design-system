@@ -105,12 +105,13 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     moveToPosition(targetPosition) {
+        const currentVelocity = this.el.body.getLinearVelocity();
         if(!this.positionReached) {
             const direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
             if(this.checkHeight) {
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y, direction.z * this.speed));
             } else {
-                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
+                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, currentVelocity.y(), direction.z * this.speed));
             }
         }
     },
