@@ -10,12 +10,14 @@ AFRAME.registerComponent('npc-walk', {
         allowRotation: {type: "boolean", default: true},
         rotationSpeed: {type: "number", default: 200},
 
-        type: {type: "string", default: "points"}, // pointToPoint, points, randomMoving
+        type: {type: "string", default: "points"}, // points, randomMoving
 
-        pointToPoint: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}]},
+        // POINTS TYPE
         points: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}, {x: 5, y: 1, z: 0}]},
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
+
+        // RANDOM MOVING TYPE
     },
 
     init() {
@@ -43,12 +45,6 @@ AFRAME.registerComponent('npc-walk', {
 
         this.currentIndex = 0
 
-        // POINT TO POINT
-        this.pointToPointArray = this.data.pointToPoint;
-        this.positionReached = false
-        this.positionA = null
-        this.positionB = null
-
         // POINTS
         this.pointsArray = this.data.points;
         this.arrayDirection = 1 // 1 for forward, -1 for backward
@@ -67,14 +63,12 @@ AFRAME.registerComponent('npc-walk', {
 
         if(this.wrongInput) return
         if(this.el.body) {
-            if(this.pointToPointType) this.pointToPointMovement(deltaSec)
             if(this.pointsType) this.pointsMovement(deltaSec)
         }
     },
 
     setType() {
         switch (this.data.type) {
-            case 'pointToPoint': this.pointToPointType = true; break;
             case 'points': this.pointsType = true; break;
             case 'randomMoving': this.randomMovingType = true; break;
         }
@@ -82,7 +76,6 @@ AFRAME.registerComponent('npc-walk', {
 
     checkInput() {
         switch (this.data.type) {
-            case 'pointToPoint': this.checkPointToPointInput(); break;
             case 'points': this.checkPointsInput(); break;
             // case 'randomMoving':  break;
         }
@@ -98,7 +91,6 @@ AFRAME.registerComponent('npc-walk', {
 
     setPositions() {
         switch (this.data.type) {
-            case 'pointToPoint': this.setPointToPointPositions(); break;
             case 'points': this.setPointsPositions(); break;
             // case 'randomMoving':  break;
         }
@@ -189,72 +181,27 @@ AFRAME.registerComponent('npc-walk', {
         );
     },
 
-    // POINT TO POINT
-
-    pointToPointMovement(deltaSec) {
-        if(!this.positionReached) {
-            this.checkReachedPosition(this.targetPosition)
-            if(this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
-            this.moveToPosition(this.targetPosition);
-        } else {
-            this.targetPosition = (this.targetPosition === this.positionA) ? this.positionB : this.positionA;
-            this.positionReached = false;
-        }
-    },
-
-    checkPointToPointInput() {
-      this.wrongInput = false
-      if (this.pointToPointArray.length !== 2) {
-          this.wrongInput = true
-      }
-      else if(this.pointToPointArray[0].x === null ||
-         this.pointToPointArray[0].y === null ||
-         this.pointToPointArray[0].z === null ||
-         this.pointToPointArray[1].x === null ||
-         this.pointToPointArray[1].y === null ||
-         this.pointToPointArray[1].z === null)
-      {
-        this.wrongInput = true
-      }
-
-        if(this.wrongInput) {
-            console.warn("Wrong input for pointToPoint. Expected array with two objects with x, y, z properties. Example: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}]")
-        }
-    },
-
-    setPointToPointPositions() {
-        this.positionA = new THREE.Vector3(
-            this.pointToPointArray[0].x,
-            this.pointToPointArray[0].y,
-            this.pointToPointArray[0].z
-        );
-        this.positionB = new THREE.Vector3(
-            this.pointToPointArray[1].x,
-            this.pointToPointArray[1].y,
-            this.pointToPointArray[1].z
-        );
-        this.targetPosition = this.positionA
-    },
-
     // POINTS
 
     checkPointsInput() {
         this.wrongInput = false
 
-        if(this.pointToPointArray.length < 2) {
+        if(this.pointsArray.length < 2) {
             this.wrongInput = true
-            console.warn("Wrong input for points. Expected array with at least three objects with x, y, z properties.")
+            console.warn("Wrong input for points. Expected array with at least two objects with x, y, z properties.")
             return
         }
 
-        for (let i = 0; i < this.pointToPointArray.length; i++) {
-            const point = this.pointToPointArray[i];
+        for (let i = 0; i < this.pointsArray.length; i++) {
+            const point = this.pointsArray[i];
             if (point.x === null || point.y === null || point.z === null) {
                 this.wrongInput = true;
                 console.warn(`Wrong input for points. Point at index ${i} is missing x, y, or z property.`);
                 return;
             }
         }
+
+        if (this.pointsArray.length === 2) this.pointToPointType = true
     },
 
     setPointsPositions() {
@@ -268,6 +215,11 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     setNewIndex () {
+        if (this.pointToPointType) {
+            this.currentIndex = (this.currentIndex === 0) ? 1 : 0;
+            return;
+        }
+
         if(this.data.randomizePointsOrder) {
             let newIndex = this.currentIndex;
 
