@@ -18,9 +18,9 @@ AFRAME.registerComponent("walk", {
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
         sprintSpeed: {type: "number", default: 8}, // Defines the sprinting speed when the sprint mode is active.
 
-        turnType: {type: "string", default: "stepTurnCardinal"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
+        turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
         autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
-        targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
+        targetWalk: {type: "boolean", default: true}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
     },
@@ -28,7 +28,6 @@ AFRAME.registerComponent("walk", {
     init() {
         // GENERAL
         this.characterModel = this.el.children[0];
-        this.turnType = this.data.turnType
         this.animations = {
             walk: this.data.walkClipName,
             idle: this.data.idleClipName,
@@ -48,6 +47,7 @@ AFRAME.registerComponent("walk", {
 
         this.speed = this.data.speed;
         this.sprintEnabled = this.data.sprint;
+        this.sprintSpeed = this.data.sprintSpeed
         this.isSprinting = false;
 
         this.crossFadeDuration = 0.2
@@ -93,12 +93,44 @@ AFRAME.registerComponent("walk", {
         this.setTurnType()
     },
 
+    update(oldData) {
+        this.wrongInput = false
+        this.checkInputs()
+        if (this.wrongInput) return
+
+        // animations
+        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
+        if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
+        if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
+
+        // keys
+        if (oldData.keyUp !== this.data.keyUp) this.keys.up = this.data.keyUp
+        if (oldData.keyDown !== this.data.keyDown) this.keys.down = this.data.keyDown
+        if (oldData.keyLeft !== this.data.keyLeft) this.keys.left = this.data.keyLeft
+        if (oldData.keyRight !== this.data.keyRight) this.keys.right = this.data.keyRight
+        if (oldData.keySprint !== this.data.keySprint) this.keys.sprint = this.data.keySprint
+
+        // movement
+        if (oldData.speed !== this.data.speed) this.speed = this.data.speed
+        if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
+        if (oldData.sprint !== this.data.sprint) this.sprintEnabled = this.data.sprint
+        if (oldData.sprintSpeed !== this.data.sprintSpeed) this.sprintSpeed = this.data.sprintSpeed
+        if (oldData.turnType !== this.data.turnType) {
+            this.setTurnType();
+        }
+        if (oldData.autoWalk !== this.data.autoWalk) this.autoWalk = this.data.autoWalk
+        if (oldData.targetWalk !== this.data.targetWalk) {
+            this.targetWalk = this.data.targetWalk
+            if (this.targetWalk) this.rotationSpeed = 460
+        }
+    },
+
     checkInputs() {
         this.el.addEventListener('model-loaded', (e) => {
-                const model = e.detail.model;
-            if (!doesGLTFAnimationExist(model, this.animations.walk)) this.wrongInput = true
-            if (!doesGLTFAnimationExist(model, this.animations.idle)) this.wrongInput = true
-            if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.animations.idle)) this.wrongInput = true
+            const model = e.detail.model;
+            if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
+            if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
+            if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.data.sprintClipName)) this.wrongInput = true
         })
 
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
@@ -120,6 +152,10 @@ AFRAME.registerComponent("walk", {
 
     setTurnType() {
         if (this.targetWalk) return
+
+        this.smoothTurn = false;
+        this.stepTurnDiagonal = false;
+        this.stepTurnCardinal = false
 
         switch (this.data.turnType) {
             case 'smoothTurn':
@@ -301,7 +337,7 @@ AFRAME.registerComponent("walk", {
         if (this.stepTurnDiagonal || this.stepTurnCardinal) sprint = true
 
         if (sprint) {
-            this.speed = this.data.sprintSpeed;
+            this.speed = this.sprintSpeed;
             this.setAnimation(this.animations.sprint);
         }
     },
