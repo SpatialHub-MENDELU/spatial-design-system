@@ -1,4 +1,4 @@
-import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
+import {doesGLTFAnimationExist, isPositiveNumber, isValidGameKey} from "../../utils/gameUtils";
 
 AFRAME.registerComponent("walk", {
     schema: {
@@ -20,7 +20,7 @@ AFRAME.registerComponent("walk", {
 
         turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
         autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
-        targetWalk: {type: "boolean", default: true}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
+        targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
     },
@@ -38,11 +38,11 @@ AFRAME.registerComponent("walk", {
         this.camera = this.el.sceneEl.camera
 
         this.keys = {
-            up: this.data.keyUp,
-            down: this.data.keyDown,
-            left: this.data.keyLeft,
-            right: this.data.keyRight,
-            sprint: this.data.keySprint,
+            up: this.data.keyUp.toLowerCase(),
+            down: this.data.keyDown.toLowerCase(),
+            left: this.data.keyLeft.toLowerCase(),
+            right: this.data.keyRight.toLowerCase(),
+            sprint: this.data.keySprint.toLowerCase(),
         };
 
         this.speed = this.data.speed;
@@ -104,11 +104,11 @@ AFRAME.registerComponent("walk", {
         if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
 
         // keys
-        if (oldData.keyUp !== this.data.keyUp) this.keys.up = this.data.keyUp
-        if (oldData.keyDown !== this.data.keyDown) this.keys.down = this.data.keyDown
-        if (oldData.keyLeft !== this.data.keyLeft) this.keys.left = this.data.keyLeft
-        if (oldData.keyRight !== this.data.keyRight) this.keys.right = this.data.keyRight
-        if (oldData.keySprint !== this.data.keySprint) this.keys.sprint = this.data.keySprint
+        if (oldData.keyUp !== this.data.keyUp.toLowerCase()) this.keys.up = this.data.keyUp.toLowerCase()
+        if (oldData.keyDown !== this.data.keyDown.toLowerCase()) this.keys.down = this.data.keyDown.toLowerCase()
+        if (oldData.keyLeft !== this.data.keyLeft.toLowerCase()) this.keys.left = this.data.keyLeft.toLowerCase()
+        if (oldData.keyRight !== this.data.keyRight.toLowerCase()) this.keys.right = this.data.keyRight.toLowerCase()
+        if (oldData.keySprint !== this.data.keySprint.toLowerCase()) this.keys.sprint = this.data.keySprint.toLowerCase()
 
         // movement
         if (oldData.speed !== this.data.speed) this.speed = this.data.speed
@@ -138,6 +138,12 @@ AFRAME.registerComponent("walk", {
         if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
 
         if (!this.isValidTurnType(this.data.turnType)) this.wrongInput = true
+
+        if (!isValidGameKey(this.data.keyUp)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyDown)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyLeft)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyRight)) this.wrongInput = true
+        if (this.sprintEnabled && !isValidGameKey(this.data.keySprint)) this.wrongInput = true
     },
 
     isValidTurnType(value) {
