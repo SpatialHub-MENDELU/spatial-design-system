@@ -29,6 +29,8 @@ const jointIndices = {
   "pinky-finger-tip": 24,
 };
 
+const CLICK_COOLDOWN_MS = 250;
+
 AFRAME.registerComponent("hands", {
   schema: {
     leftEnabled: { type: "boolean", default: true },
@@ -51,6 +53,10 @@ AFRAME.registerComponent("hands", {
     this.handlePinchMoved = this.handlePinchMoved.bind(this);
 
     this.handsEls = [];
+
+    // Finger-touch helpers
+    this.prevTipWorldPosByHand = new Map();
+    this.lastClickAtByTarget = new WeakMap();
 
     this.el.sceneEl.addEventListener("loaded", () => {
       this.setupHands();
@@ -139,6 +145,10 @@ AFRAME.registerComponent("hands", {
     const objectBBox = new THREE.Box3();
     const tempMatrix = new THREE.Matrix4();
     const tempPosition = new THREE.Vector3();
+    const objectCenter = new THREE.Vector3();
+    const prevTipPos = new THREE.Vector3();
+    const velocity = new THREE.Vector3();
+    const dirToObject = new THREE.Vector3();
 
     const EXTENDED_FINGER_THRESHOLD = 0.08; // 8cm
     const CURLED_FINGER_THRESHOLD = 0.05; // 5cm
@@ -244,10 +254,40 @@ AFRAME.registerComponent("hands", {
 
             if (distance < TOUCH_THRESHOLD) {
               foundTargetThisFrame = el;
-              // Check if this is a new touch for this hand
+              // Only trigger on first contact and when moving toward the object (not when backing out)
               if (this.activeTargets.get(handEl) !== el) {
-                el.emit("click", { hand: handEl, side: handEl.id }, false);
-                this.activeTargets.set(handEl, el);
+                // Approach check and cooldown
+                const now =
+                  typeof performance !== "undefined"
+                    ? performance.now()
+                    : Date.now();
+                const lastAt = this.lastClickAtByTarget.get(el) || 0;
+                const cooldownOk = now - lastAt >= this.CLICK_COOLDOWN_MS;
+
+                // Compute approach: require decreasing distance and positive velocity toward object center
+                objectBBox.getCenter(objectCenter);
+
+                const hadPrev = this.prevTipWorldPosByHand.has(handEl);
+                let approachingOk = true;
+                if (hadPrev) {
+                  prevTipPos.copy(this.prevTipWorldPosByHand.get(handEl));
+                  const prevDistance = objectBBox.distanceToPoint(prevTipPos);
+                  const distanceDelta = prevDistance - distance; // positive if moving closer
+
+                  velocity.copy(worldTipPos).sub(prevTipPos);
+                  dirToObject.copy(objectCenter).sub(worldTipPos).normalize();
+                  const approachDot = velocity.dot(dirToObject);
+
+                  const APPROACH_DELTA_EPS = 0.0005; // 0.5 mm closer
+                  approachingOk =
+                    distanceDelta > APPROACH_DELTA_EPS && approachDot > 0;
+                }
+
+                if (cooldownOk && approachingOk) {
+                  el.emit("click", { hand: handEl, side: handEl.id }, false);
+                  this.activeTargets.set(handEl, el);
+                  this.lastClickAtByTarget.set(el, now);
+                }
               }
               // Found a target, no need to check other clickables for this hand
               break;
@@ -259,6 +299,8 @@ AFRAME.registerComponent("hands", {
         if (!foundTargetThisFrame && this.activeTargets.has(handEl)) {
           this.activeTargets.delete(handEl);
         }
+        // Save fingertip position for approach checks next frame
+        this.prevTipWorldPosByHand.set(handEl, worldTipPos.clone());
       });
     };
   })(),
