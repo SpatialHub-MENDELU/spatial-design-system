@@ -262,7 +262,7 @@ AFRAME.registerComponent("hands", {
                     ? performance.now()
                     : Date.now();
                 const lastAt = this.lastClickAtByTarget.get(el) || 0;
-                const cooldownOk = now - lastAt >= this.CLICK_COOLDOWN_MS;
+                const cooldownOk = now - lastAt >= CLICK_COOLDOWN_MS;
 
                 // Compute approach: require decreasing distance and positive velocity toward object center
                 objectBBox.getCenter(objectCenter);
