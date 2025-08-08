@@ -6,6 +6,7 @@ AFRAME.registerComponent('npc-walk', {
         speed: {type: "number", default: 2},
         checkHeight: {type: "boolean", default: false},
         pauseAtPoints: {type: "number", default: 0},
+        waitBeforeStart: {type: "number", default: 0},
 
         allowRotation: {type: "boolean", default: true},
         rotationSpeed: {type: "number", default: 200},
@@ -37,6 +38,9 @@ AFRAME.registerComponent('npc-walk', {
         this.speed = this.data.speed
         this.checkHeight = this.data.checkHeight
 
+        this.waitBeforeStart = false
+        this.waitingBeforeStartsDuration = this.data.waitBeforeStart
+
         this.rotationSpeed = this.data.rotationSpeed
         this.allowRotation = this.data.allowRotation
         this.rotationToTarget = null
@@ -65,11 +69,13 @@ AFRAME.registerComponent('npc-walk', {
         this.yMax = this.data.yMax;
 
         // SET INITIAL VALUES
+        this.initializeDelays()
         this.setType()
         this.checkInput()
         if (!this.wrongInput) this.setPositions()
 
-        this.setAnimation(this.animations.walk);
+        if (this.waitBeforeStart)  this.setAnimation(this.animations.idle);
+        else this.setAnimation(this.animations.walk);
 
     },
 
@@ -78,7 +84,7 @@ AFRAME.registerComponent('npc-walk', {
 
         if (this.wrongInput) return
         if (this.el.body) {
-            this.pointsMovement(deltaSec)
+            if (!this.waitBeforeStart) this.pointsMovement(deltaSec)
         }
     },
 
@@ -101,6 +107,16 @@ AFRAME.registerComponent('npc-walk', {
             case 'randomMoving':
                 this.checkRangeInput();
                 break;
+        }
+    },
+
+    initializeDelays() {
+        if (this.waitingBeforeStartsDuration > 0) {
+            this.waitBeforeStart = true
+            setTimeout(() => {
+                this.waitBeforeStart = false;
+                this.setAnimation(this.animations.walk);
+            }, this.waitingBeforeStartsDuration * 1000);
         }
     },
 
