@@ -18,6 +18,12 @@ AFRAME.registerComponent('npc-walk', {
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
 
         // RANDOM MOVING TYPE
+        xMin: {type: "number", default: -5}, // Minimum allowed position along the-axis(left boundary). Prevents the entity from moving too far left. Only used when type is set to randomMoving.
+        xMax: {type: "number", default: 5}, // Maximum allowed position along the X-axis (right boundary). Prevents the entity from moving too far right. Only used when type is set to randomMoving.
+        zMin: {type: "number", default: -5}, // Minimum allowed position along the Z-axis (backward boundary). Prevents the entity from moving too far backward. Only used when type is set to randomMoving.
+        zMax: {type: "number", default: 5}, // Maximum allowed position along the Z-axis (forward boundary). Prevents the entity from moving too far forward. Only used when type is set to randomMoving.
+        yMin: {type: "number", default: 0}, // Minimum allowed position along the Y-axis (downward boundary). Prevents the entity from moving too far down. Only used when type is set to randomMoving.
+        yMax: {type: "number", default: 5}, // Maximum allowed position along the Y-axis (upward boundary). Prevents the entity from moving too far up. Only used when type is set to randomMoving.
     },
 
     init() {
@@ -42,6 +48,7 @@ AFRAME.registerComponent('npc-walk', {
 
         this.wrongInput = false
         this.targetPosition = null
+        this.positionReached = false
 
         this.currentIndex = 0
 
@@ -49,10 +56,18 @@ AFRAME.registerComponent('npc-walk', {
         this.pointsArray = this.data.points;
         this.arrayDirection = 1 // 1 for forward, -1 for backward
 
+        // RANDOM MOVING
+        this.xMin = this.data.xMin;
+        this.xMax = this.data.xMax;
+        this.zMin = this.data.zMin;
+        this.zMax = this.data.zMax;
+        this.yMin = this.data.yMin;
+        this.yMax = this.data.yMax;
+
         // SET INITIAL VALUES
         this.setType()
         this.checkInput()
-        if(!this.wrongInput) this.setPositions()
+        if (!this.wrongInput) this.setPositions()
 
         this.setAnimation(this.animations.walk);
 
@@ -61,23 +76,31 @@ AFRAME.registerComponent('npc-walk', {
     tick(deltaTime) {
         const deltaSec = deltaTime / 1000;
 
-        if(this.wrongInput) return
-        if(this.el.body) {
-            if(this.pointsType) this.pointsMovement(deltaSec)
+        if (this.wrongInput) return
+        if (this.el.body) {
+            this.pointsMovement(deltaSec)
         }
     },
 
     setType() {
         switch (this.data.type) {
-            case 'points': this.pointsType = true; break;
-            case 'randomMoving': this.randomMovingType = true; break;
+            case 'points':
+                this.pointsType = true;
+                break;
+            case 'randomMoving':
+                this.randomMovingType = true;
+                break;
         }
     },
 
     checkInput() {
         switch (this.data.type) {
-            case 'points': this.checkPointsInput(); break;
-            // case 'randomMoving':  break;
+            case 'points':
+                this.checkPointsInput();
+                break;
+            case 'randomMoving':
+                this.checkRangeInput();
+                break;
         }
     },
 
@@ -91,16 +114,21 @@ AFRAME.registerComponent('npc-walk', {
 
     setPositions() {
         switch (this.data.type) {
-            case 'points': this.setPointsPositions(); break;
-            // case 'randomMoving':  break;
+            case 'points':
+                this.setPointsPositions();
+                break;
+            case 'randomMoving':
+                this.targetPosition = this.generateRandomPosition();
+                console.log("Initial random position:", this.targetPosition);
+                break;
         }
     },
 
     moveToPosition(targetPosition) {
         const currentVelocity = this.el.body.getLinearVelocity();
-        if(!this.positionReached) {
+        if (!this.positionReached) {
             const direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
-            if(this.checkHeight) {
+            if (this.checkHeight) {
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y, direction.z * this.speed));
             } else {
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, currentVelocity.y(), direction.z * this.speed));
@@ -110,8 +138,8 @@ AFRAME.registerComponent('npc-walk', {
 
     checkReachedPosition(targetPosition) {
         const currentPosition = this.el.object3D.position;
-        if(this.checkHeight) {
-            if( currentPosition.distanceTo(targetPosition) < 0.2 ) this.positionReached = true;
+        if (this.checkHeight) {
+            if (currentPosition.distanceTo(targetPosition) < 0.2) this.positionReached = true;
         } else {
             const dx = currentPosition.x - targetPosition.x;
             const dz = currentPosition.z - targetPosition.z;
@@ -138,7 +166,7 @@ AFRAME.registerComponent('npc-walk', {
 
     rotateToPosition(targetPosition, deltaSec) {
         this.setRotationToTarget(targetPosition);
-        if(!this.allowRotation) return;
+        if (!this.allowRotation) return;
 
         const currentRotation = this.currentRotation
         const targetRotation = this.rotationToTarget
@@ -147,7 +175,7 @@ AFRAME.registerComponent('npc-walk', {
 
         const maxStep = this.rotationSpeed * deltaSec;
 
-        if(Math.abs(diff) <= maxStep) {
+        if (Math.abs(diff) <= maxStep) {
             this.currentRotation = targetRotation;
         } else {
             this.currentRotation = (currentRotation + Math.sign(diff) * maxStep + 540) % 360;
@@ -181,12 +209,24 @@ AFRAME.registerComponent('npc-walk', {
         );
     },
 
+    pointsMovement(deltaSec) {
+        if (!this.positionReached) {
+            this.checkReachedPosition(this.targetPosition)
+            if (this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
+            this.moveToPosition(this.targetPosition);
+        } else {
+            if (this.pointsType) this.setNextTargetPosition();
+            if (this.randomMovingType) this.targetPosition = this.generateRandomPosition();
+            this.positionReached = false;
+        }
+    },
+
     // POINTS
 
     checkPointsInput() {
         this.wrongInput = false
 
-        if(this.pointsArray.length < 2) {
+        if (this.pointsArray.length < 2) {
             this.wrongInput = true
             console.warn("Wrong input for points. Expected array with at least two objects with x, y, z properties.")
             return
@@ -214,13 +254,13 @@ AFRAME.registerComponent('npc-walk', {
         this.targetPosition = this.convertObjectToVector3Array(this.pointsArray[this.currentIndex]);
     },
 
-    setNewIndex () {
+    setNewIndex() {
         if (this.pointToPointType) {
             this.currentIndex = (this.currentIndex === 0) ? 1 : 0;
             return;
         }
 
-        if(this.data.randomizePointsOrder) {
+        if (this.data.randomizePointsOrder) {
             let newIndex = this.currentIndex;
 
             while (newIndex === this.currentIndex && this.pointsArray.length > 1) {
@@ -228,15 +268,12 @@ AFRAME.registerComponent('npc-walk', {
             }
 
             this.currentIndex = newIndex;
-        }
-
-        else if(this.data.cyclePath) {
+        } else if (this.data.cyclePath) {
             this.currentIndex++;
-            if(this.currentIndex === this.pointsArray.length) {
+            if (this.currentIndex === this.pointsArray.length) {
                 this.currentIndex = 0;
             }
-        }
-        else {
+        } else {
             this.currentIndex += this.arrayDirection;
 
             if (this.currentIndex === this.pointsArray.length - 1 || this.currentIndex === 0) {
@@ -245,16 +282,28 @@ AFRAME.registerComponent('npc-walk', {
         }
     },
 
-    pointsMovement(deltaSec) {
-        if(!this.positionReached) {
-            this.checkReachedPosition(this.targetPosition)
-            if(this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
-            this.moveToPosition(this.targetPosition);
-        } else {
-            this.setNextTargetPosition();
-            this.positionReached = false;
-        }
+    // RANDOM MOVING
+
+    checkRangeInput() {
+        this.wrongInput = false;
     },
 
+    generateRandomPosition() {
+        const currentPosition = this.el.object3D.position;
 
+        if (this.checkHeight) {
+            return new THREE.Vector3(
+                THREE.MathUtils.randFloat(this.xMin, this.xMax),
+                THREE.MathUtils.randFloat(this.yMin, this.yMax),
+                THREE.MathUtils.randFloat(this.zMin, this.zMax)
+            );
+        } else {
+            return new THREE.Vector3(
+                THREE.MathUtils.randFloat(this.xMin, this.xMax),
+                currentPosition.y,
+                THREE.MathUtils.randFloat(this.zMin, this.zMax)
+            );
+        }
+
+    },
 })
