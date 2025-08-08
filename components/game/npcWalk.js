@@ -41,6 +41,10 @@ AFRAME.registerComponent('npc-walk', {
         this.waitBeforeStart = false
         this.waitingBeforeStartsDuration = this.data.waitBeforeStart
 
+        this.pauseAtPoints = false
+        this.pauseAtPointsDuration = this.data.pauseAtPoints
+        this.isWaiting = false
+
         this.rotationSpeed = this.data.rotationSpeed
         this.allowRotation = this.data.allowRotation
         this.rotationToTarget = null
@@ -118,6 +122,8 @@ AFRAME.registerComponent('npc-walk', {
                 this.setAnimation(this.animations.walk);
             }, this.waitingBeforeStartsDuration * 1000);
         }
+
+        if (this.pauseAtPointsDuration > 0) this.pauseAtPoints = true
     },
 
     setAnimation(name) {
@@ -225,15 +231,32 @@ AFRAME.registerComponent('npc-walk', {
         );
     },
 
+    setTargetPosition() {
+        if (this.pointsType) this.setNextTargetPosition();
+        if (this.randomMovingType) this.targetPosition = this.generateRandomPosition();
+        this.positionReached = false;
+    },
+
     pointsMovement(deltaSec) {
+        if (this.isWaiting) return;
+
         if (!this.positionReached) {
             this.checkReachedPosition(this.targetPosition)
             if (this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
             this.moveToPosition(this.targetPosition);
         } else {
-            if (this.pointsType) this.setNextTargetPosition();
-            if (this.randomMovingType) this.targetPosition = this.generateRandomPosition();
-            this.positionReached = false;
+            if (this.pauseAtPoints) {
+                this.isWaiting = true;
+                this.setAnimation(this.animations.idle);
+
+                setTimeout(() => {
+                    this.setTargetPosition()
+
+                    this.isWaiting = false;
+                    this.setAnimation(this.animations.walk);
+                }, this.pauseAtPointsDuration * 1000);
+            } else this.setTargetPosition()
+
         }
     },
 
