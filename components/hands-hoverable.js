@@ -1,7 +1,7 @@
 import * as AFRAME from "aframe";
-import { VARIANT_DARK_COLOR } from "../../utils/colors";
+import { VARIANT_DARK_COLOR } from "../utils/colors";
 
-AFRAME.registerComponent("ar-hoverable", {
+AFRAME.registerComponent("hands-hoverable", {
   schema: {
     hoverEffect: {
       type: "string",
