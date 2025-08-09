@@ -1,3 +1,5 @@
+import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
+
 AFRAME.registerComponent('npc-walk', {
     schema: {
         walkClipName: {type: "string", default: "*Walk*"},
@@ -73,10 +75,12 @@ AFRAME.registerComponent('npc-walk', {
         this.yMax = this.data.yMax;
 
         // SET INITIAL VALUES
-        this.initializeDelays()
-        this.setType()
         this.checkInput()
-        if (!this.wrongInput) this.setPositions()
+        if (this.wrongInput) return
+
+        this.setType()
+        this.initializeDelays()
+        this.setPositions()
 
         if (this.waitBeforeStart)  this.setAnimation(this.animations.idle);
         else this.setAnimation(this.animations.walk);
@@ -104,6 +108,8 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     checkInput() {
+        this.wrongInput = false;
+
         switch (this.data.type) {
             case 'points':
                 this.checkPointsInput();
@@ -111,6 +117,22 @@ AFRAME.registerComponent('npc-walk', {
             case 'randomMoving':
                 this.checkRangeInput();
                 break;
+        }
+
+        this.el.addEventListener('model-loaded', (e) => {
+            const model = e.detail.model;
+            if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
+            if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
+        })
+
+        if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.pauseAtPoints, "pauseAtPoints")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart")) this.wrongInput = true
+
+        if (!this.isValidType(this.data.type)) {
+            this.wrongInput = true;
+            console.error(`Invalid type "${this.data.type}". Expected "points" or "randomMoving".`);
         }
     },
 
@@ -124,6 +146,10 @@ AFRAME.registerComponent('npc-walk', {
         }
 
         if (this.pauseAtPointsDuration > 0) this.pauseAtPoints = true
+    },
+
+    isValidType(type) {
+        return ['points', 'randomMoving'].includes(type);
     },
 
     setAnimation(name) {
