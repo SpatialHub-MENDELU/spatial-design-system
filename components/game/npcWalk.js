@@ -1,3 +1,5 @@
+import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
+
 AFRAME.registerComponent('npc-walk', {
     schema: {
         walkClipName: {type: "string", default: "*Walk*"},
@@ -6,16 +8,25 @@ AFRAME.registerComponent('npc-walk', {
         speed: {type: "number", default: 2},
         checkHeight: {type: "boolean", default: false},
         pauseAtPoints: {type: "number", default: 0},
+        waitBeforeStart: {type: "number", default: 0},
 
         allowRotation: {type: "boolean", default: true},
         rotationSpeed: {type: "number", default: 200},
 
-        type: {type: "string", default: "points"}, // pointToPoint, points, randomMoving
+        type: {type: "string", default: "points"}, // points, randomMoving
 
-        pointToPoint: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}]},
+        // POINTS TYPE
         points: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}, {x: 5, y: 1, z: 0}]},
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
+
+        // RANDOM MOVING TYPE
+        xMin: {type: "number", default: -5}, // Minimum allowed position along the-axis(left boundary). Prevents the entity from moving too far left. Only used when type is set to randomMoving.
+        xMax: {type: "number", default: 5}, // Maximum allowed position along the X-axis (right boundary). Prevents the entity from moving too far right. Only used when type is set to randomMoving.
+        zMin: {type: "number", default: -5}, // Minimum allowed position along the Z-axis (backward boundary). Prevents the entity from moving too far backward. Only used when type is set to randomMoving.
+        zMax: {type: "number", default: 5}, // Maximum allowed position along the Z-axis (forward boundary). Prevents the entity from moving too far forward. Only used when type is set to randomMoving.
+        yMin: {type: "number", default: 0}, // Minimum allowed position along the Y-axis (downward boundary). Prevents the entity from moving too far down. Only used when type is set to randomMoving.
+        yMax: {type: "number", default: 5}, // Maximum allowed position along the Y-axis (upward boundary). Prevents the entity from moving too far up. Only used when type is set to randomMoving.
     },
 
     init() {
@@ -29,6 +40,13 @@ AFRAME.registerComponent('npc-walk', {
         this.speed = this.data.speed
         this.checkHeight = this.data.checkHeight
 
+        this.waitBeforeStart = false
+        this.waitingBeforeStartsDuration = this.data.waitBeforeStart
+
+        this.pauseAtPoints = false
+        this.pauseAtPointsDuration = this.data.pauseAtPoints
+        this.isWaiting = false
+
         this.rotationSpeed = this.data.rotationSpeed
         this.allowRotation = this.data.allowRotation
         this.rotationToTarget = null
@@ -40,52 +58,98 @@ AFRAME.registerComponent('npc-walk', {
 
         this.wrongInput = false
         this.targetPosition = null
+        this.positionReached = false
 
         this.currentIndex = 0
-
-        // POINT TO POINT
-        this.pointToPointArray = this.data.pointToPoint;
-        this.positionReached = false
-        this.positionA = null
-        this.positionB = null
 
         // POINTS
         this.pointsArray = this.data.points;
         this.arrayDirection = 1 // 1 for forward, -1 for backward
 
-        // SET INITIAL VALUES
-        this.setType()
-        this.checkInput()
-        if(!this.wrongInput) this.setPositions()
+        // RANDOM MOVING
+        this.xMin = this.data.xMin;
+        this.xMax = this.data.xMax;
+        this.zMin = this.data.zMin;
+        this.zMax = this.data.zMax;
+        this.yMin = this.data.yMin;
+        this.yMax = this.data.yMax;
 
-        this.setAnimation(this.animations.walk);
+        // SET INITIAL VALUES
+        this.checkInput()
+        if (this.wrongInput) return
+
+        this.setType()
+        this.initializeDelays()
+        this.setPositions()
+
+        if (this.waitBeforeStart)  this.setAnimation(this.animations.idle);
+        else this.setAnimation(this.animations.walk);
 
     },
 
     tick(deltaTime) {
         const deltaSec = deltaTime / 1000;
 
-        if(this.wrongInput) return
-        if(this.el.body) {
-            if(this.pointToPointType) this.pointToPointMovement(deltaSec)
-            if(this.pointsType) this.pointsMovement(deltaSec)
+        if (this.wrongInput) return
+        if (this.el.body) {
+            if (!this.waitBeforeStart) this.pointsMovement(deltaSec)
         }
     },
 
     setType() {
         switch (this.data.type) {
-            case 'pointToPoint': this.pointToPointType = true; break;
-            case 'points': this.pointsType = true; break;
-            case 'randomMoving': this.randomMovingType = true; break;
+            case 'points':
+                this.pointsType = true;
+                break;
+            case 'randomMoving':
+                this.randomMovingType = true;
+                break;
         }
     },
 
     checkInput() {
+        this.wrongInput = false;
+
         switch (this.data.type) {
-            case 'pointToPoint': this.checkPointToPointInput(); break;
-            case 'points': this.checkPointsInput(); break;
-            // case 'randomMoving':  break;
+            case 'points':
+                this.checkPointsInput();
+                break;
+            case 'randomMoving':
+                this.checkRangeInput();
+                break;
         }
+
+        this.el.addEventListener('model-loaded', (e) => {
+            const model = e.detail.model;
+            if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
+            if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
+        })
+
+        if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.pauseAtPoints, "pauseAtPoints")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart")) this.wrongInput = true
+
+        if (!this.isValidType(this.data.type)) {
+            this.wrongInput = true;
+            console.error(`Invalid type "${this.data.type}". Expected "points" or "randomMoving".`);
+        }
+    },
+
+    initializeDelays() {
+        if (this.waitingBeforeStartsDuration > 0) {
+            this.waitBeforeStart = true
+            setTimeout(() => {
+                this.waitBeforeStart = false;
+                this.setAnimation(this.animations.walk);
+            }, this.waitingBeforeStartsDuration * 1000);
+        }
+
+        if (this.pauseAtPointsDuration > 0) this.pauseAtPoints = true
+    },
+
+    isValidType(type) {
+        return ['points', 'randomMoving'].includes(type);
     },
 
     setAnimation(name) {
@@ -98,27 +162,32 @@ AFRAME.registerComponent('npc-walk', {
 
     setPositions() {
         switch (this.data.type) {
-            case 'pointToPoint': this.setPointToPointPositions(); break;
-            case 'points': this.setPointsPositions(); break;
-            // case 'randomMoving':  break;
+            case 'points':
+                this.setPointsPositions();
+                break;
+            case 'randomMoving':
+                this.targetPosition = this.generateRandomPosition();
+                console.log("Initial random position:", this.targetPosition);
+                break;
         }
     },
 
     moveToPosition(targetPosition) {
-        if(!this.positionReached) {
+        const currentVelocity = this.el.body.getLinearVelocity();
+        if (!this.positionReached) {
             const direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
-            if(this.checkHeight) {
+            if (this.checkHeight) {
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y, direction.z * this.speed));
             } else {
-                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
+                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, currentVelocity.y(), direction.z * this.speed));
             }
         }
     },
 
     checkReachedPosition(targetPosition) {
         const currentPosition = this.el.object3D.position;
-        if(this.checkHeight) {
-            if( currentPosition.distanceTo(targetPosition) < 0.2 ) this.positionReached = true;
+        if (this.checkHeight) {
+            if (currentPosition.distanceTo(targetPosition) < 0.2) this.positionReached = true;
         } else {
             const dx = currentPosition.x - targetPosition.x;
             const dz = currentPosition.z - targetPosition.z;
@@ -145,7 +214,7 @@ AFRAME.registerComponent('npc-walk', {
 
     rotateToPosition(targetPosition, deltaSec) {
         this.setRotationToTarget(targetPosition);
-        if(!this.allowRotation) return;
+        if (!this.allowRotation) return;
 
         const currentRotation = this.currentRotation
         const targetRotation = this.rotationToTarget
@@ -154,7 +223,7 @@ AFRAME.registerComponent('npc-walk', {
 
         const maxStep = this.rotationSpeed * deltaSec;
 
-        if(Math.abs(diff) <= maxStep) {
+        if (Math.abs(diff) <= maxStep) {
             this.currentRotation = targetRotation;
         } else {
             this.currentRotation = (currentRotation + Math.sign(diff) * maxStep + 540) % 360;
@@ -188,51 +257,33 @@ AFRAME.registerComponent('npc-walk', {
         );
     },
 
-    // POINT TO POINT
+    setTargetPosition() {
+        if (this.pointsType) this.setNextTargetPosition();
+        if (this.randomMovingType) this.targetPosition = this.generateRandomPosition();
+        this.positionReached = false;
+    },
 
-    pointToPointMovement(deltaSec) {
-        if(!this.positionReached) {
+    pointsMovement(deltaSec) {
+        if (this.isWaiting) return;
+
+        if (!this.positionReached) {
             this.checkReachedPosition(this.targetPosition)
-            if(this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
+            if (this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
             this.moveToPosition(this.targetPosition);
         } else {
-            this.targetPosition = (this.targetPosition === this.positionA) ? this.positionB : this.positionA;
-            this.positionReached = false;
+            if (this.pauseAtPoints) {
+                this.isWaiting = true;
+                this.setAnimation(this.animations.idle);
+
+                setTimeout(() => {
+                    this.setTargetPosition()
+
+                    this.isWaiting = false;
+                    this.setAnimation(this.animations.walk);
+                }, this.pauseAtPointsDuration * 1000);
+            } else this.setTargetPosition()
+
         }
-    },
-
-    checkPointToPointInput() {
-      this.wrongInput = false
-      if (this.pointToPointArray.length !== 2) {
-          this.wrongInput = true
-      }
-      else if(this.pointToPointArray[0].x === null ||
-         this.pointToPointArray[0].y === null ||
-         this.pointToPointArray[0].z === null ||
-         this.pointToPointArray[1].x === null ||
-         this.pointToPointArray[1].y === null ||
-         this.pointToPointArray[1].z === null)
-      {
-        this.wrongInput = true
-      }
-
-        if(this.wrongInput) {
-            console.warn("Wrong input for pointToPoint. Expected array with two objects with x, y, z properties. Example: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}]")
-        }
-    },
-
-    setPointToPointPositions() {
-        this.positionA = new THREE.Vector3(
-            this.pointToPointArray[0].x,
-            this.pointToPointArray[0].y,
-            this.pointToPointArray[0].z
-        );
-        this.positionB = new THREE.Vector3(
-            this.pointToPointArray[1].x,
-            this.pointToPointArray[1].y,
-            this.pointToPointArray[1].z
-        );
-        this.targetPosition = this.positionA
     },
 
     // POINTS
@@ -240,20 +291,22 @@ AFRAME.registerComponent('npc-walk', {
     checkPointsInput() {
         this.wrongInput = false
 
-        if(this.pointToPointArray.length < 2) {
+        if (this.pointsArray.length < 2) {
             this.wrongInput = true
-            console.warn("Wrong input for points. Expected array with at least three objects with x, y, z properties.")
+            console.warn("Wrong input for points. Expected array with at least two objects with x, y, z properties.")
             return
         }
 
-        for (let i = 0; i < this.pointToPointArray.length; i++) {
-            const point = this.pointToPointArray[i];
+        for (let i = 0; i < this.pointsArray.length; i++) {
+            const point = this.pointsArray[i];
             if (point.x === null || point.y === null || point.z === null) {
                 this.wrongInput = true;
                 console.warn(`Wrong input for points. Point at index ${i} is missing x, y, or z property.`);
                 return;
             }
         }
+
+        if (this.pointsArray.length === 2) this.pointToPointType = true
     },
 
     setPointsPositions() {
@@ -266,8 +319,13 @@ AFRAME.registerComponent('npc-walk', {
         this.targetPosition = this.convertObjectToVector3Array(this.pointsArray[this.currentIndex]);
     },
 
-    setNewIndex () {
-        if(this.data.randomizePointsOrder) {
+    setNewIndex() {
+        if (this.pointToPointType) {
+            this.currentIndex = (this.currentIndex === 0) ? 1 : 0;
+            return;
+        }
+
+        if (this.data.randomizePointsOrder) {
             let newIndex = this.currentIndex;
 
             while (newIndex === this.currentIndex && this.pointsArray.length > 1) {
@@ -275,15 +333,12 @@ AFRAME.registerComponent('npc-walk', {
             }
 
             this.currentIndex = newIndex;
-        }
-
-        else if(this.data.cyclePath) {
+        } else if (this.data.cyclePath) {
             this.currentIndex++;
-            if(this.currentIndex === this.pointsArray.length) {
+            if (this.currentIndex === this.pointsArray.length) {
                 this.currentIndex = 0;
             }
-        }
-        else {
+        } else {
             this.currentIndex += this.arrayDirection;
 
             if (this.currentIndex === this.pointsArray.length - 1 || this.currentIndex === 0) {
@@ -292,16 +347,28 @@ AFRAME.registerComponent('npc-walk', {
         }
     },
 
-    pointsMovement(deltaSec) {
-        if(!this.positionReached) {
-            this.checkReachedPosition(this.targetPosition)
-            if(this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
-            this.moveToPosition(this.targetPosition);
-        } else {
-            this.setNextTargetPosition();
-            this.positionReached = false;
-        }
+    // RANDOM MOVING
+
+    checkRangeInput() {
+        this.wrongInput = false;
     },
 
+    generateRandomPosition() {
+        const currentPosition = this.el.object3D.position;
 
+        if (this.checkHeight) {
+            return new THREE.Vector3(
+                THREE.MathUtils.randFloat(this.xMin, this.xMax),
+                THREE.MathUtils.randFloat(this.yMin, this.yMax),
+                THREE.MathUtils.randFloat(this.zMin, this.zMax)
+            );
+        } else {
+            return new THREE.Vector3(
+                THREE.MathUtils.randFloat(this.xMin, this.xMax),
+                currentPosition.y,
+                THREE.MathUtils.randFloat(this.zMin, this.zMax)
+            );
+        }
+
+    },
 })
