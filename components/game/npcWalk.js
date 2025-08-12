@@ -2,8 +2,8 @@ import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
 
 AFRAME.registerComponent('npc-walk', {
     schema: {
-        walkClipName: {type: "string", default: "*Walk*"},
-        idleClipName: {type: "string", default: "*Idle*"},
+        walkClipName: {type: "string", default: "Walk"},
+        idleClipName: {type: "string", default: "Idle"},
 
         speed: {type: "number", default: 2},
         checkHeight: {type: "boolean", default: false},
@@ -16,7 +16,7 @@ AFRAME.registerComponent('npc-walk', {
         type: {type: "string", default: "points"}, // points, randomMoving
 
         // POINTS TYPE
-        points: {type: "array", default: [{x: 0, y: 1, z: 5}, {x: 5, y: 1, z: 5}, {x: 5, y: 1, z: 0}]},
+        points: {type: "string", default: "0 1 5, 5 1 5, 5 1 0"},
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
 
@@ -63,8 +63,10 @@ AFRAME.registerComponent('npc-walk', {
         this.currentIndex = 0
 
         // POINTS
-        this.pointsArray = this.data.points;
+        this.pointsArray = this.parsePoints()
         this.arrayDirection = 1 // 1 for forward, -1 for backward
+        this.cyclePath = this.data.cyclePath
+        this.randomizePointsOrder = this.data.randomizePointsOrder
 
         // RANDOM MOVING
         this.xMin = this.data.xMin;
@@ -82,14 +84,87 @@ AFRAME.registerComponent('npc-walk', {
         this.initializeDelays()
         this.setPositions()
 
-        if (this.waitBeforeStart)  this.setAnimation(this.animations.idle);
+        if (this.waitBeforeStart) this.setAnimation(this.animations.idle);
         else this.setAnimation(this.animations.walk);
 
     },
 
+    update(oldData) {
+        this.checkInput()
+        if (this.wrongInput) return;
+
+        // animations
+        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
+        if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
+
+        // movement
+        if (oldData.speed !== this.data.speed) this.speed = this.data.speed
+        if (oldData.checkHeight !== this.data.checkHeight) this.checkHeight = this.data.checkHeight
+        if (oldData.pauseAtPoints !== this.data.pauseAtPoints) this.pauseAtPointsDuration = this.data.pauseAtPoints
+        if (oldData.waitBeforeStart !== this.data.waitBeforeStart) this.waitingBeforeStartsDuration = this.data.waitBeforeStart
+
+        if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
+        if (oldData.allowRotation !== this.data.allowRotation) this.allowRotation = this.data.allowRotation
+
+        if (oldData.type !== this.data.type) {
+            this.setType()
+            this.setPositions()
+        }
+
+        if (oldData.cyclePath !== this.data.cyclePath) this.cyclePath = this.data.cyclePath
+        if (oldData.randomizePointsOrder !== this.data.randomizePointsOrder) this.randomizePointsOrder = this.data.randomizePointsOrder
+
+        // random moving type
+        if (oldData.xMin !== this.data.xMin) this.xMin = this.data.xMin
+        if (oldData.xMax !== this.data.xMax) this.xMax = this.data.xMax
+        if (oldData.zMin !== this.data.zMin) this.zMin = this.data.zMin
+        if (oldData.zMax !== this.data.zMax) this.zMax = this.data.zMax
+        if (oldData.yMin !== this.data.yMin) this.yMin = this.data.yMin
+        if (oldData.yMax !== this.data.yMax) this.yMax = this.data.yMax
+
+        // points
+
+        if (this.data.type === "points") {
+            if (oldData.points !== this.data.points) {
+                if (this.parsePoints() !== null) {
+                    this.pointsArray = this.parsePoints()
+                    this.checkPointsInput()
+                    if (this.wrongInput) return
+                    this.setPositions();
+                }
+            }
+        }
+    },
+
+    parsePoints() {
+        const pointsString = this.data.points;
+
+        if (typeof pointsString !== "string") {
+            console.error("Points data must be a string.");
+            return null;
+        }
+
+        return pointsString
+            .split(",")
+            .map(p => p.trim())
+            .filter(p => p.length > 0)
+            .map((p, index) => {
+                const coords = p.split(" ").map(Number);
+
+                if (coords.length !== 3 || coords.some(isNaN)) {
+                    this.wrongInput = true;
+                    console.error("Invalid points input. Expected format: 'x y z, x y z, ...'");
+                    return null;
+                } else {
+                    const [x, y, z] = coords;
+                    return { x, y, z };
+                }
+            })
+            .filter(Boolean);
+    },
+
     tick(deltaTime) {
         const deltaSec = deltaTime / 1000;
-
         if (this.wrongInput) return
         if (this.el.body) {
             if (!this.waitBeforeStart) this.pointsMovement(deltaSec)
@@ -108,8 +183,6 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     checkInput() {
-        this.wrongInput = false;
-
         switch (this.data.type) {
             case 'points':
                 this.checkPointsInput();
@@ -127,8 +200,8 @@ AFRAME.registerComponent('npc-walk', {
 
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
-        if (!isPositiveNumber(this.data.pauseAtPoints, "pauseAtPoints")) this.wrongInput = true
-        if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.pauseAtPoints, "pauseAtPoints", true)) this.wrongInput = true
+        if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart", true)) this.wrongInput = true
 
         if (!this.isValidType(this.data.type)) {
             this.wrongInput = true;
@@ -167,7 +240,6 @@ AFRAME.registerComponent('npc-walk', {
                 break;
             case 'randomMoving':
                 this.targetPosition = this.generateRandomPosition();
-                console.log("Initial random position:", this.targetPosition);
                 break;
         }
     },
@@ -289,21 +361,15 @@ AFRAME.registerComponent('npc-walk', {
     // POINTS
 
     checkPointsInput() {
-        this.wrongInput = false
-
-        if (this.pointsArray.length < 2) {
+        if (this.pointsArray === null) {
             this.wrongInput = true
-            console.warn("Wrong input for points. Expected array with at least two objects with x, y, z properties.")
             return
         }
 
-        for (let i = 0; i < this.pointsArray.length; i++) {
-            const point = this.pointsArray[i];
-            if (point.x === null || point.y === null || point.z === null) {
-                this.wrongInput = true;
-                console.warn(`Wrong input for points. Point at index ${i} is missing x, y, or z property.`);
-                return;
-            }
+        if (this.pointsArray.length < 2) {
+            this.wrongInput = true
+            console.error("Wrong input for points. Expected array with at least two objects with x, y, z properties. Expected format: 'x y z, x y z, ...'");
+            return
         }
 
         if (this.pointsArray.length === 2) this.pointToPointType = true
@@ -325,7 +391,7 @@ AFRAME.registerComponent('npc-walk', {
             return;
         }
 
-        if (this.data.randomizePointsOrder) {
+        if (this.randomizePointsOrder) {
             let newIndex = this.currentIndex;
 
             while (newIndex === this.currentIndex && this.pointsArray.length > 1) {
@@ -333,7 +399,7 @@ AFRAME.registerComponent('npc-walk', {
             }
 
             this.currentIndex = newIndex;
-        } else if (this.data.cyclePath) {
+        } else if (this.cyclePath) {
             this.currentIndex++;
             if (this.currentIndex === this.pointsArray.length) {
                 this.currentIndex = 0;
@@ -350,7 +416,18 @@ AFRAME.registerComponent('npc-walk', {
     // RANDOM MOVING
 
     checkRangeInput() {
-        this.wrongInput = false;
+        if (this.data.xMin > this.data.xMax) {
+            this.wrongInput = true;
+            console.error("Invalid range for x-axis: xMin should be less than xMax.");
+        }
+        if (this.data.zMin > this.data.zMax) {
+            this.wrongInput = true;
+            console.error("Invalid range for z-axis: zMin should be less than zMax.");
+        }
+        if (this.data.yMin > this.data.yMax) {
+            this.wrongInput = true;
+            console.error("Invalid range for y-axis: yMin should be less than yMax.");
+        }
     },
 
     generateRandomPosition() {
