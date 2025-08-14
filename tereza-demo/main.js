@@ -1,11 +1,23 @@
 import "aframe";
 
+import "../components/autoXr.js";
+import "../components/ar/hands.js";
+import "../primitives/ar-button.js";
+import "../components/finger-touch.js";
 import "../primitives/ar-button.js";
 
 document.querySelector("#app").innerHTML = `
 <a-scene>
+    <a-entity id="rig"
+       hands>
+    </a-entity>
 
-    <a-entity id="rig" hands></a-entity>
-
-    <a-ar-button content="Click Me" hand-clickable position="0 1.5 -2"></a-ar-button>
-    </a-scene>`;
+   <a-ar-button
+    finger-touch
+    position="0 1.5 -1"
+    content="Button"
+    primary="#018A6C"
+    textcolor="white"
+    size="large"
+></a-ar-button>
+</a-scene>`;
