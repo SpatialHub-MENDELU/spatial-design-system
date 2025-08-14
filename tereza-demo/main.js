@@ -4,13 +4,10 @@ import "../components/autoXr.js";
 import "../components/ar/hands.js";
 import "../primitives/ar-button.js";
 import "../components/finger-touch.js";
+import "../primitives/ar-button.js";
 
 document.querySelector("#app").innerHTML = `
-<a-scene auto-xr="sessionMode: vr; autoEnter: false;
-        buttonText: Start VR"
-        webxr="optionalFeatures: hand-tracking"
-        >
-
+<a-scene>
     <a-entity id="rig"
        hands>
     </a-entity>
