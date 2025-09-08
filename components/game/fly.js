@@ -11,6 +11,8 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
+        allowGravity: {type: "boolean", default: true},
+
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
 
@@ -40,6 +42,8 @@ AFRAME.registerComponent("fly", {
             descend: this.data.keyDescend.toLowerCase(),
             sprint: this.data.keySprint.toLowerCase(),
         }
+
+        this.allowGravity = this.data.allowGravity
 
         this.speed = this.data.speed
         this.sprintEnabled = this.data.sprint
@@ -127,6 +131,7 @@ AFRAME.registerComponent("fly", {
     tick(time, deltaTime) {
         const deltaSec = deltaTime / 1000;
         if (this.el.body) {
+            if (!this.allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
             if (this.freeDirectionalFlight) this.freeDirectionalFlightMove(deltaSec)
         }
     },
@@ -154,11 +159,17 @@ AFRAME.registerComponent("fly", {
             velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
         }
 
-        if (this.ascending || this.descending) {
-            speed = this.ascending ? this.speed : this.descending ? -this.speed : 0;
-            velocity = new Ammo.btVector3(currentVelocity.x(), speed, currentVelocity.z());
+        if (this.allowGravity) {
+            if (this.ascending || this.descending) {
+                speed = this.ascending ? this.speed : this.descending ? -this.speed : 0;
+                velocity = new Ammo.btVector3(currentVelocity.x(), speed, currentVelocity.z());
+            }
+        } else {
+            let y = 0;
+            if (this.ascending) y = this.speed;
+            if (this.descending) y = -this.speed;
+            velocity = new Ammo.btVector3(velocity.x(), y, velocity.z());
         }
-
 
         if (this.movingRight || this.movingLeft) {
             const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
