@@ -11,7 +11,7 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: true},
+        allowGravity: {type: "boolean", default: false},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
@@ -157,6 +157,18 @@ AFRAME.registerComponent("fly", {
             const x = Math.sin(angleRad) * speed * factor;
             const z = Math.cos(angleRad) * speed * factor;
             velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
+
+            if (this.allowGravity) {
+                if (this.ascending || this.descending) {
+                    speed = this.ascending ? this.speed : this.descending ? -this.speed : 0;
+                    velocity = new Ammo.btVector3(x, speed, z);
+                }
+            } else {
+                let y = 0;
+                if (this.ascending) y = this.speed;
+                if (this.descending) y = -this.speed;
+                velocity = new Ammo.btVector3(x, y, z);
+            }
         }
 
         if (this.allowGravity) {
