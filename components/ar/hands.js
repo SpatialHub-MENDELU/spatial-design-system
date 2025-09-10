@@ -1,4 +1,5 @@
 import * as AFRAME from "aframe";
+import { getPinchMidpointWorld } from "../stretchable-utils.js";
 
 // Joint indices based on WebXR Hand Input spec.
 const jointIndices = {
@@ -46,7 +47,7 @@ AFRAME.registerComponent("hands", {
     this.tapDetail = { wristRotation: new THREE.Quaternion() };
     this.indexTipPos = new THREE.Vector3();
     this.activeTargets = new Map(); // To track the currently touched element per hand
-    this.pinchingTargets = new Map(); // Tracks which element is pinched by which hand.
+    this.pinchingTargets = new Map(); // Tracks which element is pinched by which hand
 
     this.handlePinchStarted = this.handlePinchStarted.bind(this);
     this.handlePinchEnded = this.handlePinchEnded.bind(this);
@@ -115,15 +116,57 @@ AFRAME.registerComponent("hands", {
 
   // Detects when the user starts pinching
   handlePinchStarted(evt) {
-    // TODO: Implement function to handle pinch started. (stretchable component)
+    const handEl = evt.currentTarget;
+    const pinchPointWorld = getPinchMidpointWorld(handEl);
+    if (!pinchPointWorld) return;
+
+    // Emit pinch event to all stretchable objects - let them decide who handles it
+    const stretchables = Array.from(
+      this.el.sceneEl.querySelectorAll("[stretchable]")
+    );
+
+    stretchables.forEach((stretchableEl) => {
+      stretchableEl.emit("stretch-start", {
+        hand: handEl,
+        pinchPointWorld: pinchPointWorld,
+        handId: handEl.id,
+      });
+    });
   },
 
   handlePinchEnded(evt) {
-    // TODO: Implement function to handle pinch ended.
+    const handEl = evt.currentTarget;
+
+    // Emit pinch end event to all stretchable objects
+    const stretchables = Array.from(
+      this.el.sceneEl.querySelectorAll("[stretchable]")
+    );
+
+    stretchables.forEach((stretchableEl) => {
+      stretchableEl.emit("stretch-end", {
+        hand: handEl,
+        handId: handEl.id,
+      });
+    });
   },
 
   handlePinchMoved(evt) {
-    // TODO: Implement function to handle pinch moved.
+    const handEl = evt.currentTarget;
+    const pinchPointWorld = getPinchMidpointWorld(handEl);
+    if (!pinchPointWorld) return;
+
+    // Emit pinch move event to all stretchable objects
+    const stretchables = Array.from(
+      this.el.sceneEl.querySelectorAll("[stretchable]")
+    );
+
+    stretchables.forEach((stretchableEl) => {
+      stretchableEl.emit("stretch-move", {
+        hand: handEl,
+        pinchPointWorld: pinchPointWorld,
+        handId: handEl.id,
+      });
+    });
   },
 
   // Detects collision between hands and objects
