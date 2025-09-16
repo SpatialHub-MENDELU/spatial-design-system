@@ -250,8 +250,10 @@ AFRAME.registerComponent("hands", {
           pinkyDist < CURLED_FINGER_THRESHOLD;
 
         if (isPointing) {
+          handEl.setAttribute("pointing", true);
+          return;
           // 2. Collision detection
-          worldTipPos.copy(indexTipPos);
+          // worldTipPos.copy(indexTipPos);
           // handEl.object3D.localToWorld(worldTipPos);
 
           // for (const el of clickables) {
