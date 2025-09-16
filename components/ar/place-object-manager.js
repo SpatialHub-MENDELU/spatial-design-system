@@ -3,7 +3,6 @@ import { PLACE_OBJECT_COMPONENT_NAME } from "./place-object";
 
 AFRAME.registerComponent("place-object-manager", {
     schema: {
-        enabled: { type: "boolean", default: true },
         maxObjects: { type: "number", default: 10 },
         showHitTestMarker: { type: "boolean", default: true },
         hitTestMarker: { type: "string", default: "#ar-hit-test-marker"},
@@ -83,7 +82,7 @@ AFRAME.registerComponent("place-object-manager", {
         if (placeObjectComponent) {
             // Use the shared placement utility for consistent preview
             ARPlacementUtils.placeObject(previewObject, hitTest.bboxMesh, {
-                isPoster: placeObjectComponent.data.isPoster,
+                layFlat: placeObjectComponent.data.layFlat,
                 adjustOrientation: placeObjectComponent.data.adjustOrientation,
                 faceCamera: placeObjectComponent.data.faceCamera,
                 customRotation: placeObjectComponent.data.customRotation,
@@ -200,7 +199,7 @@ AFRAME.registerComponent("place-object-manager", {
     },
 
     updateMarkerPosition(evt) {
-        if (!this.hitTestMarker || !this.data.enabled) return;
+        if (!this.hitTestMarker) return;
 
         const hitPose = evt.detail.position;
         const orientation = evt.detail.orientation;
@@ -225,15 +224,27 @@ AFRAME.registerComponent("place-object-manager", {
     onObjectPlaced(event) {
         const placedEntity = event.detail.entity;
 
-        // Add to our list of placed objects
-        this.placedObjects.push(placedEntity);
-
-        // Check if we've reached the maximum
+        // Check if we've reached the maximum BEFORE adding the object
         if (this.placedObjects.length >= this.data.maxObjects) {
-            // Disable further placement - use setAttribute instead of direct assignment
-            this.removeLastObject()
-            console.log("Maximum number of objects placed");
+            console.log("Maximum number of objects reached, cannot place more");
+
+            // Remove the entity that was just placed
+            if (placedEntity.parentNode) {
+                placedEntity.parentNode.removeChild(placedEntity);
+            }
+
+            this.el.emit("object-managed", {
+                action: "rejected",
+                entity: placedEntity,
+                totalObjects: this.placedObjects.length,
+                reason: "max_objects_reached"
+            });
+
+            return;
         }
+
+        // Add to our list of placed objects only if we haven't reached the maximum
+        this.placedObjects.push(placedEntity);
 
         // Emit our own event that can be caught by application code
         this.el.emit("object-managed", {
@@ -252,7 +263,6 @@ AFRAME.registerComponent("place-object-manager", {
         });
 
         this.placedObjects = [];
-        this.data.enabled = true;
 
         // Emit event
         this.el.emit("object-managed", {
@@ -267,11 +277,6 @@ AFRAME.registerComponent("place-object-manager", {
 
             if (lastObject.parentNode) {
                 lastObject.parentNode.removeChild(lastObject);
-            }
-
-            // Re-enable placement if we were at max
-            if (!this.data.enabled && this.placedObjects.length < this.data.maxObjects) {
-                this.el.setAttribute('place-object-manager', 'enabled', true);
             }
 
             // Emit event

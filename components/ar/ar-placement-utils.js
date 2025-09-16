@@ -55,9 +55,9 @@ window.ARPlacementUtils = {
     },
 
     // Handle placement for all object types
-    handlePlacement: function(entity, isPoster, hitMesh, camera, faceCamera, surfaceType) {
+    handlePlacement: function(entity, layFlat, hitMesh, camera, faceCamera, surfaceType) {
         if (surfaceType === 'floor') {
-            if (isPoster) {
+            if (layFlat) {
                 // Floor poster
                 entity.object3D.rotation.set(-Math.PI/2, 0, 0); // Flat on floor
 
@@ -88,7 +88,7 @@ window.ARPlacementUtils = {
             // Get wall normal
             const normal = this.getSurfaceNormal(hitMesh);
 
-            if (isPoster) {
+            if (layFlat) {
                 // WALL POSTER
                 // Calculate rotation to place against wall
                 const wallRotation = new THREE.Matrix4().lookAt(
@@ -157,7 +157,7 @@ window.ARPlacementUtils = {
             }
         }
         else if (surfaceType === 'ceiling') {
-            if (isPoster) {
+            if (layFlat) {
                 // CEILING POSTER
 
                 // 1. First rotate to face down (-Y)
@@ -219,18 +219,13 @@ window.ARPlacementUtils = {
     // Core placement function
     placeObject: function(entity, hitMesh, options) {
         const {
-            isPoster = false,
+            layFlat = false,
             adjustOrientation = true,
             faceCamera = false,
             scale = 1.0,
             camera = null,
             customRotation = { x: 0, y: 0, z: 0 }
         } = options || {};
-
-        // Check if it's a menu component
-        const isMenu = entity.nodeName && entity.nodeName.toLowerCase() === 'a-ar-menu';
-        const isPosterObject = isPoster || isMenu;
-
         // Set position to hit point
         entity.object3D.position.copy(hitMesh.position);
 
@@ -243,7 +238,7 @@ window.ARPlacementUtils = {
             const surfaceType = this.detectSurfaceType(hitMesh);
 
             // Unified placement handling
-            this.handlePlacement(entity, isPosterObject, hitMesh, camera, faceCamera, surfaceType);
+            this.handlePlacement(entity, layFlat, hitMesh, camera, faceCamera, surfaceType);
         }
         // Handle faceCamera separately when adjustOrientation is false
         else if (faceCamera && camera) {
