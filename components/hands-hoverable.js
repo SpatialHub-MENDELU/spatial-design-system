@@ -23,6 +23,8 @@ AFRAME.registerComponent("hands-hoverable", {
     this.onHoverStart = this.onHoverStart.bind(this);
     this.onHoverEnd = this.onHoverEnd.bind(this);
 
+    // this.el.addEventListener("hand-hover-started", this.onHoverStart);
+    // this.el.addEventListener("hand-hover-ended", this.onHoverEnd);
     this.el.addEventListener("obbcollisionstarted", this.onHoverStart);
     this.el.addEventListener("obbcollisionended", this.onHoverEnd);
   },
@@ -48,9 +50,8 @@ AFRAME.registerComponent("hands-hoverable", {
   },
 
   remove() {
-    this.el.removeEventListener("obbcollisionstarted", this.onHoverStart);
-    this.el.removeEventListener("obbcollisionended", this.onHoverEnd);
-
+    this.el.removeEventListener("hand-hover-started", this.onHoverStart);
+    this.el.removeEventListener("hand-hover-ended", this.onHoverEnd);
     if (this.borderLine && this.borderLine.parent) {
       this.borderLine.parent.remove(this.borderLine);
       this.borderLine.geometry.dispose();
@@ -59,13 +60,24 @@ AFRAME.registerComponent("hands-hoverable", {
     }
   },
 
-  onHoverStart() {
+  onHoverStart(event) {
     this.isIntersecting = true;
+    const isPointing = event.detail.withEl.getAttribute("pointing");
+    // const isPointing = false;
+    console.log("hover started", { isPointing });
+    if (isPointing === "true") {
+      return;
+    }
     this.handleHoverStart(this.data.hoverEffect);
   },
 
-  onHoverEnd() {
+  onHoverEnd(event) {
     this.isIntersecting = false;
+    const isPointing = event.detail.withEl.getAttribute("pointing");
+    console.log("hover ended", { isPointing });
+    if (isPointing === "true") {
+      return;
+    }
     this.handleHoverEnd(this.data.hoverEffect);
   },
 

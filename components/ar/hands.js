@@ -29,7 +29,7 @@ const jointIndices = {
   "pinky-finger-tip": 24,
 };
 
-const CLICK_COOLDOWN_MS = 250;
+// const CLICK_COOLDOWN_MS = 250;
 
 AFRAME.registerComponent("hands", {
   schema: {
@@ -37,28 +37,36 @@ AFRAME.registerComponent("hands", {
     rightEnabled: { type: "boolean", default: true },
     leftHandColor: { type: "color", default: "#edccb6" },
     rightHandColor: { type: "color", default: "#edccb6" },
+
+    autoDisableIfNoHands: { type: "boolean", default: true },
   },
 
   init() {
-    this.isTapping = false;
-    this.tapStarted = 0;
-    this.tapTarget = null;
-    this.tapDetail = { wristRotation: new THREE.Quaternion() };
-    this.indexTipPos = new THREE.Vector3();
-    this.activeTargets = new Map(); // To track the currently touched element per hand
-    this.pinchingTargets = new Map(); // Tracks which element is pinched by which hand.
-
-    this.handlePinchStarted = this.handlePinchStarted.bind(this);
-    this.handlePinchEnded = this.handlePinchEnded.bind(this);
-    this.handlePinchMoved = this.handlePinchMoved.bind(this);
-
     this.handsEls = [];
+    this.activeTargets = new Map();
+    this.pinchingTargets = new Map();
 
-    // Finger-touch helpers
+    this.hoverByHand = new Map();
+
+    // Finger touch helpers
     this.prevTipWorldPosByHand = new Map();
     this.lastClickAtByTarget = new WeakMap();
 
+    // --- navázání kontextu ---
+    this.handlePinchStarted = this.handlePinchStarted.bind(this);
+    this.handlePinchEnded = this.handlePinchEnded.bind(this);
+    this.handlePinchMoved = this.handlePinchMoved.bind(this);
+    this.handleCollisionStarted = this.handleCollisionStarted.bind(this);
+    this.handleCollisionEnded = this.handleCollisionEnded.bind(this);
+
+    // --- vytvoření rukou po načtení scény ---
     this.el.sceneEl.addEventListener("loaded", () => {
+      if (this.data.autoDisableIfNoHands) {
+        // Zkusíme detekci podpory hand-inputu; když není, nic netvoř:
+        const gl = this.el.sceneEl.renderer?.xr?.getSession?.();
+        const supported = !!gl?.inputSources?.some?.((s) => s.hand);
+        if (!supported) return;
+      }
       this.setupHands();
     });
   },
@@ -67,29 +75,24 @@ AFRAME.registerComponent("hands", {
     this.detectTipTap();
   },
 
+  // --- vytvoření entit pro ruce ---
   setupHands() {
     const rig = this.el.sceneEl.querySelector("#rig");
+
+    const appendTo = (el) => {
+      if (rig) rig.appendChild(el);
+      else this.el.sceneEl.appendChild(el);
+    };
 
     if (this.data.leftEnabled) {
       const leftHand = this.createHand("left", this.data.leftHandColor);
       this.handsEls.push(leftHand);
-
-      if (rig) {
-        rig.appendChild(leftHand);
-      } else {
-        this.el.sceneEl.appendChild(leftHand);
-      }
+      appendTo(leftHand);
     }
-
     if (this.data.rightEnabled) {
       const rightHand = this.createHand("right", this.data.rightHandColor);
       this.handsEls.push(rightHand);
-
-      if (rig) {
-        rig.appendChild(rightHand);
-      } else {
-        this.el.sceneEl.appendChild(rightHand);
-      }
+      appendTo(rightHand);
     }
   },
 
@@ -104,11 +107,13 @@ AFRAME.registerComponent("hands", {
       "hand-tracking-grab-controls",
       `hand: ${hand}; color: ${color}; hoverColor: #00ba92;`
     );
+    handEl.setAttribute("pointing", false);
 
     handEl.addEventListener("pinchstarted", this.handlePinchStarted);
     handEl.addEventListener("pinchended", this.handlePinchEnded);
     handEl.addEventListener("pinchmoved", this.handlePinchMoved);
     handEl.addEventListener("obbcollisionstarted", this.handleCollisionStarted);
+    handEl.addEventListener("obbcollisionended", this.handleCollisionEnded);
 
     return handEl;
   },
@@ -128,13 +133,25 @@ AFRAME.registerComponent("hands", {
 
   // Detects collision between hands and objects
   handleCollisionStarted(evt) {
-    console.log("collision started");
+    const targetEl = evt.detail.withEl;
+    const handEl = evt.target;
+
+    this.hoverByHand.set(handEl, targetEl);
+
+    if (targetEl.hasAttribute("hands-hoverable")) {
+      targetEl.emit("hand-hover-started", { hand: handEl, side: handEl.id });
+    }
   },
 
-  update(oldData) {
-    if (this.needsHandRecreation(oldData)) {
-      this.remove();
-      this.setupHands();
+  handleCollisionEnded(evt) {
+    const targetEl = evt.detail.withEl;
+    const handEl = evt.target;
+
+    if (this.hoverByHand.get(handEl) === targetEl)
+      this.hoverByHand.delete(handEl);
+
+    if (targetEl.hasAttribute("hands-hoverable")) {
+      targetEl.emit("hand-hover-ended", { hand: handEl, side: handEl.id });
     }
   },
 
@@ -164,12 +181,12 @@ AFRAME.registerComponent("hands", {
     }
 
     return function () {
-      const clickables = Array.from(
-        this.el.sceneEl.querySelectorAll(".interactable, .clickable")
-      );
+      // const clickables = Array.from(
+      //   this.el.sceneEl.querySelectorAll(".clickable")
+      // );
 
       this.handsEls.forEach((handEl) => {
-        let foundTargetThisFrame = null;
+        // let foundTargetThisFrame = null;
         const handTrackingControls =
           handEl.components["hand-tracking-controls"];
         if (
@@ -235,72 +252,73 @@ AFRAME.registerComponent("hands", {
         if (isPointing) {
           // 2. Collision detection
           worldTipPos.copy(indexTipPos);
-          handEl.object3D.localToWorld(worldTipPos);
+          // handEl.object3D.localToWorld(worldTipPos);
 
-          for (const el of clickables) {
-            if (el === handEl || el.parentNode === handEl) continue;
+          // for (const el of clickables) {
+          //   if (el === handEl || el.parentNode === handEl) continue;
 
-            // Force update of the object's matrix and its children
-            el.object3D.updateMatrixWorld(true);
-            objectBBox.setFromObject(el.object3D);
+          //   // Force update of the object's matrix and its children
+          //   el.object3D.updateMatrixWorld(true);
+          //   objectBBox.setFromObject(el.object3D);
 
-            // Skip if bounding box is empty, which can happen for invisible or misconfigured objects.
-            if (objectBBox.isEmpty()) {
-              continue;
-            }
+          //   // Skip if bounding box is empty, which can happen for invisible or misconfigured objects.
+          //   if (objectBBox.isEmpty()) {
+          //     continue;
+          //   }
 
-            const TOUCH_THRESHOLD = 0.002;
-            const distance = objectBBox.distanceToPoint(worldTipPos);
+          //   const TOUCH_THRESHOLD = 0.002;
+          //   const distance = objectBBox.distanceToPoint(worldTipPos);
 
-            if (distance < TOUCH_THRESHOLD) {
-              foundTargetThisFrame = el;
-              // Only trigger on first contact and when moving toward the object (not when backing out)
-              if (this.activeTargets.get(handEl) !== el) {
-                // Approach check and cooldown
-                const now =
-                  typeof performance !== "undefined"
-                    ? performance.now()
-                    : Date.now();
-                const lastAt = this.lastClickAtByTarget.get(el) || 0;
-                const cooldownOk = now - lastAt >= CLICK_COOLDOWN_MS;
+          //   if (distance < TOUCH_THRESHOLD) {
+          //     foundTargetThisFrame = el;
+          //     // Only trigger on first contact and when moving toward the object (not when backing out)
+          //     if (this.activeTargets.get(handEl) !== el) {
+          //       // Approach check and cooldown
+          //       const now =
+          //         typeof performance !== "undefined"
+          //           ? performance.now()
+          //           : Date.now();
+          //       const lastAt = this.lastClickAtByTarget.get(el) || 0;
+          //       const cooldownOk = now - lastAt >= CLICK_COOLDOWN_MS;
 
-                // Compute approach: require decreasing distance and positive velocity toward object center
-                objectBBox.getCenter(objectCenter);
+          //       // Compute approach: require decreasing distance and positive velocity toward object center
+          //       objectBBox.getCenter(objectCenter);
 
-                const hadPrev = this.prevTipWorldPosByHand.has(handEl);
-                let approachingOk = true;
-                if (hadPrev) {
-                  prevTipPos.copy(this.prevTipWorldPosByHand.get(handEl));
-                  const prevDistance = objectBBox.distanceToPoint(prevTipPos);
-                  const distanceDelta = prevDistance - distance; // positive if moving closer
+          //       const hadPrev = this.prevTipWorldPosByHand.has(handEl);
+          //       let approachingOk = true;
+          //       if (hadPrev) {
+          //         prevTipPos.copy(this.prevTipWorldPosByHand.get(handEl));
+          //         const prevDistance = objectBBox.distanceToPoint(prevTipPos);
+          //         const distanceDelta = prevDistance - distance; // positive if moving closer
 
-                  velocity.copy(worldTipPos).sub(prevTipPos);
-                  dirToObject.copy(objectCenter).sub(worldTipPos).normalize();
-                  const approachDot = velocity.dot(dirToObject);
+          //         velocity.copy(worldTipPos).sub(prevTipPos);
+          //         dirToObject.copy(objectCenter).sub(worldTipPos).normalize();
+          //         const approachDot = velocity.dot(dirToObject);
 
-                  const APPROACH_DELTA_EPS = 0.0005; // 0.5 mm closer
-                  approachingOk =
-                    distanceDelta > APPROACH_DELTA_EPS && approachDot > 0;
-                }
+          //         const APPROACH_DELTA_EPS = 0.0005; // 0.5 mm closer
+          //         approachingOk =
+          //           distanceDelta > APPROACH_DELTA_EPS && approachDot > 0;
+          //       }
 
-                if (cooldownOk && approachingOk) {
-                  el.emit("click", { hand: handEl, side: handEl.id }, false);
-                  this.activeTargets.set(handEl, el);
-                  this.lastClickAtByTarget.set(el, now);
-                }
-              }
-              // Found a target, no need to check other clickables for this hand
-              break;
-            }
-          }
+          //       if (cooldownOk && approachingOk) {
+          //         el.emit("click", { hand: handEl, side: handEl.id }, false);
+          //         this.activeTargets.set(handEl, el);
+          //         this.lastClickAtByTarget.set(el, now);
+          //       }
+          //     }
+          //     // Found a target, no need to check other clickables for this hand
+          //     break;
+          //   }
+          // }
         }
         // If no target was found in this frame, but there was an active one, clear it.
         // This handles the "untouch" event, making the object clickable again.
-        if (!foundTargetThisFrame && this.activeTargets.has(handEl)) {
-          this.activeTargets.delete(handEl);
-        }
-        // Save fingertip position for approach checks next frame
-        this.prevTipWorldPosByHand.set(handEl, worldTipPos.clone());
+        handEl.setAttribute("pointing", false);
+        // if (!foundTargetThisFrame && this.activeTargets.has(handEl)) {
+        //   this.activeTargets.delete(handEl);
+        // }
+        // // Save fingertip position for approach checks next frame
+        // this.prevTipWorldPosByHand.set(handEl, worldTipPos.clone());
       });
     };
   })(),
