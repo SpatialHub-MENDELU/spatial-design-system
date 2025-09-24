@@ -36,12 +36,17 @@ AFRAME.registerComponent("stretchable", {
   },
 
   onStretchStart(evt) {
-    if (this.isActive) return; // Already handling a pinch
+    if (this.isActive) return; // Already handling a stretch
 
-    const { pinchPointWorld, hand } = evt.detail;
+    const detail = evt.detail;
+    const intersectionPoint =
+      detail.pinchPointWorld || detail.intersectionPoint;
+    const handOrController = detail.hand || detail.controller;
 
-    // Check if this stretchable is the closest to the pinch point
-    if (!this.isClosestStretchable(pinchPointWorld)) {
+    if (!intersectionPoint) return;
+
+    // Check if this stretchable is the closest to the intersection point
+    if (!this.isClosestStretchable(intersectionPoint)) {
       return;
     }
 
@@ -52,9 +57,9 @@ AFRAME.registerComponent("stretchable", {
 
     const initialScale = this.el.object3D.scale.clone();
 
-    // Vector from element center to the pinch point
+    // Vector from element center to the intersection point
     const initialVector = new THREE.Vector3()
-      .copy(pinchPointWorld)
+      .copy(intersectionPoint)
       .sub(centerWorld);
     const initialVectorAbs = new THREE.Vector3(
       Math.abs(initialVector.x),
@@ -66,9 +71,9 @@ AFRAME.registerComponent("stretchable", {
     // Avoid zero-distance to prevent division by zero
     if (initialDistanceToCenter < 1e-6) return;
 
-    // Store pinch state
+    // Store stretch state
     this.pinchState = {
-      hand,
+      handOrController,
       initialScale,
       centerWorld,
       initialDistanceToCenter,
@@ -82,7 +87,11 @@ AFRAME.registerComponent("stretchable", {
   onStretchMove(evt) {
     if (!this.isActive || !this.pinchState) return;
 
-    const { pinchPointWorld } = evt.detail;
+    const detail = evt.detail;
+    const currentPoint = detail.pinchPointWorld || detail.intersectionPoint;
+
+    if (!currentPoint) return;
+
     const {
       initialScale,
       centerWorld,
@@ -92,7 +101,7 @@ AFRAME.registerComponent("stretchable", {
     } = this.pinchState;
 
     const currentVector = new THREE.Vector3()
-      .copy(pinchPointWorld)
+      .copy(currentPoint)
       .sub(centerWorld);
     const currentVectorAbs = new THREE.Vector3(
       Math.abs(currentVector.x),
