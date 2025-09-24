@@ -1,5 +1,9 @@
 import "aframe";
 
+import "../components/autoXr.js";
+import "../components/ar/hands.js";
+import "../primitives/ar-button.js";
+import "../components/finger-touch.js";
 import "../primitives/ar-button.js";
 import "../primitives/ar-textbox.js";
 import "../components/autoXr.js";

@@ -1,6 +1,6 @@
 {
   "name": "spatial-design-system",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "files": [
     "/components",
     "/primitives",
@@ -13,6 +13,8 @@
     "demo": "vite demo",
     "demo-follow-entity": "vite follow-entity-demo",
     "demo-tereza": "vite tereza-demo",
+    "flexbox-demo": "vite demos/flexbox-demo",
+    "flex-col-demo": "vite demos/flex-col-demo",
     "dev": "vite debug/",
     "build": "vite build"
   },
