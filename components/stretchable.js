@@ -1,7 +1,4 @@
-import {
-  findNearestStretchableCorner,
-  computeContentBoundingBox,
-} from "./stretchable-utils.js";
+import { findNearestStretchableCorner } from "./stretchable-utils.js";
 AFRAME.registerComponent("stretchable", {
   schema: {
     mode: {
@@ -70,8 +67,8 @@ AFRAME.registerComponent("stretchable", {
       if (!this.isClosestStretchable(intersectionPoint)) {
         return;
       }
-      // Calculate center using robust content bounding box
-      const { box: bbox } = computeContentBoundingBox(this.el.object3D);
+      // Calculate center and initial scale
+      const bbox = new THREE.Box3().setFromObject(this.el.object3D);
       centerWorld = new THREE.Vector3();
       bbox.getCenter(centerWorld);
       initialScale = this.el.object3D.scale.clone();
