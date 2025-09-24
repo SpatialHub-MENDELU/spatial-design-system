@@ -1,3 +1,7 @@
+import {
+  findNearestStretchableCorner,
+  computeContentBoundingBox,
+} from "./stretchable-utils.js";
 AFRAME.registerComponent("stretchable", {
   schema: {
     mode: {
@@ -5,6 +9,8 @@ AFRAME.registerComponent("stretchable", {
       default: "dimensions",
       oneOf: ["scale", "dimensions"],
     },
+    maxScaleFactor: { type: "number", default: 1.5 },
+    minScaleFactor: { type: "number", default: 0.5 },
   },
   init() {
     this.el.setAttribute("obb-collider", "centerModel: true");
@@ -45,17 +51,31 @@ AFRAME.registerComponent("stretchable", {
 
     if (!intersectionPoint) return;
 
-    // Check if this stretchable is the closest to the intersection point
-    if (!this.isClosestStretchable(intersectionPoint)) {
-      return;
+    // Corner-restricted activation in scale mode. For dimensions mode keep previous logic.
+    let centerWorld;
+    let initialScale;
+    if (this.data.mode === "scale") {
+      const stretchables = Array.from(
+        this.el.sceneEl.querySelectorAll("[stretchable]")
+      );
+      const best = findNearestStretchableCorner(
+        intersectionPoint,
+        stretchables
+      );
+      if (!best || best.targetEl !== this.el) return; // Not a corner of this element
+      centerWorld = best.centerWorld.clone();
+      initialScale = best.initialScale.clone();
+    } else {
+      // Check if this stretchable is the closest to the intersection point
+      if (!this.isClosestStretchable(intersectionPoint)) {
+        return;
+      }
+      // Calculate center using robust content bounding box
+      const { box: bbox } = computeContentBoundingBox(this.el.object3D);
+      centerWorld = new THREE.Vector3();
+      bbox.getCenter(centerWorld);
+      initialScale = this.el.object3D.scale.clone();
     }
-
-    // Calculate center and initial scale
-    const bbox = new THREE.Box3().setFromObject(this.el.object3D);
-    const centerWorld = new THREE.Vector3();
-    bbox.getCenter(centerWorld);
-
-    const initialScale = this.el.object3D.scale.clone();
 
     // Vector from element center to the intersection point
     const initialVector = new THREE.Vector3()
@@ -116,9 +136,15 @@ AFRAME.registerComponent("stretchable", {
     if (uniform) {
       const f =
         currentDistanceToCenter / Math.max(initialDistanceToCenter, 1e-6);
-      const nx = Math.max(0.01, initialScale.x * f);
-      const ny = Math.max(0.01, initialScale.y * f);
-      const nz = Math.max(0.01, initialScale.z * f);
+      const maxX = initialScale.x * this.data.maxScaleFactor;
+      const maxY = initialScale.y * this.data.maxScaleFactor;
+      const maxZ = initialScale.z * this.data.maxScaleFactor;
+      const minX = initialScale.x * this.data.minScaleFactor;
+      const minY = initialScale.y * this.data.minScaleFactor;
+      const minZ = initialScale.z * this.data.minScaleFactor;
+      const nx = Math.min(maxX, Math.max(minX, initialScale.x * f));
+      const ny = Math.min(maxY, Math.max(minY, initialScale.y * f));
+      const nz = Math.min(maxZ, Math.max(minZ, initialScale.z * f));
       this.el.object3D.scale.set(nx, ny, nz);
     } else {
       const EPS = 1e-4;
@@ -135,9 +161,15 @@ AFRAME.registerComponent("stretchable", {
           ? currentVectorAbs.z / initialVectorAbs.z
           : currentDistanceToCenter / initialDistanceToCenter;
 
-      const newScaleX = Math.max(0.01, initialScale.x * sx);
-      const newScaleY = Math.max(0.01, initialScale.y * sy);
-      const newScaleZ = Math.max(0.01, initialScale.z * sz);
+      const maxX = initialScale.x * this.data.maxScaleFactor;
+      const maxY = initialScale.y * this.data.maxScaleFactor;
+      const maxZ = initialScale.z * this.data.maxScaleFactor;
+      const minX = initialScale.x * this.data.minScaleFactor;
+      const minY = initialScale.y * this.data.minScaleFactor;
+      const minZ = initialScale.z * this.data.minScaleFactor;
+      const newScaleX = Math.min(maxX, Math.max(minX, initialScale.x * sx));
+      const newScaleY = Math.min(maxY, Math.max(minY, initialScale.y * sy));
+      const newScaleZ = Math.min(maxZ, Math.max(minZ, initialScale.z * sz));
       this.el.object3D.scale.set(newScaleX, newScaleY, newScaleZ);
     }
   },

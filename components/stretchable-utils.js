@@ -1,3 +1,5 @@
+import { jointIndices } from "./ar/hands-utils.js";
+
 // Utilities for stretchable interactions
 
 // Finds a stretchable whose world-space bounding box is near the pinch point
@@ -6,7 +8,6 @@
 // pinch is actually close to the element's surface and a corner. The function
 // also assigns a score to prefer tight proximity to the box and its corner.
 export function findNearestStretchableCorner(pointWorld, elements) {
-  const box = new THREE.Box3();
   const center = new THREE.Vector3();
   let best = null;
   let bestScore = Infinity; // Lower is better
@@ -17,8 +18,9 @@ export function findNearestStretchableCorner(pointWorld, elements) {
   for (const el of elements) {
     if (!el.object3D) continue;
     el.object3D.updateMatrixWorld(true);
-    box.setFromObject(el.object3D);
-    if (box.isEmpty()) continue;
+
+    const { box } = computeContentBoundingBox(el.object3D);
+    if (!box || box.isEmpty()) continue;
 
     // Require pinch point to be close to the element's surface
     const distToBox = box.distanceToPoint(pointWorld);
@@ -68,6 +70,72 @@ export function findNearestStretchableCorner(pointWorld, elements) {
   return best;
 }
 
+// Computes a robust bounding box for multi-layer UI objects by:
+// 1) Considering all visible Mesh children
+// 2) Selecting meshes whose XY area is within a tolerance of the median area (to ignore outliers like outlines)
+// 3) Aligning boxes to the average center to ignore translated duplicates (e.g., shadows)
+export function computeContentBoundingBox(rootObject3D) {
+  const meshes = [];
+  rootObject3D.traverse((obj) => {
+    if (obj === rootObject3D) return;
+    if (!obj.visible) return;
+    if (obj.isMesh) meshes.push(obj);
+  });
+
+  const box = new THREE.Box3();
+  if (meshes.length === 0) {
+    box.setFromObject(rootObject3D);
+    return { box };
+  }
+
+  const tmpBox = new THREE.Box3();
+  const items = [];
+  for (const mesh of meshes) {
+    mesh.updateWorldMatrix(true, false);
+    tmpBox.setFromObject(mesh);
+    if (tmpBox.isEmpty()) continue;
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    tmpBox.getSize(size);
+    tmpBox.getCenter(center);
+    const areaXY = Math.max(1e-6, size.x * size.y);
+    items.push({ size, center, areaXY });
+  }
+
+  if (items.length === 0) {
+    box.setFromObject(rootObject3D);
+    return { box };
+  }
+
+  // Median-based selection
+  const areas = items.map((it) => it.areaXY).sort((a, b) => a - b);
+  const median = areas[Math.floor(areas.length / 2)];
+  const TOL = 0.2; // 20% tolerance around median area
+  const selected = items.filter((it) => {
+    return it.areaXY >= median * (1 - TOL) && it.areaXY <= median * (1 + TOL);
+  });
+  const group = selected.length > 0 ? selected : items;
+
+  // Average center
+  const avgCenter = new THREE.Vector3();
+  for (const it of group) avgCenter.add(it.center);
+  avgCenter.multiplyScalar(1 / group.length);
+
+  // Max half-extents aligned to avg center
+  let halfX = 0,
+    halfY = 0,
+    halfZ = 0;
+  for (const it of group) {
+    halfX = Math.max(halfX, it.size.x * 0.5);
+    halfY = Math.max(halfY, it.size.y * 0.5);
+    halfZ = Math.max(halfZ, it.size.z * 0.5);
+  }
+
+  box.min.set(avgCenter.x - halfX, avgCenter.y - halfY, avgCenter.z - halfZ);
+  box.max.set(avgCenter.x + halfX, avgCenter.y + halfY, avgCenter.z + halfZ);
+  return { box, center: avgCenter };
+}
+
 // Computes the midpoint between thumb-tip and index-tip in world coordinates.
 // Returns a THREE.Vector3 or null if hand tracking poses are not available.
 export function getPinchMidpointWorld(handEl) {
@@ -112,33 +180,7 @@ function _getJointLocalPosition(
   tempMatrix,
   tempPosition
 ) {
-  const jointIndex = {
-    wrist: 0,
-    "thumb-metacarpal": 1,
-    "thumb-phalanx-proximal": 2,
-    "thumb-phalanx-distal": 3,
-    "thumb-tip": 4,
-    "index-finger-metacarpal": 5,
-    "index-finger-phalanx-proximal": 6,
-    "index-finger-phalanx-intermediate": 7,
-    "index-finger-phalanx-distal": 8,
-    "index-finger-tip": 9,
-    "middle-finger-metacarpal": 10,
-    "middle-finger-phalanx-proximal": 11,
-    "middle-finger-phalanx-intermediate": 12,
-    "middle-finger-phalanx-distal": 13,
-    "middle-finger-tip": 14,
-    "ring-finger-metacarpal": 15,
-    "ring-finger-phalanx-proximal": 16,
-    "ring-finger-phalanx-intermediate": 17,
-    "ring-finger-phalanx-distal": 18,
-    "ring-finger-tip": 19,
-    "pinky-finger-metacarpal": 20,
-    "pinky-finger-phalanx-proximal": 21,
-    "pinky-finger-phalanx-intermediate": 22,
-    "pinky-finger-phalanx-distal": 23,
-    "pinky-finger-tip": 24,
-  }[jointName];
+  const jointIndex = jointIndices[jointName];
 
   if (jointIndex === undefined) return null;
   const matrixOffset = jointIndex * 16;
