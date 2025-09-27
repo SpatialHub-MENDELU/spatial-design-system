@@ -165,6 +165,23 @@ AFRAME.registerComponent("fly", {
         }
     },
 
+    startSprinting() {
+        let sprint = false
+        if (this.freeDirectionalFlightMove) {
+            if (this.movingForward) sprint = true
+            else this.stopSprinting()
+        }
+
+        if (sprint) {
+            this.speed = this.sprintSpeed
+        }
+    },
+
+    stopSprinting() {
+        this.isSprinting = false
+        this.speed = this.data.speed
+    },
+
     turnSmoothly(deltaSec) {
         const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
@@ -180,6 +197,10 @@ AFRAME.registerComponent("fly", {
         const currentVelocity = this.el.body.getLinearVelocity();
         this.velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
 
+        if (this.sprintEnabled) {
+            this.isSprinting ? this.startSprinting() : this.stopSprinting()
+        }
+
         if (this.movingForward || this.movingBackward) {
             this.move()
         }
@@ -194,19 +215,22 @@ AFRAME.registerComponent("fly", {
     },
 
     handleFreeDirectionalFlightAnimations() {
-        if (this.movingForward ||
+        const isMoving =
+            this.movingForward ||
             this.movingBackward ||
-            this.ascending ||
-            this.descending ||
             this.movingRight ||
-            this.movingLeft) this.setAnimation(this.animations.walk)
+            this.movingLeft ||
+            this.ascending ||
+            this.descending;
 
-        if (!this.movingForward &&
-            !this.movingBackward &&
-            !this.movingRight &&
-            !this.movingLeft &&
-            !this.ascending &&
-            !this.descending) this.setAnimation(this.animations.idle)
+        if (this.sprintEnabled) {
+            if (this.isSprinting) this.setAnimation(this.animations.sprint)
+            else if (isMoving) this.setAnimation(this.animations.walk)
+            else this.setAnimation(this.animations.idle)
+        } else {
+            if (isMoving) this.setAnimation(this.animations.walk)
+            else this.setAnimation(this.animations.idle)
+        }
     },
 
     ascendDescendMovement() {
