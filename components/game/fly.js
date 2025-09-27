@@ -1,8 +1,8 @@
 AFRAME.registerComponent("fly", {
     schema: {
-        idleClipName: { type: "string", default: "*Dragon_Flying*" },
-        walkClipName: { type: "string", default: "*Dragon_Flying*" },
-        sprintClipName: { type: "string", default: "*Dragon_Flying*" },
+        idleClipName: {type: "string", default: "*Yes*"},
+        walkClipName: {type: "string", default: "*Flying_Idle*"},
+        sprintClipName: {type: "string", default: "*Fast_Flying*"},
 
         keyUp: {type: "string", default: "w"},
         keyDown: {type: "string", default: "s"},
@@ -11,7 +11,7 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: true},
+        allowGravity: {type: "boolean", default: false},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
@@ -50,6 +50,8 @@ AFRAME.registerComponent("fly", {
         this.sprintSpeed = this.data.sprintSpeed
         this.rotationSpeed = this.data.rotationSpeed
 
+        this.animation = null
+
         // types of flight
         this.freeDirectionalFlight = null
 
@@ -77,6 +79,9 @@ AFRAME.registerComponent("fly", {
 
     setAnimation(name) {
         if (!this.characterModel) return;
+        if (this.animation === name) return;
+        this.animation = name;
+        console.log("Setting animation to:", name);
         this.characterModel.setAttribute('animation-mixer', {
             clip: name,
             crossFadeDuration: this.crossFadeDuration,
@@ -119,7 +124,7 @@ AFRAME.registerComponent("fly", {
     setType() {
         this.freeDirectionalFlight = false
 
-        switch(this.data.type) {
+        switch (this.data.type) {
             case 'freeDirectionalFlight':
                 this.freeDirectionalFlight = true
                 break;
@@ -141,9 +146,8 @@ AFRAME.registerComponent("fly", {
 
     stopMovement() {
         const currentVelocity = this.el.body.getLinearVelocity();
-        const zeroVelocity = new Ammo.btVector3(0 , currentVelocity.y(), 0);
+        const zeroVelocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
         this.el.body.setLinearVelocity(zeroVelocity);
-        this.setAnimation(this.animations.idle);
     },
 
     move() {
@@ -171,7 +175,7 @@ AFRAME.registerComponent("fly", {
 
     // FREE DIRECTIONAL FLIGHT
     freeDirectionalFlightMove(deltaSec) {
-        this.setAnimation(this.animations.walk);
+        this.handleFreeDirectionalFlightAnimations()
 
         const currentVelocity = this.el.body.getLinearVelocity();
         this.velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
@@ -187,6 +191,22 @@ AFRAME.registerComponent("fly", {
         }
 
         if (!this.movingForward && !this.movingBackward) this.stopMovement()
+    },
+
+    handleFreeDirectionalFlightAnimations() {
+        if (this.movingForward ||
+            this.movingBackward ||
+            this.ascending ||
+            this.descending ||
+            this.movingRight ||
+            this.movingLeft) this.setAnimation(this.animations.walk)
+
+        if (!this.movingForward &&
+            !this.movingBackward &&
+            !this.movingRight &&
+            !this.movingLeft &&
+            !this.ascending &&
+            !this.descending) this.setAnimation(this.animations.idle)
     },
 
     ascendDescendMovement() {
@@ -211,7 +231,6 @@ AFRAME.registerComponent("fly", {
         } else {
             this.velocity = new Ammo.btVector3(velX, speed, velZ);
         }
-
     },
 
     rotateCharacterSmoothly(angleRad) {

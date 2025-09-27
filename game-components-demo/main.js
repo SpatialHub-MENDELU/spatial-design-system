@@ -36,7 +36,7 @@ document.querySelector('#app').innerHTML = `
 <!--            <a-entity gltf-model="#dragon" ammo-shape="type: hull;" position="0 -2.1 0" scale="1 1 1" ></a-entity>-->
 <!--        </a-entity>-->
 <!--        -->
-        <a-entity fly="idleClipName: *Flying_Idle*;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
+        <a-entity fly id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
             <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>
         </a-entity>
  
