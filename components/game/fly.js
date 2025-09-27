@@ -11,7 +11,7 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: false},
+        allowGravity: {type: "boolean", default: true},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
@@ -157,7 +157,7 @@ AFRAME.registerComponent("fly", {
             const z = Math.cos(angleRad) * speed * factor;
             this.velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
 
-            this.ascendDescendMovement(false, x, z)
+            this.ascendDescendMovement()
         }
     },
 
@@ -180,7 +180,7 @@ AFRAME.registerComponent("fly", {
             this.move()
         }
 
-        this.ascendDescendMovement(true)
+        this.ascendDescendMovement()
 
         if (this.movingRight || this.movingLeft) {
             this.turnSmoothly(deltaSec)
@@ -189,34 +189,29 @@ AFRAME.registerComponent("fly", {
         if (!this.movingForward && !this.movingBackward) this.stopMovement()
     },
 
-    ascendDescendMovement(moving = false, x, z) {
+    ascendDescendMovement() {
         let speed = 0
         if (this.ascending) speed = this.speed
         else if (this.descending) speed = -this.speed;
 
-        let velX = x
-        let velZ = z
+        const vel = this.velocity
+        let velX = vel.x()
+        let velZ = vel.z()
         const currentVelocity = this.el.body.getLinearVelocity();
-        if (moving) {
-            if (this.allowGravity) {
-                velX = currentVelocity.x()
-                velZ = currentVelocity.z()
-            } else {
-                const vel = this.velocity
-                velX = vel.x()
-                velZ = vel.z()
-            }
+
+        if (this.allowGravity) {
+            velX = currentVelocity.x()
+            velZ = currentVelocity.z()
         }
 
-        if (moving) {
-            if (this.allowGravity) { // todo remove descending when gravity
-                if (this.ascending || this.descending) {
-                    this.velocity = new Ammo.btVector3(velX, speed, velZ);
-                }
-            } else {
+        if (this.allowGravity) { // todo remove descending when gravity
+            if (this.ascending || this.descending) {
                 this.velocity = new Ammo.btVector3(velX, speed, velZ);
             }
+        } else {
+            this.velocity = new Ammo.btVector3(velX, speed, velZ);
         }
+
     },
 
     rotateCharacterSmoothly(angleRad) {
