@@ -61,6 +61,7 @@ AFRAME.registerComponent("fly", {
         this.ascending = false
         this.descending = false
         this.isSprinting = false
+        this.velocity = null
 
         this.currentRotation = 180
 
@@ -149,39 +150,18 @@ AFRAME.registerComponent("fly", {
 
         const currentVelocity = this.el.body.getLinearVelocity();
         let speed = this.speed
-        let velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
+        this.velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
 
         if (this.movingForward || this.movingBackward) {
             const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
             const factor = this.movingForward ? 1 : this.movingBackward ? -1 : 0;
             const x = Math.sin(angleRad) * speed * factor;
             const z = Math.cos(angleRad) * speed * factor;
-            velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
+            this.velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
 
-            if (this.allowGravity) {
-                if (this.ascending || this.descending) {
-                    speed = this.ascending ? this.speed : this.descending ? -this.speed : 0;
-                    velocity = new Ammo.btVector3(x, speed, z);
-                }
-            } else {
-                let y = 0;
-                if (this.ascending) y = this.speed;
-                if (this.descending) y = -this.speed;
-                velocity = new Ammo.btVector3(x, y, z);
-            }
+            this.ascendDescendMovement(false, x, z)
         }
-
-        if (this.allowGravity) {
-            if (this.ascending || this.descending) {
-                speed = this.ascending ? this.speed : this.descending ? -this.speed : 0;
-                velocity = new Ammo.btVector3(currentVelocity.x(), speed, currentVelocity.z());
-            }
-        } else {
-            let y = 0;
-            if (this.ascending) y = this.speed;
-            if (this.descending) y = -this.speed;
-            velocity = new Ammo.btVector3(velocity.x(), y, velocity.z());
-        }
+        this.ascendDescendMovement(true)
 
         if (this.movingRight || this.movingLeft) {
             const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
@@ -191,9 +171,39 @@ AFRAME.registerComponent("fly", {
             this.rotateCharacterSmoothly(angleRad);
         }
 
-        this.el.body.setLinearVelocity(velocity);
+        this.el.body.setLinearVelocity(this.velocity);
 
         if (!this.movingForward && !this.movingBackward) this.stopMovement()
+    },
+
+    ascendDescendMovement(moving = false, x, z) {
+        let speed = 0
+        if (this.ascending) speed = this.speed
+        else if (this.descending) speed = -this.speed;
+
+        let velX = x
+        let velZ = z
+        const currentVelocity = this.el.body.getLinearVelocity();
+        if (moving) {
+            if (this.allowGravity) {
+                velX = currentVelocity.x()
+                velZ = currentVelocity.z()
+            } else {
+                const vel = this.velocity
+                velX = vel.x()
+                velZ = vel.z()
+            }
+        }
+
+        if (moving) {
+            if (this.allowGravity) { // todo remove descending when gravity
+                if (this.ascending || this.descending) {
+                    this.velocity = new Ammo.btVector3(velX, speed, velZ);
+                }
+            } else {
+                this.velocity = new Ammo.btVector3(velX, speed, velZ);
+            }
+        }
     },
 
     rotateCharacterSmoothly(angleRad) {
