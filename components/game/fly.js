@@ -134,6 +134,8 @@ AFRAME.registerComponent("fly", {
         if (this.el.body) {
             if (!this.allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
             if (this.freeDirectionalFlight) this.freeDirectionalFlightMove(deltaSec)
+
+            this.el.body.setLinearVelocity(this.velocity);
         }
     },
 
@@ -144,15 +146,11 @@ AFRAME.registerComponent("fly", {
         this.setAnimation(this.animations.idle);
     },
 
-    // FREE DIRECTIONAL FLIGHT
-    freeDirectionalFlightMove(deltaSec) {
-        this.setAnimation(this.animations.walk);
-
+    move() {
         const currentVelocity = this.el.body.getLinearVelocity();
         let speed = this.speed
-        this.velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
 
-        if (this.movingForward || this.movingBackward) {
+        if (this.freeDirectionalFlightMove) {
             const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
             const factor = this.movingForward ? 1 : this.movingBackward ? -1 : 0;
             const x = Math.sin(angleRad) * speed * factor;
@@ -161,17 +159,32 @@ AFRAME.registerComponent("fly", {
 
             this.ascendDescendMovement(false, x, z)
         }
+    },
+
+    turnSmoothly(deltaSec) {
+        const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+        this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
+
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        this.rotateCharacterSmoothly(angleRad);
+    },
+
+    // FREE DIRECTIONAL FLIGHT
+    freeDirectionalFlightMove(deltaSec) {
+        this.setAnimation(this.animations.walk);
+
+        const currentVelocity = this.el.body.getLinearVelocity();
+        this.velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
+
+        if (this.movingForward || this.movingBackward) {
+            this.move()
+        }
+
         this.ascendDescendMovement(true)
 
         if (this.movingRight || this.movingLeft) {
-            const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
-            this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
-
-            const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
-            this.rotateCharacterSmoothly(angleRad);
+            this.turnSmoothly(deltaSec)
         }
-
-        this.el.body.setLinearVelocity(this.velocity);
 
         if (!this.movingForward && !this.movingBackward) this.stopMovement()
     },
