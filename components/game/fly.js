@@ -250,17 +250,21 @@ AFRAME.registerComponent("fly", {
         const quaternion = new Ammo.btQuaternion();
         quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
 
+        this.setTransform(quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
+    },
+
+    setTransform(quatX, quatY, quatZ, quatW) {
         const transform = this.el.body.getWorldTransform();
         const origin = transform.getOrigin();
 
         const newTransform = new Ammo.btTransform();
         newTransform.setIdentity();
         newTransform.setOrigin(origin);
-        newTransform.setRotation(quaternion);
-
+        newTransform.setRotation(new Ammo.btQuaternion(quatX, quatY, quatZ, quatW));
         this.el.body.setWorldTransform(newTransform);
-        this.el.body.activate();
+        this.el.body.activate()
     },
+
 
     // FREE DIRECTIONAL FLIGHT
     freeDirectionalFlightMove(deltaSec) {
@@ -311,12 +315,10 @@ AFRAME.registerComponent("fly", {
         const maxRollDeg = this.maxRollDeg;
         const speed = this.speed;
 
-        const transform = this.el.body.getWorldTransform();
-
         const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
         const rollSpeedDeg = this.rollSpeed * deltaSec;
 
-        // PITCH
+        // pitch - nose up/down
         if (this.movingForward) {
             this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
         } else if (this.movingBackward) {
@@ -325,7 +327,7 @@ AFRAME.registerComponent("fly", {
             this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
         }
 
-        // ROLL
+        // roll - tilt left/right
         if (this.movingRight) {
             this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
         } else if (this.movingLeft) {
@@ -334,9 +336,11 @@ AFRAME.registerComponent("fly", {
             this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
         }
 
-        // YAW
+        // yaw - turn left/right
         const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
         this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
+
+        // calculate forward vector
 
         const roll = THREE.MathUtils.degToRad(this.currentRollDeg);
         const pitch = THREE.MathUtils.degToRad(this.currentPitchDeg);
@@ -356,13 +360,9 @@ AFRAME.registerComponent("fly", {
         const vz = forward.z * speed;
         this.velocity = new Ammo.btVector3(vx, vy, vz);
 
-        const newTransform = new Ammo.btTransform();
-        newTransform.setIdentity();
-        newTransform.setOrigin(transform.getOrigin());
-        newTransform.setRotation(new Ammo.btQuaternion(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w));
-        this.el.body.setWorldTransform(newTransform);
-        this.el.body.activate();
+        this.setTransform(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w);
     },
+
 
 
 })
