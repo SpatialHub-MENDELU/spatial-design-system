@@ -14,6 +14,7 @@ document.querySelector('#app').innerHTML = `
         <a-asset-item id="dragon" src="/models/Dragon.glb"> </a-asset-item>
         <a-asset-item id="dog" src="/models/Dog.glb"> </a-asset-item>
         <a-asset-item id="monster" src="/models/Monster.glb"> </a-asset-item>
+        <a-asset-item id="plane" src="/models/Airplane.glb"></a-asset-item>
         
         <!--  sky    -->
         <a-sky color="#eeeeee"></a-sky>
@@ -36,19 +37,23 @@ document.querySelector('#app').innerHTML = `
 <!--            <a-entity gltf-model="#dragon" ammo-shape="type: hull;" position="0 -2.1 0" scale="1 1 1" ></a-entity>-->
 <!--        </a-entity>-->
 <!--        -->
-        <a-entity fly id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
-            <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>
+<!--        <a-entity fly="type: freeDirectionalFlight;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">-->
+<!--            <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>-->
+<!--        </a-entity>-->
+
+        <a-entity fly="type: autoForward;" id="plane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
+            <a-entity gltf-model="#plane" ammo-shape="type: hull;" position="0.8 -1.2 0" scale="0.2 0.2 0.2" rotation="0 -90 0"></a-entity>
         </a-entity>
  
 
         <!-- NPC Character -->
-        <a-entity npc-walk id="dog-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="5 1.8 5" >
-            <a-entity gltf-model="#dog" ammo-shape="type: hull;" position="0 -1.5 0" scale="3 3 3" ></a-entity>
-        </a-entity>
+<!--        <a-entity npc-walk id="dog-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="5 1.8 5" >-->
+<!--            <a-entity gltf-model="#dog" ammo-shape="type: hull;" position="0 -1.5 0" scale="3 3 3" ></a-entity>-->
+<!--        </a-entity>-->
 
         <!-- Camera -->
 <!--        <a-entity camera look-controls position="0 4 20" ></a-entity>-->
-        <a-entity camera gameview="target: #monster-character" rotation="-30 0 0"></a-entity>
+        <a-entity camera gameview="target: #plane-character" rotation="-30 0 0"></a-entity>
         
     </a-scene>
 `
