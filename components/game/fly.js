@@ -20,7 +20,7 @@ AFRAME.registerComponent("fly", {
         keySprint: {type: "string", default: "shift"},
         sprintSpeed: {type: "number", default: 10},
 
-        type: {type: "string", default: "autoForward"}, // freeDirectionalFlight, autoForward, AutoForwardFixedDirection, MouseDirectedFlight
+        type: {type: "string", default: "freeDirectionalFlight"}, // freeDirectionalFlight, autoForward, AutoForwardFixedDirection, MouseDirectedFlight
 
         maxPitchDeg: {type: "number", default: 30},
         pitchSpeed: {type: "number", default: 90},
@@ -236,7 +236,7 @@ AFRAME.registerComponent("fly", {
         }
 
         if (this.allowGravity) { // todo remove descending when gravity
-            if (this.ascending || this.descending) {
+            if (this.ascending) {
                 this.velocity = new Ammo.btVector3(velX, speed, velZ);
             }
         } else {
