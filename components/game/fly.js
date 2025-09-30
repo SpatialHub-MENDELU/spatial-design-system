@@ -16,12 +16,16 @@ AFRAME.registerComponent("fly", {
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
 
-        sprint: {type: "boolean", default: false},
+        sprint: {type: "boolean", default: true},
         keySprint: {type: "string", default: "shift"},
         sprintSpeed: {type: "number", default: 10},
 
-        type: {type: "string", default: "freeDirectionalFlight"}, // freeDirectionalFlight, AutoForwardSteer, AutoForwardFixedDirection, MouseDirectedFlight
+        type: {type: "string", default: "autoForward"}, // freeDirectionalFlight, autoForward, AutoForwardFixedDirection, MouseDirectedFlight
 
+        maxPitchDeg: {type: "number", default: 30},
+        pitchSpeed: {type: "number", default: 90},
+        maxRollDeg: {type: "number", default: 30},
+        rollSpeed: {type: "number", default: 90},
     },
 
     init() {
@@ -44,6 +48,7 @@ AFRAME.registerComponent("fly", {
         }
 
         this.allowGravity = this.data.allowGravity
+        this.gravityY = -9.800000190734863
 
         this.speed = this.data.speed
         this.sprintEnabled = this.data.sprint
@@ -54,6 +59,7 @@ AFRAME.registerComponent("fly", {
 
         // types of flight
         this.freeDirectionalFlight = null
+        this.autoForward = null
 
         // MOVEMENT
         this.movingForward = false
@@ -65,7 +71,15 @@ AFRAME.registerComponent("fly", {
         this.isSprinting = false
         this.velocity = null
 
-        this.currentRotation = 180
+        this.currentRotation = 0
+
+        this.maxPitchDeg = this.data.maxPitchDeg
+        this.maxRollDeg = this.data.maxRollDeg
+        this.pitchSpeed = this.data.pitchSpeed
+        this.rollSpeed = this.data.rollSpeed
+        this.currentRollDeg = 0;
+        this.currentPitchDeg = 0;
+        this.currentYawDeg = 0;
 
         // check inputs
         this.wrongInput = false
@@ -81,7 +95,7 @@ AFRAME.registerComponent("fly", {
         if (!this.characterModel) return;
         if (this.animation === name) return;
         this.animation = name;
-        console.log("Setting animation to:", name);
+
         this.characterModel.setAttribute('animation-mixer', {
             clip: name,
             crossFadeDuration: this.crossFadeDuration,
@@ -128,6 +142,9 @@ AFRAME.registerComponent("fly", {
             case 'freeDirectionalFlight':
                 this.freeDirectionalFlight = true
                 break;
+            case 'autoForward':
+                this.autoForward = true
+                break;
             default:
                 this.freeDirectionalFlight = true
                 break
@@ -137,8 +154,10 @@ AFRAME.registerComponent("fly", {
     tick(time, deltaTime) {
         const deltaSec = deltaTime / 1000;
         if (this.el.body) {
-            if (!this.allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
+            this.setGravity()
+
             if (this.freeDirectionalFlight) this.freeDirectionalFlightMove(deltaSec)
+            if (this.autoForward) this.autoForwardMove(deltaSec)
 
             this.el.body.setLinearVelocity(this.velocity);
         }
@@ -182,12 +201,65 @@ AFRAME.registerComponent("fly", {
         this.speed = this.data.speed
     },
 
+    setGravity() {
+        let allowGravity = this.allowGravity
+
+        if (this.autoForward) {
+            allowGravity = false
+        }
+        if (this.freeDirectionalFlight) {
+            allowGravity = !!this.allowGravity;
+        }
+
+        if (allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, this.gravityY, 0));
+        else this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
+    },
+
     turnSmoothly(deltaSec) {
         const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
 
         const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
         this.rotateCharacterSmoothly(angleRad);
+    },
+    ascendDescendMovement() {
+        let speed = 0
+        if (this.ascending) speed = this.speed
+        else if (this.descending) speed = -this.speed;
+
+        const vel = this.velocity
+        let velX = vel.x()
+        let velZ = vel.z()
+        const currentVelocity = this.el.body.getLinearVelocity();
+
+        if (this.allowGravity) {
+            velX = currentVelocity.x()
+            velZ = currentVelocity.z()
+        }
+
+        if (this.allowGravity) { // todo remove descending when gravity
+            if (this.ascending || this.descending) {
+                this.velocity = new Ammo.btVector3(velX, speed, velZ);
+            }
+        } else {
+            this.velocity = new Ammo.btVector3(velX, speed, velZ);
+        }
+    },
+
+    rotateCharacterSmoothly(angleRad) {
+        const quaternion = new Ammo.btQuaternion();
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
+
+        const transform = this.el.body.getWorldTransform();
+        const origin = transform.getOrigin();
+
+        const newTransform = new Ammo.btTransform();
+        newTransform.setIdentity();
+        newTransform.setOrigin(origin);
+        newTransform.setRotation(quaternion);
+
+        this.el.body.setWorldTransform(newTransform);
+        this.el.body.activate();
     },
 
     // FREE DIRECTIONAL FLIGHT
@@ -233,43 +305,64 @@ AFRAME.registerComponent("fly", {
         }
     },
 
-    ascendDescendMovement() {
-        let speed = 0
-        if (this.ascending) speed = this.speed
-        else if (this.descending) speed = -this.speed;
-
-        const vel = this.velocity
-        let velX = vel.x()
-        let velZ = vel.z()
-        const currentVelocity = this.el.body.getLinearVelocity();
-
-        if (this.allowGravity) {
-            velX = currentVelocity.x()
-            velZ = currentVelocity.z()
-        }
-
-        if (this.allowGravity) { // todo remove descending when gravity
-            if (this.ascending || this.descending) {
-                this.velocity = new Ammo.btVector3(velX, speed, velZ);
-            }
-        } else {
-            this.velocity = new Ammo.btVector3(velX, speed, velZ);
-        }
-    },
-
-    rotateCharacterSmoothly(angleRad) {
-        const quaternion = new Ammo.btQuaternion();
-        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
+    // AUTO FORWARD
+    autoForwardMove(deltaSec) {
+        const maxPitchDeg = this.maxPitchDeg;
+        const maxRollDeg = this.maxRollDeg;
+        const speed = this.speed;
 
         const transform = this.el.body.getWorldTransform();
-        const origin = transform.getOrigin();
+
+        const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
+        const rollSpeedDeg = this.rollSpeed * deltaSec;
+
+        // PITCH
+        if (this.movingForward) {
+            this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
+        } else if (this.movingBackward) {
+            this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+        } else {
+            this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
+        }
+
+        // ROLL
+        if (this.movingRight) {
+            this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
+        } else if (this.movingLeft) {
+            this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
+        } else {
+            this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
+        }
+
+        // YAW
+        const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
+        this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
+
+        const roll = THREE.MathUtils.degToRad(this.currentRollDeg);
+        const pitch = THREE.MathUtils.degToRad(this.currentPitchDeg);
+        const yaw = THREE.MathUtils.degToRad(this.currentYawDeg);
+
+        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
+        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
+
+        const finalQuat = new THREE.Quaternion();
+        finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+        finalQuat.normalize();
+
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(finalQuat).normalize();
+        const vx = forward.x * speed;
+        const vy = forward.y * speed;
+        const vz = forward.z * speed;
+        this.velocity = new Ammo.btVector3(vx, vy, vz);
 
         const newTransform = new Ammo.btTransform();
         newTransform.setIdentity();
-        newTransform.setOrigin(origin);
-        newTransform.setRotation(quaternion);
-
+        newTransform.setOrigin(transform.getOrigin());
+        newTransform.setRotation(new Ammo.btQuaternion(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w));
         this.el.body.setWorldTransform(newTransform);
         this.el.body.activate();
     },
+
+
 })
