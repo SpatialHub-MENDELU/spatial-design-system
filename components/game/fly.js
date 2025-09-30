@@ -117,10 +117,7 @@ AFRAME.registerComponent("fly", {
         if (key === this.keys.right) this.movingRight = true
         if (key === this.keys.ascend) this.ascending = true
         if (key === this.keys.descend) this.descending = true
-        if (this.sprintEnabled && key === this.keys.sprint) {
-            // todo: change according to the fly type
-            if (this.movingForward) this.isSprinting = true
-        }
+        if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(true)
     },
 
     onKeyUp(e) {
@@ -131,10 +128,7 @@ AFRAME.registerComponent("fly", {
         if (key === this.keys.right) this.movingRight = false
         if (key === this.keys.ascend) this.ascending = false
         if (key === this.keys.descend) this.descending = false
-        if (this.sprintEnabled && key === this.keys.sprint) {
-            // todo: change according to the fly type
-            if (this.movingForward) this.isSprinting = false
-        }
+        if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(false)
     },
 
     setType() {
@@ -175,7 +169,7 @@ AFRAME.registerComponent("fly", {
         const currentVelocity = this.el.body.getLinearVelocity();
         let speed = this.speed
 
-        if (this.freeDirectionalFlightMove) {
+        if (this.freeDirectionalFlight) {
             const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
             const factor = this.movingForward ? 1 : this.movingBackward ? -1 : 0;
             const x = Math.sin(angleRad) * speed * factor;
@@ -186,16 +180,18 @@ AFRAME.registerComponent("fly", {
         }
     },
 
-    startSprinting() {
-        let sprint = false
-        if (this.freeDirectionalFlightMove) {
-            if (this.movingForward) sprint = true
-            else this.stopSprinting()
+    setIsSprinting(value) {
+        if (value === true) {
+            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = true
+            if (this.autoForward) this.isSprinting = true
+        } else {
+            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = false
+            if (this.autoForward) this.isSprinting = false
         }
+    },
 
-        if (sprint) {
-            this.speed = this.sprintSpeed
-        }
+    startSprinting() {
+        this.speed = this.sprintSpeed
     },
 
     stopSprinting() {
@@ -316,6 +312,10 @@ AFRAME.registerComponent("fly", {
     autoForwardMove(deltaSec) {
         this.setPitchYawRollDeg(deltaSec)
         this.calculateFinalQuat()
+
+        if (this.sprintEnabled) {
+            this.isSprinting ? this.startSprinting() : this.stopSprinting()
+        }
 
         const speed = this.speed;
         const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.finalQuat).normalize();
