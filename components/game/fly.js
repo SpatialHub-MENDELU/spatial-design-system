@@ -73,6 +73,7 @@ AFRAME.registerComponent("fly", {
 
         this.currentRotation = 0
 
+        // autoForward
         this.maxPitchDeg = this.data.maxPitchDeg
         this.maxRollDeg = this.data.maxRollDeg
         this.pitchSpeed = this.data.pitchSpeed
@@ -80,8 +81,9 @@ AFRAME.registerComponent("fly", {
         this.currentRollDeg = 0;
         this.currentPitchDeg = 0;
         this.currentYawDeg = 0;
+        this.finalQuat = null
 
-        // check inputs
+        // CHECK INPUTS
         this.wrongInput = false
 
         if (this.wrongInput) return;
@@ -310,11 +312,38 @@ AFRAME.registerComponent("fly", {
     },
 
     // AUTO FORWARD
+
     autoForwardMove(deltaSec) {
+        this.setPitchYawRollDeg(deltaSec)
+        this.calculateFinalQuat()
+
+        const speed = this.speed;
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.finalQuat).normalize();
+        const vx = forward.x * speed;
+        const vy = forward.y * speed;
+        const vz = forward.z * speed;
+
+        this.velocity = new Ammo.btVector3(vx, vy, vz);
+        this.setTransform(this.finalQuat.x, this.finalQuat.y, this.finalQuat.z, this.finalQuat.w);
+    },
+
+    calculateFinalQuat() {
+        const roll = THREE.MathUtils.degToRad(this.currentRollDeg);
+        const pitch = THREE.MathUtils.degToRad(this.currentPitchDeg);
+        const yaw = THREE.MathUtils.degToRad(this.currentYawDeg);
+
+        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
+        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
+
+        this.finalQuat = new THREE.Quaternion();
+        this.finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+        this.finalQuat.normalize();
+    },
+
+    setPitchYawRollDeg(deltaSec) {
         const maxPitchDeg = this.maxPitchDeg;
         const maxRollDeg = this.maxRollDeg;
-        const speed = this.speed;
-
         const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
         const rollSpeedDeg = this.rollSpeed * deltaSec;
 
@@ -339,30 +368,7 @@ AFRAME.registerComponent("fly", {
         // yaw - turn left/right
         const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
         this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
-
-        // calculate forward vector
-
-        const roll = THREE.MathUtils.degToRad(this.currentRollDeg);
-        const pitch = THREE.MathUtils.degToRad(this.currentPitchDeg);
-        const yaw = THREE.MathUtils.degToRad(this.currentYawDeg);
-
-        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
-        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
-
-        const finalQuat = new THREE.Quaternion();
-        finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
-        finalQuat.normalize();
-
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(finalQuat).normalize();
-        const vx = forward.x * speed;
-        const vy = forward.y * speed;
-        const vz = forward.z * speed;
-        this.velocity = new Ammo.btVector3(vx, vy, vz);
-
-        this.setTransform(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w);
     },
-
 
 
 })
