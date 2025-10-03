@@ -19,16 +19,23 @@ AFRAME.registerComponent("textbox", {
     },
     isactivated: { type: "boolean", default: false },
     variant: { type: "string", default: "" },
-    useSystemKeyboard: { type: "boolean", default: false },
+    usesystemkeyboard: { type: "boolean", default: false },
   },
 
   init() {
     // Setting the variant in the keyboard
-    this.el.setAttribute(
-      "virtualKeyboard",
-      "variant",
-      this.el.getAttribute("variant")
-    );
+
+    const useSystemKeyboard = this.data.usesystemkeyboard;
+    const isSystemKeyboardSupported = this.detectSystemKeyboard();
+
+    // Only add virtual keyboard if system keyboard is not supported or not requested
+    if (!(useSystemKeyboard && isSystemKeyboardSupported)) {
+      this.el.setAttribute(
+        "virtualKeyboard",
+        "variant",
+        this.el.getAttribute("variant")
+      );
+    }
 
     this.setSize();
     this.createTextbox();
@@ -72,7 +79,7 @@ AFRAME.registerComponent("textbox", {
         case "isactivated":
           this.switchActivated();
           break;
-        case "useSystemKeyboard":
+        case "usesystemkeyboard":
           // The new value will be used the next time the component is activated.
           // No immediate action is required.
           break;
@@ -257,8 +264,8 @@ AFRAME.registerComponent("textbox", {
 
   switchActivated() {
     const isActivated = this.data.isactivated;
-    const hasSystemKeyboard =
-      this.detectSystemKeyboard() && this.data.useSystemKeyboard;
+    const useSystemKeyboard = this.data.usesystemkeyboard;
+    const isSystemKeyboardSupported = this.detectSystemKeyboard();
 
     // Switching the visibility of the cursor
     if (isActivated) this.el.startBlinking();
@@ -269,22 +276,14 @@ AFRAME.registerComponent("textbox", {
 
     // Handle keyboard activation
     if (isActivated) {
-      if (hasSystemKeyboard) {
-        console.log("System keyboard supported, focusing input");
+      if (isSystemKeyboardSupported && useSystemKeyboard) {
         this.focusInput();
       } else {
-        console.log("Custom keyboard activated");
         this.el.emit("is-textbox-activated", {
           isActivated: true,
           id: this.el.getAttribute("id"),
         });
       }
-    } else {
-      console.log("Textbox deactivated");
-      this.el.emit("is-textbox-activated", {
-        isActivated: false,
-        id: this.el.getAttribute("id"),
-      });
     }
     this.el.toggleListeningToKeydown(isActivated);
   },
@@ -296,19 +295,20 @@ AFRAME.registerComponent("textbox", {
       return false;
     }
 
-    console.log({ xrSession });
-
     if (xrSession) {
       if (xrSession.isSystemKeyboardSupported) {
-        console.log("System keyboard supported");
+        console.info("System keyboard supported");
         return true;
       }
     }
-    console.log("system keyboard not supported");
+    console.info("System keyboard not supported");
     return false;
   },
 
   focusInput() {
+    if (!this.data.usesystemkeyboard) {
+      return;
+    }
     const inputEl = this.data.inputElement;
     inputEl.style.pointerEvents = "auto";
     inputEl.focus();
