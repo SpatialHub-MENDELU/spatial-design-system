@@ -29,8 +29,6 @@ const jointIndices = {
   "pinky-finger-tip": 24,
 };
 
-// const CLICK_COOLDOWN_MS = 250;
-
 AFRAME.registerComponent("hands", {
   schema: {
     leftEnabled: { type: "boolean", default: true },
@@ -52,17 +50,14 @@ AFRAME.registerComponent("hands", {
     this.prevTipWorldPosByHand = new Map();
     this.lastClickAtByTarget = new WeakMap();
 
-    // --- navázání kontextu ---
     this.handlePinchStarted = this.handlePinchStarted.bind(this);
     this.handlePinchEnded = this.handlePinchEnded.bind(this);
     this.handlePinchMoved = this.handlePinchMoved.bind(this);
     this.handleCollisionStarted = this.handleCollisionStarted.bind(this);
     this.handleCollisionEnded = this.handleCollisionEnded.bind(this);
 
-    // --- vytvoření rukou po načtení scény ---
     this.el.sceneEl.addEventListener("loaded", () => {
       if (this.data.autoDisableIfNoHands) {
-        // Zkusíme detekci podpory hand-inputu; když není, nic netvoř:
         const gl = this.el.sceneEl.renderer?.xr?.getSession?.();
         const supported = !!gl?.inputSources?.some?.((s) => s.hand);
         if (!supported) return;
@@ -75,7 +70,6 @@ AFRAME.registerComponent("hands", {
     this.detectTipTap();
   },
 
-  // --- vytvoření entit pro ruce ---
   setupHands() {
     const rig = this.el.sceneEl.querySelector("#rig");
 
@@ -118,7 +112,6 @@ AFRAME.registerComponent("hands", {
     return handEl;
   },
 
-  // Detects when the user starts pinching
   handlePinchStarted(evt) {
     // TODO: Implement function to handle pinch started. (stretchable component)
   },
@@ -156,16 +149,9 @@ AFRAME.registerComponent("hands", {
   },
 
   // To make the click work, we need to check, whether the tip is pointing at the object and if the position is within the object's bounds
-
   detectTipTap: (function () {
-    const worldTipPos = new THREE.Vector3();
-    const objectBBox = new THREE.Box3();
     const tempMatrix = new THREE.Matrix4();
     const tempPosition = new THREE.Vector3();
-    const objectCenter = new THREE.Vector3();
-    const prevTipPos = new THREE.Vector3();
-    const velocity = new THREE.Vector3();
-    const dirToObject = new THREE.Vector3();
 
     const EXTENDED_FINGER_THRESHOLD = 0.08; // 8cm
     const CURLED_FINGER_THRESHOLD = 0.05; // 5cm
@@ -181,12 +167,7 @@ AFRAME.registerComponent("hands", {
     }
 
     return function () {
-      // const clickables = Array.from(
-      //   this.el.sceneEl.querySelectorAll(".clickable")
-      // );
-
       this.handsEls.forEach((handEl) => {
-        // let foundTargetThisFrame = null;
         const handTrackingControls =
           handEl.components["hand-tracking-controls"];
         if (
@@ -203,7 +184,7 @@ AFRAME.registerComponent("hands", {
 
         const jointPoses = handTrackingControls.jointPoses;
 
-        // 1. Gesture detection using individual joint data
+        // Gesture detection using individual joint data
         const indexTipPos = getJointPosition(jointPoses, "index-finger-tip");
         const indexMetacarpalPos = getJointPosition(
           jointPoses,
@@ -252,75 +233,8 @@ AFRAME.registerComponent("hands", {
         if (isPointing) {
           handEl.setAttribute("pointing", true);
           return;
-          // 2. Collision detection
-          // worldTipPos.copy(indexTipPos);
-          // handEl.object3D.localToWorld(worldTipPos);
-
-          // for (const el of clickables) {
-          //   if (el === handEl || el.parentNode === handEl) continue;
-
-          //   // Force update of the object's matrix and its children
-          //   el.object3D.updateMatrixWorld(true);
-          //   objectBBox.setFromObject(el.object3D);
-
-          //   // Skip if bounding box is empty, which can happen for invisible or misconfigured objects.
-          //   if (objectBBox.isEmpty()) {
-          //     continue;
-          //   }
-
-          //   const TOUCH_THRESHOLD = 0.002;
-          //   const distance = objectBBox.distanceToPoint(worldTipPos);
-
-          //   if (distance < TOUCH_THRESHOLD) {
-          //     foundTargetThisFrame = el;
-          //     // Only trigger on first contact and when moving toward the object (not when backing out)
-          //     if (this.activeTargets.get(handEl) !== el) {
-          //       // Approach check and cooldown
-          //       const now =
-          //         typeof performance !== "undefined"
-          //           ? performance.now()
-          //           : Date.now();
-          //       const lastAt = this.lastClickAtByTarget.get(el) || 0;
-          //       const cooldownOk = now - lastAt >= CLICK_COOLDOWN_MS;
-
-          //       // Compute approach: require decreasing distance and positive velocity toward object center
-          //       objectBBox.getCenter(objectCenter);
-
-          //       const hadPrev = this.prevTipWorldPosByHand.has(handEl);
-          //       let approachingOk = true;
-          //       if (hadPrev) {
-          //         prevTipPos.copy(this.prevTipWorldPosByHand.get(handEl));
-          //         const prevDistance = objectBBox.distanceToPoint(prevTipPos);
-          //         const distanceDelta = prevDistance - distance; // positive if moving closer
-
-          //         velocity.copy(worldTipPos).sub(prevTipPos);
-          //         dirToObject.copy(objectCenter).sub(worldTipPos).normalize();
-          //         const approachDot = velocity.dot(dirToObject);
-
-          //         const APPROACH_DELTA_EPS = 0.0005; // 0.5 mm closer
-          //         approachingOk =
-          //           distanceDelta > APPROACH_DELTA_EPS && approachDot > 0;
-          //       }
-
-          //       if (cooldownOk && approachingOk) {
-          //         el.emit("click", { hand: handEl, side: handEl.id }, false);
-          //         this.activeTargets.set(handEl, el);
-          //         this.lastClickAtByTarget.set(el, now);
-          //       }
-          //     }
-          //     // Found a target, no need to check other clickables for this hand
-          //     break;
-          //   }
-          // }
         }
-        // If no target was found in this frame, but there was an active one, clear it.
-        // This handles the "untouch" event, making the object clickable again.
         handEl.setAttribute("pointing", false);
-        // if (!foundTargetThisFrame && this.activeTargets.has(handEl)) {
-        //   this.activeTargets.delete(handEl);
-        // }
-        // // Save fingertip position for approach checks next frame
-        // this.prevTipWorldPosByHand.set(handEl, worldTipPos.clone());
       });
     };
   })(),

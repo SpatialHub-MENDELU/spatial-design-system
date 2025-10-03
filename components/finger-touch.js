@@ -5,12 +5,11 @@ AFRAME.registerComponent("finger-touch", {
     this.el.setAttribute("obb-collider", "centerModel: true");
     this.el.classList.add("clickable");
 
-    this.el.addEventListener("obbcollisionstarted", this.onHoverStart);
-    this.el.addEventListener("obbcollisionended", this.onHoverEnd);
+    this.el.addEventListener("hand-hover-started", this.onHoverStart);
+    this.el.addEventListener("hand-hover-ended", this.onHoverEnd);
   },
 
   onHoverStart(event) {
-    console.log("coll started", { event });
     const isPointing = event.detail.withEl.getAttribute("pointing");
     if (isPointing === "true") {
       event.target.emit("click");
@@ -20,8 +19,13 @@ AFRAME.registerComponent("finger-touch", {
   onHoverEnd(event) {
     console.log("coll ended");
     const isPointing = event.detail.withEl.getAttribute("pointing");
-    // if (isPointing === "true") {
-    //   event.target.emit("click");
-    // }
+    if (isPointing === "true") {
+      event.target.emit("click-ended");
+    }
+  },
+
+  remove() {
+    this.el.removeEventListener("hand-hover-started", this.onHoverStart);
+    this.el.removeEventListener("hand-hover-ended", this.onHoverEnd);
   },
 });
