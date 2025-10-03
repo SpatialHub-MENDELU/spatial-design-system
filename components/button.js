@@ -79,6 +79,10 @@ AFRAME.registerComponent("button", {
     });
   },
 
+  tick(time) {
+    TWEEN.update(time);
+  },
+
   updateButtonColor() {
     this.buttonMesh.material.color.set(this.data.primary);
     if (this.shadowMesh) this.shadowMesh.material.color.set(this.data.primary);
@@ -321,6 +325,7 @@ AFRAME.registerComponent("button", {
     this.el.setAttribute("class", "clickable");
     this.el.addEventListener("click", () => {
       this.animateButtonOnClick();
+      this.el.emit("button-clicked", { button: this.el });
     });
   },
 
@@ -367,56 +372,45 @@ AFRAME.registerComponent("button", {
     // Update button color after the variant color has been set
     this.updateButtonColor();
   },
-
   animateButtonOnClick() {
+    const THREE = AFRAME.THREE;
+
     const originalColor = new THREE.Color(this.data.primary);
-    const darkerColor = new THREE.Color("#666666");
+    const darkerColor = originalColor.clone().multiplyScalar(0.6);
+
     const buttonMesh = this.buttonMesh;
     const shadowMesh = this.shadowMesh;
 
     const visualGroup = buttonMesh.parent;
+
     const startZ = visualGroup.position.z || 0;
     new TWEEN.Tween(visualGroup.position)
-      .to({ z: startZ - 0.01 }, 80) // ~1 cm dovnitř
+      .to({ z: startZ - 0.015 }, 60)
       .easing(TWEEN.Easing.Quadratic.InOut)
       .yoyo(true)
       .repeat(1)
       .start();
 
     new TWEEN.Tween(buttonMesh.material.color)
-      .to({ r: darkerColor.r, g: darkerColor.g, b: darkerColor.b }, 100)
+      .to({ r: darkerColor.r, g: darkerColor.g, b: darkerColor.b }, 80)
       .easing(TWEEN.Easing.Quadratic.InOut)
+      .yoyo(true)
+      .repeat(1)
+      .onUpdate(() => {
+        buttonMesh.material.needsUpdate = true;
+      })
       .start();
 
     if (shadowMesh) {
       new TWEEN.Tween(shadowMesh.material.color)
-        .to({ r: darkerColor.r, g: darkerColor.g, b: darkerColor.b }, 100)
+        .to({ r: darkerColor.r, g: darkerColor.g, b: darkerColor.b }, 80)
         .easing(TWEEN.Easing.Quadratic.InOut)
+        .yoyo(true)
+        .repeat(1)
+        .onUpdate(() => {
+          shadowMesh.material.needsUpdate = true;
+        })
         .start();
     }
-
-    setTimeout(() => {
-      new TWEEN.Tween(buttonMesh.material.color)
-        .to({ r: originalColor.r, g: originalColor.g, b: originalColor.b }, 100)
-        .easing(TWEEN.Easing.Quadratic.InOut)
-        .start();
-
-      if (shadowMesh) {
-        new TWEEN.Tween(shadowMesh.material.color)
-          .to(
-            { r: originalColor.r, g: originalColor.g, b: originalColor.b },
-            100
-          )
-          .easing(TWEEN.Easing.Quadratic.InOut)
-          .start();
-      }
-    }, 100);
-
-    function animate() {
-      requestAnimationFrame(animate);
-      TWEEN.update();
-    }
-
-    animate();
   },
 });
