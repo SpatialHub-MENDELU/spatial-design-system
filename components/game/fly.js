@@ -11,7 +11,7 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: false},
+        allowGravity: {type: "boolean", default: true},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
@@ -228,14 +228,8 @@ AFRAME.registerComponent("fly", {
         const vel = this.velocity
         let velX = vel.x()
         let velZ = vel.z()
-        const currentVelocity = this.el.body.getLinearVelocity();
 
-        if (this.allowGravity) {
-            velX = currentVelocity.x()
-            velZ = currentVelocity.z()
-        }
-
-        if (this.allowGravity) { // todo remove descending when gravity
+        if (this.allowGravity) { 
             if (this.ascending) {
                 this.velocity = new Ammo.btVector3(velX, speed, velZ);
             }
