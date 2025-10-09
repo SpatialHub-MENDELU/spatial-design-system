@@ -71,7 +71,7 @@ AFRAME.registerComponent("fly", {
         this.isSprinting = false
         this.velocity = null
 
-        this.currentRotation = 0
+        this.currentRotation = 180
 
         // autoForward
         this.maxPitchDeg = this.data.maxPitchDeg
@@ -93,16 +93,8 @@ AFRAME.registerComponent("fly", {
         this.bindEvents()
     },
 
-    setAnimation(name) {
-        if (!this.characterModel) return;
-        if (this.animation === name) return;
-        this.animation = name;
-
-        this.characterModel.setAttribute('animation-mixer', {
-            clip: name,
-            crossFadeDuration: this.crossFadeDuration,
-        });
-    },
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // GENERAL METHODS
 
     bindEvents() {
         document.addEventListener("keydown", this.onKeyDown.bind(this));
@@ -131,6 +123,32 @@ AFRAME.registerComponent("fly", {
         if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(false)
     },
 
+    tick(time, deltaTime) {
+        const deltaSec = deltaTime / 1000;
+        if (this.el.body) {
+            this.setGravity()
+
+            if (this.freeDirectionalFlight) this.freeDirectionalFlightMove(deltaSec)
+            if (this.autoForward) this.autoForwardMove(deltaSec)
+
+            this.el.body.setLinearVelocity(this.velocity);
+        }
+    },
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // SET METHODS
+
+    setAnimation(name) {
+        if (!this.characterModel) return;
+        if (this.animation === name) return;
+        this.animation = name;
+
+        this.characterModel.setAttribute('animation-mixer', {
+            clip: name,
+            crossFadeDuration: this.crossFadeDuration,
+        });
+    },
+
     setType() {
         this.freeDirectionalFlight = false
 
@@ -147,17 +165,44 @@ AFRAME.registerComponent("fly", {
         }
     },
 
-    tick(time, deltaTime) {
-        const deltaSec = deltaTime / 1000;
-        if (this.el.body) {
-            this.setGravity()
-
-            if (this.freeDirectionalFlight) this.freeDirectionalFlightMove(deltaSec)
-            if (this.autoForward) this.autoForwardMove(deltaSec)
-
-            this.el.body.setLinearVelocity(this.velocity);
+    setIsSprinting(value) {
+        if (value === true) {
+            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = true
+            if (this.autoForward) this.isSprinting = true
+        } else {
+            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = false
+            if (this.autoForward) this.isSprinting = false
         }
     },
+
+    setGravity() {
+        let allowGravity = this.allowGravity
+
+        if (this.autoForward) {
+            allowGravity = false
+        }
+        if (this.freeDirectionalFlight) {
+            allowGravity = !!this.allowGravity;
+        }
+
+        if (allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, this.gravityY, 0));
+        else this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
+    },
+
+    setTransform(quatX, quatY, quatZ, quatW) {
+        const transform = this.el.body.getWorldTransform();
+        const origin = transform.getOrigin();
+
+        const newTransform = new Ammo.btTransform();
+        newTransform.setIdentity();
+        newTransform.setOrigin(origin);
+        newTransform.setRotation(new Ammo.btQuaternion(quatX, quatY, quatZ, quatW));
+        this.el.body.setWorldTransform(newTransform);
+        this.el.body.activate()
+    },
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // MOVEMENT METHODS
 
     stopMovement() {
         const currentVelocity = this.el.body.getLinearVelocity();
@@ -180,16 +225,6 @@ AFRAME.registerComponent("fly", {
         }
     },
 
-    setIsSprinting(value) {
-        if (value === true) {
-            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = true
-            if (this.autoForward) this.isSprinting = true
-        } else {
-            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = false
-            if (this.autoForward) this.isSprinting = false
-        }
-    },
-
     startSprinting() {
         this.speed = this.sprintSpeed
     },
@@ -199,20 +234,6 @@ AFRAME.registerComponent("fly", {
         this.speed = this.data.speed
     },
 
-    setGravity() {
-        let allowGravity = this.allowGravity
-
-        if (this.autoForward) {
-            allowGravity = false
-        }
-        if (this.freeDirectionalFlight) {
-            allowGravity = !!this.allowGravity;
-        }
-
-        if (allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, this.gravityY, 0));
-        else this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
-    },
-
     turnSmoothly(deltaSec) {
         const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
@@ -220,6 +241,7 @@ AFRAME.registerComponent("fly", {
         const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
         this.rotateCharacterSmoothly(angleRad);
     },
+
     ascendDescendMovement() {
         let speed = 0
         if (this.ascending) speed = this.speed
@@ -229,7 +251,7 @@ AFRAME.registerComponent("fly", {
         let velX = vel.x()
         let velZ = vel.z()
 
-        if (this.allowGravity) { 
+        if (this.allowGravity) {
             if (this.ascending) {
                 this.velocity = new Ammo.btVector3(velX, speed, velZ);
             }
@@ -245,20 +267,11 @@ AFRAME.registerComponent("fly", {
         this.setTransform(quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
     },
 
-    setTransform(quatX, quatY, quatZ, quatW) {
-        const transform = this.el.body.getWorldTransform();
-        const origin = transform.getOrigin();
-
-        const newTransform = new Ammo.btTransform();
-        newTransform.setIdentity();
-        newTransform.setOrigin(origin);
-        newTransform.setRotation(new Ammo.btQuaternion(quatX, quatY, quatZ, quatW));
-        this.el.body.setWorldTransform(newTransform);
-        this.el.body.activate()
-    },
-
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // FLYING TYPES
 
     // FREE DIRECTIONAL FLIGHT
+
     freeDirectionalFlightMove(deltaSec) {
         this.handleFreeDirectionalFlightAnimations()
 
