@@ -26,6 +26,7 @@ AFRAME.registerComponent("fly", {
         pitchSpeed: {type: "number", default: 90},
         maxRollDeg: {type: "number", default: 30},
         rollSpeed: {type: "number", default: 90},
+        forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
     },
 
     init() {
@@ -71,7 +72,9 @@ AFRAME.registerComponent("fly", {
         this.isSprinting = false
         this.velocity = null
 
-        this.currentRotation = 180
+        this.forwardOffsetAngle = this.data.forwardOffsetAngle
+        this.elementRotation = this.el.getAttribute('rotation').y
+        this.currentRotation = this.elementRotation + this.forwardOffsetAngle
 
         // autoForward
         this.maxPitchDeg = this.data.maxPitchDeg
@@ -238,7 +241,8 @@ AFRAME.registerComponent("fly", {
         const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
 
-        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        const finalRotation = this.currentRotation - this.forwardOffsetAngle
+        const angleRad = THREE.MathUtils.degToRad(finalRotation);
         this.rotateCharacterSmoothly(angleRad);
     },
 
