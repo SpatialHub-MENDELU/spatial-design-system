@@ -32,7 +32,7 @@ AFRAME.registerComponent("fly", {
         maxRollDeg: {type: "number", default: 30},
         rollSpeed: {type: "number", default: 90},
 
-        forwardOffsetAngle: {type: "number", default: 90}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
+        forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
     },
 
     init() {
