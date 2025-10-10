@@ -22,11 +22,17 @@ AFRAME.registerComponent("fly", {
 
         type: {type: "string", default: "freeDirectionalFlight"}, // freeDirectionalFlight, autoForward, AutoForwardFixedDirection, MouseDirectedFlight
 
+        allowPitch: {type: "boolean", default: true}, // nose up/down
+        autoLevelPitch: {type: "boolean", default: true},
         maxPitchDeg: {type: "number", default: 30},
         pitchSpeed: {type: "number", default: 90},
+
+        allowRoll: {type: "boolean", default: true}, // tilt left/right
+        autoLevelRoll: {type: "boolean", default: true},
         maxRollDeg: {type: "number", default: 30},
         rollSpeed: {type: "number", default: 90},
-        forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
+
+        forwardOffsetAngle: {type: "number", default: 90}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
     },
 
     init() {
@@ -76,11 +82,17 @@ AFRAME.registerComponent("fly", {
         this.elementRotation = this.el.getAttribute('rotation').y
         this.currentRotation = this.elementRotation + this.forwardOffsetAngle
 
-        // autoForward
+        this.allowPitch = this.data.allowPitch
+        this.autoLevelPitch = this.data.autoLevelPitch
         this.maxPitchDeg = this.data.maxPitchDeg
-        this.maxRollDeg = this.data.maxRollDeg
         this.pitchSpeed = this.data.pitchSpeed
+
+        this.allowRoll = this.data.allowRoll
+        this.autoLevelRoll = this.data.autoLevelRoll
+        this.maxRollDeg = this.data.maxRollDeg
         this.rollSpeed = this.data.rollSpeed
+
+        // autoForward
         this.currentRollDeg = 0;
         this.currentPitchDeg = 0;
         this.currentYawDeg = 0;
@@ -321,7 +333,9 @@ AFRAME.registerComponent("fly", {
     // AUTO FORWARD
 
     autoForwardMove(deltaSec) {
-        this.setPitchYawRollDeg(deltaSec)
+        this.setYawDeg(deltaSec)
+        if (this.allowPitch) this.setPitchDeg(deltaSec)
+        if (this.allowRoll) this.setRollDeg(deltaSec)
         this.calculateFinalQuat()
 
         if (this.sprintEnabled) {
@@ -352,11 +366,9 @@ AFRAME.registerComponent("fly", {
         this.finalQuat.normalize();
     },
 
-    setPitchYawRollDeg(deltaSec) {
+    setPitchDeg(deltaSec) {
         const maxPitchDeg = this.maxPitchDeg;
-        const maxRollDeg = this.maxRollDeg;
         const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
-        const rollSpeedDeg = this.rollSpeed * deltaSec;
 
         // pitch - nose up/down
         if (this.movingForward) {
@@ -364,8 +376,13 @@ AFRAME.registerComponent("fly", {
         } else if (this.movingBackward) {
             this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
         } else {
-            this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
+            if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
         }
+    },
+
+    setRollDeg(deltaSec) {
+        const maxRollDeg = this.maxRollDeg;
+        const rollSpeedDeg = this.rollSpeed * deltaSec;
 
         // roll - tilt left/right
         if (this.movingRight) {
@@ -373,9 +390,11 @@ AFRAME.registerComponent("fly", {
         } else if (this.movingLeft) {
             this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
         } else {
-            this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
+            if (this.autoLevelRoll) this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
         }
+    },
 
+    setYawDeg(deltaSec) {
         // yaw - turn left/right
         const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
         this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
