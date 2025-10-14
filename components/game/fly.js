@@ -97,6 +97,7 @@ AFRAME.registerComponent("fly", {
         this.currentPitchDeg = 0;
         this.currentYawDeg = 0;
         this.finalQuat = null
+        this.verticalVelocity = null
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -333,20 +334,36 @@ AFRAME.registerComponent("fly", {
     // AUTO FORWARD
 
     autoForwardMove(deltaSec) {
-        this.setYawDeg(deltaSec)
-        if (this.allowPitch) this.setPitchDeg(deltaSec)
-        if (this.allowRoll) this.setRollDeg(deltaSec)
-        this.calculateFinalQuat()
+        // yaw - turn left/right
+        if (this.allowRoll) this.setYawDeg(deltaSec);
+        else {
+            const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+            this.currentYawDeg = (this.currentYawDeg + dir * this.rotationSpeed * deltaSec) % 360;
+        }
 
+        // pitch - nose up/down
+        if (this.allowPitch)this.setPitchDeg(deltaSec);
+        else {
+            const moveUp = this.movingForward ? 1 : this.movingBackward ? -1 : 0;
+            this.verticalVelocity = moveUp * this.speed;
+        }
+
+        // roll - tilt left/right
+        if (this.allowRoll) this.setRollDeg(deltaSec);
+
+        this.calculateFinalQuat();
 
         if (this.sprintEnabled) {
-            this.isSprinting ? this.startSprinting() : this.stopSprinting()
+            this.isSprinting ? this.startSprinting() : this.stopSprinting();
         }
 
         const speed = this.speed;
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.finalQuat).normalize();
+        const forward = new THREE.Vector3(0, 0, 1)
+            .applyQuaternion(this.finalQuat)
+            .normalize();
+
         const vx = forward.x * speed;
-        const vy = forward.y * speed;
+        const vy = forward.y * speed + (this.verticalVelocity || 0);
         const vz = forward.z * speed;
 
         this.velocity = new Ammo.btVector3(vx, vy, vz);
