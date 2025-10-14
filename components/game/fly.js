@@ -300,10 +300,6 @@ AFRAME.registerComponent("fly", {
 
         if (this.movingForward || this.movingBackward) {
             this.move()
-            if (this.allowPitch) {
-                this.setPitchDeg(deltaSec)
-                this.calculateFinalQuat()
-            }
         }
 
         this.ascendDescendMovement()
