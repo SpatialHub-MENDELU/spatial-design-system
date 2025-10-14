@@ -11,7 +11,7 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: true},
+        allowGravity: {type: "boolean", default: false},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
@@ -300,6 +300,10 @@ AFRAME.registerComponent("fly", {
 
         if (this.movingForward || this.movingBackward) {
             this.move()
+            if (this.allowPitch) {
+                this.setPitchDeg(deltaSec)
+                this.calculateFinalQuat()
+            }
         }
 
         this.ascendDescendMovement()
@@ -338,6 +342,7 @@ AFRAME.registerComponent("fly", {
         if (this.allowRoll) this.setRollDeg(deltaSec)
         this.calculateFinalQuat()
 
+
         if (this.sprintEnabled) {
             this.isSprinting ? this.startSprinting() : this.stopSprinting()
         }
@@ -349,7 +354,15 @@ AFRAME.registerComponent("fly", {
         const vz = forward.z * speed;
 
         this.velocity = new Ammo.btVector3(vx, vy, vz);
-        this.setTransform(this.finalQuat.x, this.finalQuat.y, this.finalQuat.z, this.finalQuat.w);
+
+        let displayQuat = this.finalQuat.clone();
+        if (this.data.forwardOffsetAngle) {
+            const offsetRad = THREE.MathUtils.degToRad(this.data.forwardOffsetAngle);
+            const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
+            displayQuat.multiply(offsetQuat);
+        }
+
+        this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
     },
 
     calculateFinalQuat() {
