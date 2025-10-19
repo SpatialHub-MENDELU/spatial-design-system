@@ -15,6 +15,7 @@ document.querySelector('#app').innerHTML = `
         <a-asset-item id="dog" src="/models/Dog.glb"> </a-asset-item>
         <a-asset-item id="monster" src="/models/Monster.glb"> </a-asset-item>
         <a-asset-item id="plane" src="/models/Airplane.glb"></a-asset-item>
+        <a-asset-item id="paper-airplane" src="/models/PaperAirplane.glb"></a-asset-item>
         
         <!--  sky    -->
         <a-sky color="#eeeeee"></a-sky>
@@ -49,8 +50,8 @@ document.querySelector('#app').innerHTML = `
 <!--        </a-entity>-->
 
         <!-- AUTO FORWARD FIXED DIRECTION TYPE -->
-        <a-entity fly="type: autoForwardFixedDirection; forwardOffsetAngle: 0;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
-            <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>
+        <a-entity fly="type: autoForwardFixedDirection; forwardOffsetAngle: 180;" id="paper-airplane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1 0" rotation="0 180 0">
+            <a-entity gltf-model="#paper-airplane" ammo-shape="type: hull;" position="0 0 0" scale="0.01 0.01 0.01" ></a-entity>
         </a-entity>
  
 
@@ -62,7 +63,7 @@ document.querySelector('#app').innerHTML = `
         <!-- Camera -->
 <!--        <a-entity camera look-controls position="0 4 20" ></a-entity>-->
         <!-- DONT FORGET TO CHANGE THE TARGET -->
-        <a-entity camera gameview="target: #monster-character" rotation="-30 0 0"></a-entity>
+        <a-entity camera gameview="target: #paper-airplane-character" rotation="-30 0 0"></a-entity>
         
     </a-scene>
 `
