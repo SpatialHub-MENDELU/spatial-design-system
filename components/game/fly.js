@@ -79,8 +79,8 @@ AFRAME.registerComponent("fly", {
         this.velocity = null
 
         this.forwardOffsetAngle = this.data.forwardOffsetAngle
-        this.elementRotation = this.el.getAttribute('rotation').y
-        this.currentRotation = this.elementRotation + this.forwardOffsetAngle
+        this.elementRotationY = this.el.getAttribute('rotation').y
+        this.currentRotation = this.elementRotationY + this.forwardOffsetAngle
 
         this.allowPitch = this.data.allowPitch
         this.autoLevelPitch = this.data.autoLevelPitch
@@ -98,6 +98,9 @@ AFRAME.registerComponent("fly", {
         this.currentYawDeg = 0;
         this.finalQuat = null
         this.verticalVelocity = null
+
+        this.elementRotationYToDeg = THREE.MathUtils.degToRad(this.elementRotationY);
+        this.baseQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.elementRotationYToDeg);
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -369,13 +372,14 @@ AFRAME.registerComponent("fly", {
         this.velocity = new Ammo.btVector3(vx, vy, vz);
 
         let displayQuat = this.finalQuat.clone();
-        if (this.data.forwardOffsetAngle) {
-            const offsetRad = THREE.MathUtils.degToRad(this.data.forwardOffsetAngle);
+        if (this.forwardOffsetAngle) {
+            const offsetRad = THREE.MathUtils.degToRad(this.forwardOffsetAngle);
             const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
             displayQuat.multiply(offsetQuat);
         }
 
         this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
+        console.log("display quat y", displayQuat.y)
     },
 
     calculateFinalQuat() {
@@ -387,9 +391,15 @@ AFRAME.registerComponent("fly", {
         const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
         const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
 
-        this.finalQuat = new THREE.Quaternion();
-        this.finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
-        this.finalQuat.normalize();
+        // this.finalQuat = new THREE.Quaternion();
+        // this.finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+        // this.finalQuat.normalize();
+        const movementQuat = new THREE.Quaternion();
+        movementQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+        movementQuat.normalize();
+
+        // Zkombinuj s počáteční rotací entity
+        this.finalQuat = this.baseQuat.clone().multiply(movementQuat);
     },
 
     setPitchDeg(deltaSec) {
@@ -425,6 +435,5 @@ AFRAME.registerComponent("fly", {
         const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
         this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
     },
-
 
 })
