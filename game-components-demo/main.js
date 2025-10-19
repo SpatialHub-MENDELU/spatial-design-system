@@ -33,16 +33,24 @@ document.querySelector('#app').innerHTML = `
 <!--        </a-entity>-->
         
 
-<!--        <a-entity fly id="dragon-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">-->
+<!--        <a-entity fly id="dragon-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 0 0">-->
 <!--            <a-entity gltf-model="#dragon" ammo-shape="type: hull;" position="0 -2.1 0" scale="1 1 1" ></a-entity>-->
 <!--        </a-entity>-->
 <!--        -->
-<!--        <a-entity fly="type: freeDirectionalFlight;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">-->
+
+        <!-- FREE DIRECTIONAL TYPE-->
+<!--        <a-entity fly="type: freeDirectionalFlight; forwardOffsetAngle: 90;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 0 0">-->
 <!--            <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>-->
 <!--        </a-entity>-->
 
-        <a-entity fly="type: autoForward;" id="plane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
-            <a-entity gltf-model="#plane" ammo-shape="type: hull;" position="0.8 -1.2 0" scale="0.2 0.2 0.2" rotation="0 -90 0"></a-entity>
+        <!-- AUTO FORWARD TYPE -->
+<!--        <a-entity fly="type: autoForward; forwardOffsetAngle: 0; allowPitch: true; allowRoll: true; " id="plane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 0 0">-->
+<!--            <a-entity gltf-model="#plane" ammo-shape="type: hull;" position="0.8 -1.2 0" scale="0.2 0.2 0.2" rotation="0 0 0"></a-entity>-->
+<!--        </a-entity>-->
+
+        <!-- AUTO FORWARD FIXED DIRECTION TYPE -->
+        <a-entity fly="type: autoForwardFixedDirection; forwardOffsetAngle: 0;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
+            <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>
         </a-entity>
  
 
@@ -53,7 +61,8 @@ document.querySelector('#app').innerHTML = `
 
         <!-- Camera -->
 <!--        <a-entity camera look-controls position="0 4 20" ></a-entity>-->
-        <a-entity camera gameview="target: #plane-character" rotation="-30 0 0"></a-entity>
+        <!-- DONT FORGET TO CHANGE THE TARGET -->
+        <a-entity camera gameview="target: #monster-character" rotation="-30 0 0"></a-entity>
         
     </a-scene>
 `

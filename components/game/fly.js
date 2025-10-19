@@ -20,7 +20,7 @@ AFRAME.registerComponent("fly", {
         keySprint: {type: "string", default: "shift"},
         sprintSpeed: {type: "number", default: 10},
 
-        type: {type: "string", default: "freeDirectionalFlight"}, // freeDirectionalFlight, autoForward, AutoForwardFixedDirection, MouseDirectedFlight
+        type: {type: "string", default: "autoForwardFixedDirection"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection, MouseDirectedFlight
 
         allowPitch: {type: "boolean", default: true}, // nose up/down
         autoLevelPitch: {type: "boolean", default: true},
@@ -33,6 +33,12 @@ AFRAME.registerComponent("fly", {
         rollSpeed: {type: "number", default: 90},
 
         forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
+
+        // only auto forward fixed direction properties
+        canMoveVertically: {type: "boolean", default: true}, // move up and down
+        canMoveHorizontally: {type: "boolean", default: true}, // move left and right
+        speedVertical : {type: "number", default: 4}, // vertical movement speed
+        speedHorizontal : {type: "number", default: 4}, // horizontal movement speed
     },
 
     init() {
@@ -67,6 +73,7 @@ AFRAME.registerComponent("fly", {
         // types of flight
         this.freeDirectionalFlight = null
         this.autoForward = null
+        this.autoForwardFixedDirection = null
 
         // MOVEMENT
         this.movingForward = false
@@ -101,6 +108,12 @@ AFRAME.registerComponent("fly", {
 
         this.elementRotationYToDeg = THREE.MathUtils.degToRad(this.elementRotationY);
         this.baseQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.elementRotationYToDeg);
+
+        // autoForwardFixedDirection
+        this.canMoveVertically = this.data.canMoveVertically
+        this.canMoveHorizontally = this.data.canMoveHorizontally
+        this.speedVertical = this.data.speedVertical
+        this.speedHorizontal = this.data.speedHorizontal
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -149,8 +162,10 @@ AFRAME.registerComponent("fly", {
 
             if (this.freeDirectionalFlight) this.freeDirectionalFlightMove(deltaSec)
             if (this.autoForward) this.autoForwardMove(deltaSec)
+            if (this.autoForwardFixedDirection) this.autoForwardFixedDirectionMove(deltaSec)
 
             this.el.body.setLinearVelocity(this.velocity);
+            this.el.body.activate()
         }
     },
 
@@ -177,6 +192,9 @@ AFRAME.registerComponent("fly", {
                 break;
             case 'autoForward':
                 this.autoForward = true
+                break;
+            case 'autoForwardFixedDirection':
+                this.autoForwardFixedDirection = true
                 break;
             default:
                 this.freeDirectionalFlight = true
@@ -217,7 +235,7 @@ AFRAME.registerComponent("fly", {
         newTransform.setOrigin(origin);
         newTransform.setRotation(new Ammo.btQuaternion(quatX, quatY, quatZ, quatW));
         this.el.body.setWorldTransform(newTransform);
-        this.el.body.activate()
+        // this.el.body.activate()
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -379,7 +397,6 @@ AFRAME.registerComponent("fly", {
         }
 
         this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
-        console.log("display quat y", displayQuat.y)
     },
 
     calculateFinalQuat() {
@@ -391,14 +408,10 @@ AFRAME.registerComponent("fly", {
         const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
         const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
 
-        // this.finalQuat = new THREE.Quaternion();
-        // this.finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
-        // this.finalQuat.normalize();
         const movementQuat = new THREE.Quaternion();
         movementQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
         movementQuat.normalize();
 
-        // Zkombinuj s počáteční rotací entity
         this.finalQuat = this.baseQuat.clone().multiply(movementQuat);
     },
 
@@ -435,5 +448,49 @@ AFRAME.registerComponent("fly", {
         const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
         this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
     },
+
+    // AUTO FORWARD FIXED DIRECTION
+
+    autoForwardFixedDirectionMove() {
+        const speed = this.speed;
+        const speedVertical = this.speedVertical;
+        const speedHorizontal = this.speedHorizontal;
+        const currentVelocity = this.el.body.getLinearVelocity();
+        const rotationY = this.elementRotationYToDeg
+
+        const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationY).normalize();
+        let offset = new THREE.Vector3(0, 0, 0);
+
+        if (this.canMoveVertically) {
+            if (this.movingForward) offset.add(new THREE.Vector3(0, 1, 0).multiplyScalar(speedVertical));
+            if (this.movingBackward) offset.add(new THREE.Vector3(0, -1, 0).multiplyScalar(speedVertical));
+        }
+
+        if (this.canMoveHorizontally) {
+            if (this.movingRight) offset.add(new THREE.Vector3(-1, 0, 0).multiplyScalar(speedHorizontal));
+            if (this.movingLeft) offset.add(new THREE.Vector3(1, 0, 0).multiplyScalar(speedHorizontal));
+        }
+
+        const rotationQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
+        offset.applyQuaternion(rotationQuat);
+
+        let displayQuat = rotationQuat.clone();
+        if (this.forwardOffsetAngle) {
+            const offsetRad = THREE.MathUtils.degToRad(this.forwardOffsetAngle);
+            const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
+            displayQuat.multiply(offsetQuat);
+
+            this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
+        }
+
+        const finalVelocity = forward.clone().multiplyScalar(speed).add(offset);
+
+        const vy = this.canMoveVertically ? finalVelocity.y : currentVelocity.y();
+
+        this.velocity = new Ammo.btVector3(finalVelocity.x, vy, finalVelocity.z);
+    }
+
+
+
 
 })
