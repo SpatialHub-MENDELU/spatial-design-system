@@ -420,7 +420,7 @@ AFRAME.registerComponent("fly", {
         }
 
         // pitch - nose up/down
-        if (this.allowPitch)this.setPitchDeg(deltaSec);
+        if (this.allowPitch) this.setPitchDeg(deltaSec);
         else {
             const moveUp = this.movingForward ? 1 : this.movingBackward ? -1 : 0;
             this.verticalVelocity = moveUp * this.speed;
@@ -478,7 +478,7 @@ AFRAME.registerComponent("fly", {
         } else if (this.movingBackward) {
             this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
         } else {
-            if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
+            if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05; // todo 0.05 udava jak rychle se vrati do puvodniho stavu -> vezmi rozdíl mezi nulou a současným úhlem a posuň se o 5 % směrem k nule
         }
     },
 
@@ -529,23 +529,9 @@ AFRAME.registerComponent("fly", {
         const rotationQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
         offset.applyQuaternion(rotationQuat);
 
-        if (this.allowPitch) {
-            const maxPitchDeg = this.maxPitchDeg;
-            const pitchSpeedDeg = (this.pitchSpeed) * deltaSec * 0.8;
+        if (this.allowPitch) this.setPitchDeg(deltaSec);
+        if (this.allowRoll) this.setRollDeg(deltaSec)
 
-            if (this.movingForward) this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
-            else if (this.movingBackward) this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
-            else if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05; // todo 0.05 udava jak rychle se vrati do puvodniho stavu -> vezmi rozdíl mezi nulou a současným úhlem a posuň se o 5 % směrem k nule
-        }
-
-        if (this.allowRoll) {
-            const maxRollDeg = this.maxRollDeg;
-            const rollSpeedDeg = (this.rollSpeed || 90) * deltaSec;
-
-            if (this.movingRight) this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
-            else if (this.movingLeft) this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
-            else if (this.autoLevelRoll) this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
-        }
 
         const rollRad = THREE.MathUtils.degToRad(this.currentRollDeg || 0);
         const pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg || 0);
