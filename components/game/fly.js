@@ -85,25 +85,36 @@ AFRAME.registerComponent("fly", {
         this.isSprinting = false
         this.velocity = null
 
-        // rotation, pitch, roll
+        // transformation
+        this.displayQuat = null
+
+        // rotation
         this.forwardOffsetAngle = this.data.forwardOffsetAngle
         this.elementRotationY = this.el.getAttribute('rotation').y
         this.currentRotation = this.elementRotationY + this.forwardOffsetAngle
-        this.displayQuat = null
 
+        // pitch
         this.allowPitch = this.data.allowPitch
         this.autoLevelPitch = this.data.autoLevelPitch
         this.maxPitchDeg = this.data.maxPitchDeg
         this.pitchSpeed = this.data.pitchSpeed
+        this.currentPitchDeg = 0;
+        this.pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg);
+        this.pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.pitchRad);
 
+        //roll
         this.allowRoll = this.data.allowRoll
         this.autoLevelRoll = this.data.autoLevelRoll
         this.maxRollDeg = this.data.maxRollDeg
         this.rollSpeed = this.data.rollSpeed
+        this.currentRollDeg = 0;
+        this.rollRad = THREE.MathUtils.degToRad(this.currentRollDeg);
+        this.rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), this.rollRad);
+
+        // yaw
+
 
         // autoForward
-        this.currentRollDeg = 0;
-        this.currentPitchDeg = 0;
         this.currentYawDeg = 0;
         this.finalQuat = null
         this.verticalVelocity = null
@@ -532,15 +543,10 @@ AFRAME.registerComponent("fly", {
         if (this.allowPitch) this.setPitchDeg(deltaSec);
         if (this.allowRoll) this.setRollDeg(deltaSec)
 
-
-        const rollRad = THREE.MathUtils.degToRad(this.currentRollDeg || 0);
-        const pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg || 0);
-
-        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRad);
-        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rollRad);
+        this.setPitchRollYatQuat()
 
         this.displayQuat = rotationQuat.clone();
-        this.displayQuat.multiply(pitchQuat).multiply(rollQuat);
+        this.displayQuat.multiply(this.pitchQuat).multiply(this.rollQuat);
 
         this.setDisplayQuat()
 
@@ -549,6 +555,14 @@ AFRAME.registerComponent("fly", {
         const finalVelocity = forward.clone().multiplyScalar(speed).add(offset);
         const vy = this.canMoveVertically ? finalVelocity.y : currentVelocity.y();
         this.velocity = new Ammo.btVector3(finalVelocity.x, vy, finalVelocity.z);
+    },
+
+    setPitchRollYatQuat() {
+        this.rollRad = THREE.MathUtils.degToRad(this.currentRollDeg);
+        this.rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), this.rollRad);
+
+        this.pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg);
+        this.pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.pitchRad);
     }
 
 })
