@@ -374,18 +374,7 @@ AFRAME.registerComponent("fly", {
     },
 
     updatePitchRollVisuals(deltaSec) {
-        if (this.allowPitch) {
-            const maxPitchDeg = this.maxPitchDeg || 25;
-            const pitchSpeedDeg = (this.pitchSpeed || 60) * deltaSec * 0.8;
-
-            if (this.descending && !this.allowGravity) {
-                this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
-            } else if (this.ascending) {
-                this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
-            } else if (this.autoLevelPitch) {
-                this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
-            }
-        }
+        if (this.allowPitch) this.setPitchDeg(deltaSec);
 
         if (this.allowRoll) this.setRollDeg(deltaSec);
 
@@ -472,16 +461,26 @@ AFRAME.registerComponent("fly", {
     },
 
     setPitchDeg(deltaSec) {
+        // pitch - nose up/down
         const maxPitchDeg = this.maxPitchDeg;
         const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
 
-        // pitch - nose up/down
-        if (this.movingForward) {
-            this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
-        } else if (this.movingBackward) {
-            this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+        if (this.freeDirectionalFlight) {
+            if (this.descending && !this.allowGravity) {
+                this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+            } else if (this.ascending) {
+                this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
+            } else if (this.autoLevelPitch) {
+                this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
+            }
         } else {
-            if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05; // todo 0.05 udava jak rychle se vrati do puvodniho stavu -> vezmi rozdíl mezi nulou a současným úhlem a posuň se o 5 % směrem k nule
+            if (this.movingForward) {
+                this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
+            } else if (this.movingBackward) {
+                this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+            } else {
+                if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05; // todo 0.05 udava jak rychle se vrati do puvodniho stavu -> vezmi rozdíl mezi nulou a současným úhlem a posuň se o 5 % směrem k nule
+            }
         }
     },
 
