@@ -374,9 +374,9 @@ AFRAME.registerComponent("fly", {
     },
 
     updatePitchRollVisuals(deltaSec) {
-        if (this.allowPitch) this.setPitchDeg(deltaSec);
+        this.setPitchDeg(deltaSec);
 
-        if (this.allowRoll) this.setRollDeg(deltaSec);
+        this.setRollDeg(deltaSec);
 
         this.setPitchRollYatQuat()
 
@@ -425,7 +425,7 @@ AFRAME.registerComponent("fly", {
         }
 
         // roll - tilt left/right
-        if (this.allowRoll) this.setRollDeg(deltaSec);
+        this.setRollDeg(deltaSec);
 
         this.calculateFinalQuat();
 
@@ -462,29 +462,26 @@ AFRAME.registerComponent("fly", {
 
     setPitchDeg(deltaSec) {
         // pitch - nose up/down
+        if (this.allowPitch === false) return;
+
         const maxPitchDeg = this.maxPitchDeg;
         const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
 
-        if (this.freeDirectionalFlight) {
-            if (this.descending && !this.allowGravity) {
-                this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
-            } else if (this.ascending) {
-                this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
-            } else if (this.autoLevelPitch) {
-                this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
-            }
-        } else {
-            if (this.movingForward) {
-                this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
-            } else if (this.movingBackward) {
-                this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
-            } else {
-                if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05; // todo 0.05 udava jak rychle se vrati do puvodniho stavu -> vezmi rozdíl mezi nulou a současným úhlem a posuň se o 5 % směrem k nule
-            }
+        const pitchUp = this.freeDirectionalFlight ? this.descending && !this.allowGravity : this.movingBackward;
+        const pitchDown = this.freeDirectionalFlight ? this.ascending : this.movingForward;
+
+        if (pitchUp) {
+            this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+        } else if (pitchDown) {
+            this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
+        } else if (this.autoLevelPitch) {
+            this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
         }
     },
 
     setRollDeg(deltaSec) {
+        if (this.allowRoll === false) return;
+
         const maxRollDeg = this.maxRollDeg;
         const rollSpeedDeg = this.rollSpeed * deltaSec;
 
@@ -536,8 +533,8 @@ AFRAME.registerComponent("fly", {
         const rotationQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
         offset.applyQuaternion(rotationQuat);
 
-        if (this.allowPitch) this.setPitchDeg(deltaSec);
-        if (this.allowRoll) this.setRollDeg(deltaSec)
+        this.setPitchDeg(deltaSec);
+        this.setRollDeg(deltaSec)
 
         this.setPitchRollYatQuat()
 
