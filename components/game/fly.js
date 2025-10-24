@@ -11,12 +11,12 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: false},
+        allowGravity: {type: "boolean", default: true},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
 
-        sprint: {type: "boolean", default: true},
+        sprint: {type: "boolean", default: false},
         keySprint: {type: "string", default: "shift"},
         sprintSpeed: {type: "number", default: 10},
 
@@ -24,12 +24,12 @@ AFRAME.registerComponent("fly", {
 
         allowPitch: {type: "boolean", default: true}, // nose up/down
         autoLevelPitch: {type: "boolean", default: true},
-        maxPitchDeg: {type: "number", default: 30},
-        pitchSpeed: {type: "number", default: 90},
+        maxPitchDeg: {type: "number", default: 20},
+        pitchSpeed: {type: "number", default: 180},
 
         allowRoll: {type: "boolean", default: true}, // tilt left/right
         autoLevelRoll: {type: "boolean", default: true},
-        maxRollDeg: {type: "number", default: 30},
+        maxRollDeg: {type: "number", default: 20},
         rollSpeed: {type: "number", default: 90},
 
         forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
@@ -311,27 +311,74 @@ AFRAME.registerComponent("fly", {
     // FREE DIRECTIONAL FLIGHT
 
     freeDirectionalFlightMove(deltaSec) {
-        this.handleFreeDirectionalFlightAnimations()
+        this.handleFreeDirectionalFlightAnimations();
 
         const currentVelocity = this.el.body.getLinearVelocity();
         this.velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
 
         if (this.sprintEnabled) {
-            this.isSprinting ? this.startSprinting() : this.stopSprinting()
+            this.isSprinting ? this.startSprinting() : this.stopSprinting();
         }
 
         if (this.movingForward || this.movingBackward) {
-            this.move()
+            this.move();
         }
 
-        this.ascendDescendMovement()
+        this.ascendDescendMovement();
 
         if (this.movingRight || this.movingLeft) {
-            this.turnSmoothly(deltaSec)
+            this.turnSmoothly(deltaSec);
         }
 
-        if (!this.movingForward && !this.movingBackward) this.stopMovement()
+        if (!this.movingForward && !this.movingBackward) {
+            this.stopMovement();
+        }
+
+        if (this.allowPitch || this.allowRoll) this.updatePitchRollVisuals(deltaSec);
+
     },
+
+    updatePitchRollVisuals(deltaSec) {
+        if (this.allowPitch) {
+            const maxPitchDeg = this.maxPitchDeg || 25;
+            const pitchSpeedDeg = (this.pitchSpeed || 60) * deltaSec * 0.8;
+
+            if (this.descending && !this.allowGravity) {
+                this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+            } else if (this.ascending) {
+                this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
+            } else if (this.autoLevelPitch) {
+                this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
+            }
+        }
+
+        if (this.allowRoll) {
+            const maxRollDeg = this.maxRollDeg || 45;
+            const rollSpeedDeg = (this.rollSpeed || 90) * deltaSec;
+             if (this.movingRight) {
+                    if (this.movingForward || this.movingBackward) this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
+                } else if (this.movingLeft) {
+                    if (this.movingForward || this.movingBackward) this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
+                } else {
+                    this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
+                }
+        }
+
+        const rollRad = THREE.MathUtils.degToRad(this.currentRollDeg || 0);
+        const pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg || 0);
+        const yawRad = THREE.MathUtils.degToRad(this.currentRotation || 0);
+
+        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yawRad);
+        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRad);
+        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rollRad);
+
+        const finalQuat = new THREE.Quaternion();
+        finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+        finalQuat.normalize();
+
+        this.setTransform(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w);
+    },
+
 
     handleFreeDirectionalFlightAnimations() {
         const isMoving =
