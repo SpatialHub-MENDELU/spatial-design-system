@@ -451,14 +451,16 @@ AFRAME.registerComponent("fly", {
 
     // AUTO FORWARD FIXED DIRECTION
 
-    autoForwardFixedDirectionMove() {
+    autoForwardFixedDirectionMove(deltaSec) {
         const speed = this.speed;
         const speedVertical = this.speedVertical;
         const speedHorizontal = this.speedHorizontal;
         const currentVelocity = this.el.body.getLinearVelocity();
-        const rotationY = this.elementRotationYToDeg
+        const rotationY = this.elementRotationYToDeg;
 
-        const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationY).normalize();
+        const forward = new THREE.Vector3(0, 0, 1)
+            .applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationY)
+            .normalize();
         let offset = new THREE.Vector3(0, 0, 0);
 
         if (this.canMoveVertically) {
@@ -474,23 +476,44 @@ AFRAME.registerComponent("fly", {
         const rotationQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
         offset.applyQuaternion(rotationQuat);
 
+        if (this.allowPitch) {
+            const maxPitchDeg = this.maxPitchDeg;
+            const pitchSpeedDeg = (this.pitchSpeed) * deltaSec * 0.8;
+
+            if (this.movingForward) this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
+            else if (this.movingBackward) this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
+            else if (this.autoLevelPitch) this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05; // todo 0.05 udava jak rychle se vrati do puvodniho stavu -> vezmi rozdíl mezi nulou a současným úhlem a posuň se o 5 % směrem k nule
+        }
+
+        if (this.allowRoll) {
+            const maxRollDeg = this.maxRollDeg;
+            const rollSpeedDeg = (this.rollSpeed || 90) * deltaSec;
+
+            if (this.movingRight) this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
+            else if (this.movingLeft) this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
+            else if (this.autoLevelRoll) this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
+        }
+
+        const rollRad = THREE.MathUtils.degToRad(this.currentRollDeg || 0);
+        const pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg || 0);
+
+        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRad);
+        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rollRad);
+
         let displayQuat = rotationQuat.clone();
+        displayQuat.multiply(pitchQuat).multiply(rollQuat);
+
         if (this.forwardOffsetAngle) {
             const offsetRad = THREE.MathUtils.degToRad(this.forwardOffsetAngle);
             const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
             displayQuat.multiply(offsetQuat);
-
-            this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
         }
 
+        this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
+
         const finalVelocity = forward.clone().multiplyScalar(speed).add(offset);
-
         const vy = this.canMoveVertically ? finalVelocity.y : currentVelocity.y();
-
         this.velocity = new Ammo.btVector3(finalVelocity.x, vy, finalVelocity.z);
     }
-
-
-
 
 })
