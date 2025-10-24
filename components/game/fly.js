@@ -11,7 +11,7 @@ AFRAME.registerComponent("fly", {
         keyAscend: {type: "string", default: " "},
         keyDescend: {type: "string", default: "c"},
 
-        allowGravity: {type: "boolean", default: true},
+        allowGravity: {type: "boolean", default: false},
 
         speed: {type: "number", default: 4},
         rotationSpeed: {type: "number", default: 90},
@@ -268,8 +268,9 @@ AFRAME.registerComponent("fly", {
         this.pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg);
         this.pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.pitchRad);
 
-        this.yawRad = THREE.MathUtils.degToRad(this.currentYawDeg);
+        this.yawRad = THREE.MathUtils.degToRad(this.currentRotation)
         this.yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yawRad);
+
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -398,16 +399,10 @@ AFRAME.registerComponent("fly", {
                 }
         }
 
-        const rollRad = THREE.MathUtils.degToRad(this.currentRollDeg || 0);
-        const pitchRad = THREE.MathUtils.degToRad(this.currentPitchDeg || 0);
-        const yawRad = THREE.MathUtils.degToRad(this.currentRotation || 0);
-
-        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yawRad);
-        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRad);
-        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rollRad);
+        this.setPitchRollYatQuat()
 
         const finalQuat = new THREE.Quaternion();
-        finalQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+        finalQuat.multiply(this.yawQuat).multiply(this.pitchQuat).multiply(this.rollQuat);
         finalQuat.normalize();
 
         this.setTransform(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w);
