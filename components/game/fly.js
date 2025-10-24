@@ -387,17 +387,7 @@ AFRAME.registerComponent("fly", {
             }
         }
 
-        if (this.allowRoll) {
-            const maxRollDeg = this.maxRollDeg || 45;
-            const rollSpeedDeg = (this.rollSpeed || 90) * deltaSec;
-             if (this.movingRight) {
-                    if (this.movingForward || this.movingBackward) this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
-                } else if (this.movingLeft) {
-                    if (this.movingForward || this.movingBackward) this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
-                } else {
-                    this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
-                }
-        }
+        if (this.allowRoll) this.setRollDeg(deltaSec);
 
         this.setPitchRollYatQuat()
 
@@ -499,11 +489,16 @@ AFRAME.registerComponent("fly", {
         const maxRollDeg = this.maxRollDeg;
         const rollSpeedDeg = this.rollSpeed * deltaSec;
 
+        let allowRoll = true
+        if (this.freeDirectionalFlight) {
+            allowRoll = !!(this.movingForward || this.movingBackward);
+        }
+
         // roll - tilt left/right
         if (this.movingRight) {
-            this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
+            if (allowRoll) this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
         } else if (this.movingLeft) {
-            this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
+            if (allowRoll) this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
         } else {
             if (this.autoLevelRoll) this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
         }
