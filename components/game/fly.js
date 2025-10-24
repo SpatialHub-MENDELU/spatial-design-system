@@ -85,9 +85,11 @@ AFRAME.registerComponent("fly", {
         this.isSprinting = false
         this.velocity = null
 
+        // rotation, pitch, roll
         this.forwardOffsetAngle = this.data.forwardOffsetAngle
         this.elementRotationY = this.el.getAttribute('rotation').y
         this.currentRotation = this.elementRotationY + this.forwardOffsetAngle
+        this.displayQuat = null
 
         this.allowPitch = this.data.allowPitch
         this.autoLevelPitch = this.data.autoLevelPitch
@@ -236,6 +238,14 @@ AFRAME.registerComponent("fly", {
         newTransform.setRotation(new Ammo.btQuaternion(quatX, quatY, quatZ, quatW));
         this.el.body.setWorldTransform(newTransform);
         // this.el.body.activate()
+    },
+
+    setDisplayQuat() {
+        if (this.forwardOffsetAngle) {
+            const offsetRad = THREE.MathUtils.degToRad(this.forwardOffsetAngle);
+            const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
+            this.displayQuat.multiply(offsetQuat);
+        }
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,14 +446,10 @@ AFRAME.registerComponent("fly", {
 
         this.velocity = new Ammo.btVector3(vx, vy, vz);
 
-        let displayQuat = this.finalQuat.clone();
-        if (this.forwardOffsetAngle) {
-            const offsetRad = THREE.MathUtils.degToRad(this.forwardOffsetAngle);
-            const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
-            displayQuat.multiply(offsetQuat);
-        }
+        this.displayQuat = this.finalQuat.clone();
+        this.setDisplayQuat()
 
-        this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
+        this.setTransform(this.displayQuat.x, this.displayQuat.y, this.displayQuat.z, this.displayQuat.w);
     },
 
     calculateFinalQuat() {
@@ -547,16 +553,12 @@ AFRAME.registerComponent("fly", {
         const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRad);
         const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rollRad);
 
-        let displayQuat = rotationQuat.clone();
-        displayQuat.multiply(pitchQuat).multiply(rollQuat);
+        this.displayQuat = rotationQuat.clone();
+        this.displayQuat.multiply(pitchQuat).multiply(rollQuat);
 
-        if (this.forwardOffsetAngle) {
-            const offsetRad = THREE.MathUtils.degToRad(this.forwardOffsetAngle);
-            const offsetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), offsetRad);
-            displayQuat.multiply(offsetQuat);
-        }
+        this.setDisplayQuat()
 
-        this.setTransform(displayQuat.x, displayQuat.y, displayQuat.z, displayQuat.w);
+        this.setTransform(this.displayQuat.x, this.displayQuat.y, this.displayQuat.z, this.displayQuat.w);
 
         const finalVelocity = forward.clone().multiplyScalar(speed).add(offset);
         const vy = this.canMoveVertically ? finalVelocity.y : currentVelocity.y();
