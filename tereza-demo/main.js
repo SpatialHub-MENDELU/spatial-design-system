@@ -56,24 +56,3 @@ document.addEventListener("DOMContentLoaded", () => {
     createBox();
   });
 });
-
-{
-  /* <a-ar-textbox
-    position="0 1.6 -3"
-    label="Label"
-    size="extra-large"
-    finger-touch
-></a-ar-textbox> */
-}
-
-const box = document.querySelector("a-box");
-box.addEventListener("click", () => {
-  console.log("box clicked");
-  const previousColor = box.getAttribute("material").color;
-
-  box.setAttribute("material", "color", "red");
-
-  setTimeout(() => {
-    box.setAttribute("material", "color", previousColor);
-  }, 100);
-});

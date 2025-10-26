@@ -10,15 +10,14 @@ AFRAME.registerComponent("finger-touch", {
   },
 
   onHoverStart(event) {
-    const isPointing = event.detail.withEl.getAttribute("pointing");
+    const isPointing = event.detail?.hand?.getAttribute("pointing");
     if (isPointing === "true") {
       event.target.emit("click");
     }
   },
 
   onHoverEnd(event) {
-    console.log("coll ended");
-    const isPointing = event.detail.withEl.getAttribute("pointing");
+    const isPointing = event.detail?.hand?.getAttribute("pointing");
     if (isPointing === "true") {
       event.target.emit("click-ended");
     }

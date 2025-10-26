@@ -60,7 +60,7 @@ AFRAME.registerComponent("hands-hoverable", {
 
   onHoverStart(event) {
     this.isIntersecting = true;
-    const isPointing = event.detail.withEl.getAttribute("pointing");
+    const isPointing = event.detail?.hand?.getAttribute("pointing");
     if (isPointing === "true") {
       return;
     }
@@ -69,7 +69,7 @@ AFRAME.registerComponent("hands-hoverable", {
 
   onHoverEnd(event) {
     this.isIntersecting = false;
-    const isPointing = event.detail.withEl.getAttribute("pointing");
+    const isPointing = event.detail?.hand?.getAttribute("pointing");
     if (isPointing === "true") {
       return;
     }
