@@ -8,6 +8,12 @@ AFRAME.registerComponent("stretchable", {
     },
     maxScaleFactor: { type: "number", default: 1.5 },
     minScaleFactor: { type: "number", default: 0.5 },
+    maxBoxTouchDistance: { type: "number", default: 0.03 },
+    maxCornerSelectDistance: { type: "number", default: 0.06 },
+    // Note: maxCornerSelectDistance is larger than maxBoxTouchDistance because:
+    // 1. First we check if you're close to the box surface (strict: 3cm)
+    // 2. Then we check if you're close to any corner of that box (looser: 6cm)
+    // This allows corner selection even when the corner extends beyond the surface threshold
   },
   init() {
     this.el.setAttribute("obb-collider", "centerModel: true");
@@ -57,7 +63,9 @@ AFRAME.registerComponent("stretchable", {
       );
       const best = findNearestStretchableCorner(
         intersectionPoint,
-        stretchables
+        stretchables,
+        this.data.maxBoxTouchDistance,
+        this.data.maxCornerSelectDistance
       );
       if (!best || best.targetEl !== this.el) return; // Not a corner of this element
       centerWorld = best.centerWorld.clone();
@@ -129,16 +137,18 @@ AFRAME.registerComponent("stretchable", {
     const currentDistanceToCenter = currentVector.length();
     if (currentDistanceToCenter < 1e-6) return;
 
+    // Calculate scale bounds (used by both uniform and non-uniform scaling)
+    const maxX = initialScale.x * this.data.maxScaleFactor;
+    const maxY = initialScale.y * this.data.maxScaleFactor;
+    const maxZ = initialScale.z * this.data.maxScaleFactor;
+    const minX = initialScale.x * this.data.minScaleFactor;
+    const minY = initialScale.y * this.data.minScaleFactor;
+    const minZ = initialScale.z * this.data.minScaleFactor;
+
     // Uniform vs non-uniform scaling based on stretchable mode
     if (uniform) {
       const f =
         currentDistanceToCenter / Math.max(initialDistanceToCenter, 1e-6);
-      const maxX = initialScale.x * this.data.maxScaleFactor;
-      const maxY = initialScale.y * this.data.maxScaleFactor;
-      const maxZ = initialScale.z * this.data.maxScaleFactor;
-      const minX = initialScale.x * this.data.minScaleFactor;
-      const minY = initialScale.y * this.data.minScaleFactor;
-      const minZ = initialScale.z * this.data.minScaleFactor;
       const nx = Math.min(maxX, Math.max(minX, initialScale.x * f));
       const ny = Math.min(maxY, Math.max(minY, initialScale.y * f));
       const nz = Math.min(maxZ, Math.max(minZ, initialScale.z * f));
@@ -158,12 +168,6 @@ AFRAME.registerComponent("stretchable", {
           ? currentVectorAbs.z / initialVectorAbs.z
           : currentDistanceToCenter / initialDistanceToCenter;
 
-      const maxX = initialScale.x * this.data.maxScaleFactor;
-      const maxY = initialScale.y * this.data.maxScaleFactor;
-      const maxZ = initialScale.z * this.data.maxScaleFactor;
-      const minX = initialScale.x * this.data.minScaleFactor;
-      const minY = initialScale.y * this.data.minScaleFactor;
-      const minZ = initialScale.z * this.data.minScaleFactor;
       const newScaleX = Math.min(maxX, Math.max(minX, initialScale.x * sx));
       const newScaleY = Math.min(maxY, Math.max(minY, initialScale.y * sy));
       const newScaleZ = Math.min(maxZ, Math.max(minZ, initialScale.z * sz));

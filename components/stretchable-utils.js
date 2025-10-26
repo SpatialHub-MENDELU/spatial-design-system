@@ -5,16 +5,18 @@ import { jointIndices } from "./ar/hands-utils.js";
 // Finds a stretchable whose world-space bounding box is near the pinch point
 // and returns the nearest corner information. This guards the behavior so it
 // only triggers for elements with the `stretchable` component and only when the
-// pinch is actually close to the element's surface and a corner. The function
+// pinch/controllers is actually close to the element's surface and a corner. The function
 // also assigns a score to prefer tight proximity to the box and its corner.
-export function findNearestStretchableCorner(pointWorld, elements) {
+export function findNearestStretchableCorner(
+  pointWorld,
+  elements,
+  maxBoxTouchDistance,
+  maxCornerSelectDistance
+) {
   const box = new THREE.Box3();
   const center = new THREE.Vector3();
   let best = null;
   let bestScore = Infinity; // Lower is better
-
-  const MAX_BOX_TOUCH_DISTANCE = 0.03; // ~3 cm from box surface to allow selection
-  const MAX_CORNER_SELECT_DISTANCE = 0.06; // ~6 cm to prefer corner grabs over face hits
 
   for (const el of elements) {
     if (!el.object3D) continue;
@@ -24,7 +26,7 @@ export function findNearestStretchableCorner(pointWorld, elements) {
 
     // Require pinch point to be close to the element's surface
     const distToBox = box.distanceToPoint(pointWorld);
-    if (distToBox > MAX_BOX_TOUCH_DISTANCE) continue;
+    if (distToBox > maxBoxTouchDistance) continue;
 
     const min = box.min;
     const max = box.max;
@@ -50,7 +52,7 @@ export function findNearestStretchableCorner(pointWorld, elements) {
       }
     }
 
-    if (localBestCorner && localBestCornerDist <= MAX_CORNER_SELECT_DISTANCE) {
+    if (localBestCorner && localBestCornerDist <= maxCornerSelectDistance) {
       // Score prefers smaller distance to box, then corner proximity
       const score = distToBox * 2 + localBestCornerDist;
       if (score < bestScore) {
@@ -117,6 +119,7 @@ function _getJointLocalPosition(
   const jointIndex = jointIndices[jointName];
 
   if (jointIndex === undefined) return null;
+  // Joint positions are stored in a 4x4 matrix, so we need to offset the index by 16 (4x4 matrix) where should start data for the joint
   const matrixOffset = jointIndex * 16;
   tempMatrix.fromArray(jointPoses, matrixOffset);
   return tempPosition.setFromMatrixPosition(tempMatrix).clone();
