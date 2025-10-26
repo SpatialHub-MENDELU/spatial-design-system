@@ -54,8 +54,8 @@ AFRAME.registerComponent("stretchable", {
 
     if (!intersectionPoint) return;
 
-    // Corner-restricted activation in scale mode. For dimensions mode keep previous logic.
-    let centerWorld;
+    // Scale mode: Only activate when pinching near corners for precise control
+    // Dimensions mode: Activate on any intersection point    let centerWorld;
     let initialScale;
     if (this.data.mode === "scale") {
       const stretchables = Array.from(
