@@ -34,14 +34,10 @@ AFRAME.registerComponent("stretchable", {
     this.el.addEventListener("stretch-move", this.onStretchMove);
     this.el.addEventListener("stretch-end", this.onStretchEnd);
 
-    const scene = this.el.sceneEl;
-
-    // This enables interaction with objects using controllers
-    scene.addEventListener("enter-vr", () => {
-      if (scene.states.some((state) => state === "vr-mode")) {
-        this.el.setAttribute("vr-interactive", "");
-      }
-    });
+    // Listen for controller stretch events
+    this.el.addEventListener("controller-stretch-start", this.onStretchStart);
+    this.el.addEventListener("controller-stretch-move", this.onStretchMove);
+    this.el.addEventListener("controller-stretch-end", this.onStretchEnd);
   },
 
   onStretchStart(evt) {
@@ -210,5 +206,11 @@ AFRAME.registerComponent("stretchable", {
     this.el.removeEventListener("stretch-start", this.onStretchStart);
     this.el.removeEventListener("stretch-move", this.onStretchMove);
     this.el.removeEventListener("stretch-end", this.onStretchEnd);
+    this.el.removeEventListener(
+      "controller-stretch-start",
+      this.onStretchStart
+    );
+    this.el.removeEventListener("controller-stretch-move", this.onStretchMove);
+    this.el.removeEventListener("controller-stretch-end", this.onStretchEnd);
   },
 });

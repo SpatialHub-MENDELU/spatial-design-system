@@ -30,11 +30,14 @@ AFRAME.registerComponent("controllers", {
     this.handleTrackpadUp = this.handleTrackpadUp.bind(this);
 
     this.controllerEls = [];
+    this.stretchableEls = [];
+    this.activeStretchControllers = new Set();
 
     // No longer need controller resize state - stretchable handles its own state
 
     this.el.sceneEl.addEventListener("loaded", () => {
       this.setupControllers();
+      this.updateStretchableElements();
     });
 
     if (!AFRAME.components["raycaster-cursor"]) {
@@ -43,34 +46,15 @@ AFRAME.registerComponent("controllers", {
   },
 
   tick() {
-    // Emit stretch-move events for any active controller interactions
-    for (const controller of this.controllerEls) {
-      const raycaster = controller.components.raycaster;
-      if (!raycaster) continue;
+    // Handle stretch move events for any active controller interactions
+    this.handleStretchInteraction("move");
+  },
 
-      const intersections = raycaster.intersections || [];
-      let pointWorld = null;
-
-      // Get the intersection point
-      if (intersections.length > 0) {
-        pointWorld = intersections[0].point;
-      }
-
-      if (pointWorld) {
-        // Emit stretch-move event to all stretchable objects
-        const stretchables = Array.from(
-          this.el.sceneEl.querySelectorAll("[stretchable]")
-        );
-
-        stretchables.forEach((stretchableEl) => {
-          stretchableEl.emit("stretch-move", {
-            controller: controller,
-            intersectionPoint: pointWorld,
-            controllerId: controller.id,
-          });
-        });
-      }
-    }
+  updateStretchableElements() {
+    // Cache stretchable elements to avoid expensive DOM queries every frame
+    this.stretchableEls = Array.from(
+      this.el.sceneEl.querySelectorAll("[stretchable]")
+    );
   },
 
   setupControllers() {
@@ -154,6 +138,7 @@ AFRAME.registerComponent("controllers", {
 
   handleTriggerDown(evt) {
     const controller = evt.target;
+
     const raycaster = controller.components.raycaster;
 
     if (!(raycaster && raycaster.intersectedEls.length > 0)) return;
@@ -162,25 +147,14 @@ AFRAME.registerComponent("controllers", {
     const intersections = raycaster.intersections || [];
     const hitPoint = intersections.length > 0 ? intersections[0].point : null;
 
-    // If the intersected element is stretchable, emit stretch-start event
+    // If the intersected element is stretchable, handle stretch start
     if (
       intersectedEl &&
       intersectedEl.hasAttribute &&
       intersectedEl.hasAttribute("stretchable") &&
       hitPoint
     ) {
-      // Emit stretch-start event to all stretchable objects - let them decide who handles it
-      const stretchables = Array.from(
-        this.el.sceneEl.querySelectorAll("[stretchable]")
-      );
-
-      stretchables.forEach((stretchableEl) => {
-        stretchableEl.emit("stretch-start", {
-          controller: controller,
-          intersectionPoint: hitPoint,
-          controllerId: controller.id,
-        });
-      });
+      this.handleStretchInteraction("start", controller, hitPoint);
       return;
     }
 
@@ -190,19 +164,11 @@ AFRAME.registerComponent("controllers", {
 
   handleTriggerUp(evt) {
     const controller = evt.target;
+
     const raycaster = controller.components.raycaster;
 
-    // Emit stretch-end event to all stretchable objects
-    const stretchables = Array.from(
-      this.el.sceneEl.querySelectorAll("[stretchable]")
-    );
-
-    stretchables.forEach((stretchableEl) => {
-      stretchableEl.emit("stretch-end", {
-        controller: controller,
-        controllerId: controller.id,
-      });
-    });
+    // Handle stretch end
+    this.handleStretchInteraction("end", controller);
 
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("triggerup");
@@ -331,6 +297,58 @@ AFRAME.registerComponent("controllers", {
 
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("trackpadup");
+    }
+  },
+
+  handleStretchInteraction(type, controller = null, hitPoint = null) {
+    if (type === "move") {
+      // Emit controller-stretch-move events for any active controller interactions
+      for (const ctrl of this.controllerEls) {
+        const raycaster = ctrl.components.raycaster;
+        if (!raycaster) continue;
+
+        const intersections = raycaster.intersections || [];
+        let pointWorld = null;
+
+        // Get the intersection point
+        if (intersections.length > 0) {
+          pointWorld = intersections[0].point;
+        }
+
+        if (pointWorld && this.activeStretchControllers.has(ctrl)) {
+          // Emit controller-stretch-move event to all stretchable objects (cached for performance)
+          // Only when this controller's trigger is pressed
+          this.stretchableEls.forEach((stretchableEl) => {
+            stretchableEl.emit("controller-stretch-move", {
+              controller: ctrl,
+              intersectionPoint: pointWorld,
+              controllerId: ctrl.id,
+            });
+          });
+        }
+      }
+    } else if (type === "start" && controller && hitPoint) {
+      // If the intersected element is stretchable, emit controller-stretch-start event
+      this.activeStretchControllers.add(controller);
+      // Emit controller-stretch-start event to all stretchable objects - let them decide who handles it
+      // Use cached stretchableEls for performance
+      this.stretchableEls.forEach((stretchableEl) => {
+        stretchableEl.emit("controller-stretch-start", {
+          controller: controller,
+          intersectionPoint: hitPoint,
+          controllerId: controller.id,
+        });
+      });
+    } else if (type === "end" && controller) {
+      // Emit controller-stretch-end event to all stretchable objects
+      // Use cached stretchableEls for performance
+      this.activeStretchControllers.delete(controller);
+      this.stretchableEls.forEach((stretchableEl) => {
+        stretchableEl.emit("controller-stretch-end", {
+          controller: controller,
+          controllerId: controller.id,
+        });
+      });
     }
   },
 
