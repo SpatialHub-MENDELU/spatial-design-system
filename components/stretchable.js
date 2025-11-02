@@ -1,4 +1,7 @@
 import { findNearestStretchableCorner } from "./stretchable-utils.js";
+import * as THREE from "three";
+import "../components/vrinteractive.js";
+
 AFRAME.registerComponent("stretchable", {
   schema: {
     mode: {
