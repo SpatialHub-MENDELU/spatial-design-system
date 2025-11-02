@@ -91,7 +91,7 @@ AFRAME.registerComponent("fly", {
         // rotation
         this.forwardOffsetAngle = this.data.forwardOffsetAngle
         this.elementRotationY = this.el.getAttribute('rotation').y
-        this.currentRotation = this.elementRotationY + this.forwardOffsetAngle
+        this.currentRotation = this.elementRotationY;
 
         // pitch
         this.allowPitch = this.data.allowPitch
@@ -307,12 +307,14 @@ AFRAME.registerComponent("fly", {
     },
 
     turnSmoothly(deltaSec) {
+        // const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+        // this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
+        //
+        // const finalRotation = this.currentRotation - this.forwardOffsetAngle
+        // const angleRad = THREE.MathUtils.degToRad(finalRotation);
+        // this.rotateCharacterSmoothly(angleRad);
         const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
-
-        const finalRotation = this.currentRotation - this.forwardOffsetAngle
-        const angleRad = THREE.MathUtils.degToRad(finalRotation);
-        this.rotateCharacterSmoothly(angleRad);
     },
 
     ascendDescendMovement() {
@@ -369,22 +371,32 @@ AFRAME.registerComponent("fly", {
             this.stopMovement();
         }
 
-        if (this.allowPitch || this.allowRoll) this.updatePitchRollVisuals(deltaSec);
+        this.updatePitchRollVisuals(deltaSec);
 
     },
 
     updatePitchRollVisuals(deltaSec) {
-        this.setPitchDeg(deltaSec);
+        if (this.allowPitch) {
+            this.setPitchDeg(deltaSec);
+        } else {
+            this.currentPitchDeg = 0;
+        }
 
-        this.setRollDeg(deltaSec);
+        if (this.allowRoll) {
+            this.setRollDeg(deltaSec);
+        } else {
+            this.currentRollDeg = 0;
+        }
 
-        this.setPitchRollYatQuat()
+        this.setPitchRollYatQuat();
 
-        const finalQuat = new THREE.Quaternion();
-        finalQuat.multiply(this.yawQuat).multiply(this.pitchQuat).multiply(this.rollQuat);
-        finalQuat.normalize();
+        this.displayQuat = new THREE.Quaternion();
+        this.displayQuat.multiply(this.yawQuat).multiply(this.pitchQuat).multiply(this.rollQuat);
+        this.displayQuat.normalize();
 
-        this.setTransform(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w);
+        this.setDisplayQuat()
+
+        this.setTransform(this.displayQuat.x, this.displayQuat.y, this.displayQuat.z, this.displayQuat.w);
     },
 
 
