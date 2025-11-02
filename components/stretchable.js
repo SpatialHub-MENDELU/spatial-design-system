@@ -75,8 +75,15 @@ AFRAME.registerComponent("stretchable", {
       if (!this.isClosestStretchable(intersectionPoint)) {
         return;
       }
-      // Calculate center and initial scale
+
+      // Check if the intersection point is close enough to the object's surface
       const bbox = new THREE.Box3().setFromObject(this.el.object3D);
+      const distToBox = bbox.distanceToPoint(intersectionPoint);
+      if (distToBox > this.data.maxBoxTouchDistance) {
+        return; // Too far from the object surface
+      }
+
+      // Calculate center and initial scale
       centerWorld = new THREE.Vector3();
       bbox.getCenter(centerWorld);
       initialScale = this.el.object3D.scale.clone();
