@@ -463,10 +463,18 @@ AFRAME.registerComponent("fly", {
     },
 
     calculateFinalQuat() {
-        this.setPitchRollYatQuat()
+        const roll = THREE.MathUtils.degToRad(this.currentRollDeg);
+        const pitch = THREE.MathUtils.degToRad(this.currentPitchDeg);
+        const yaw = THREE.MathUtils.degToRad(this.currentYawDeg);
+
+        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
+        const rollQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
 
         const movementQuat = new THREE.Quaternion();
-        movementQuat.multiply(this.yawQuat).multiply(this.pitchQuat).multiply(this.rollQuat);
+
+        movementQuat.multiply(yawQuat).multiply(pitchQuat).multiply(rollQuat);
+
         movementQuat.normalize();
 
         this.finalQuat = this.baseQuat.clone().multiply(movementQuat);
