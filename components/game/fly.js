@@ -13,8 +13,8 @@ AFRAME.registerComponent("fly", {
 
         allowGravity: {type: "boolean", default: false},
 
-        speed: {type: "number", default: 4},
-        rotationSpeed: {type: "number", default: 90},
+        speed: {type: "number", default: 2},
+        rotationSpeed: {type: "number", default: 30}, // works only when allowRoll is false
 
         sprint: {type: "boolean", default: false},
         keySprint: {type: "string", default: "shift"},
@@ -23,22 +23,21 @@ AFRAME.registerComponent("fly", {
         type: {type: "string", default: "autoForwardFixedDirection"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection, MouseDirectedFlight
 
         allowPitch: {type: "boolean", default: true}, // nose up/down
-        autoLevelPitch: {type: "boolean", default: false}, // only autoForward flight types can have false
+        autoLevelPitch: {type: "boolean", default: true}, // only autoForward flight types can have false
         maxPitchDeg: {type: "number", default: 20},
-        pitchSpeed: {type: "number", default: 180},
+        pitchSpeed: {type: "number", default: 50},
 
         allowRoll: {type: "boolean", default: true}, // tilt left/right
-        autoLevelRoll: {type: "boolean", default: false}, // only autoForward flight types can have false
-        maxRollDeg: {type: "number", default: 20},
-        rollSpeed: {type: "number", default: 90},
+        autoLevelRoll: {type: "boolean", default: true}, // only autoForward flight types can have false
+        maxRollDeg: {type: "number", default: 30},
+        rollSpeed: {type: "number", default: 60},
+        yawSpeedFactor: {type: "number", default: 1}, // how fast the yaw changes based on roll angle
 
         forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
 
         // only auto forward fixed direction properties
         canMoveVertically: {type: "boolean", default: true}, // move up and down
         canMoveHorizontally: {type: "boolean", default: true}, // move left and right
-        speedVertical : {type: "number", default: 4}, // vertical movement speed
-        speedHorizontal : {type: "number", default: 4}, // horizontal movement speed
     },
 
     init() {
@@ -67,6 +66,7 @@ AFRAME.registerComponent("fly", {
         this.sprintEnabled = this.data.sprint
         this.sprintSpeed = this.data.sprintSpeed
         this.rotationSpeed = this.data.rotationSpeed
+        this.yawSpeedFactor = this.data.yawSpeedFactor // how fast the yaw changes based on roll angle
 
         this.animation = null
 
@@ -127,8 +127,6 @@ AFRAME.registerComponent("fly", {
         // autoForwardFixedDirection
         this.canMoveVertically = this.data.canMoveVertically
         this.canMoveHorizontally = this.data.canMoveHorizontally
-        this.speedVertical = this.data.speedVertical
-        this.speedHorizontal = this.data.speedHorizontal
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -312,12 +310,6 @@ AFRAME.registerComponent("fly", {
     },
 
     turnSmoothly(deltaSec) {
-        // const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
-        // this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
-        //
-        // const finalRotation = this.currentRotation - this.forwardOffsetAngle
-        // const angleRad = THREE.MathUtils.degToRad(finalRotation);
-        // this.rotateCharacterSmoothly(angleRad);
         const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
         this.currentRotation = (this.currentRotation + dir * this.rotationSpeed * deltaSec + 360) % 360;
     },
@@ -493,7 +485,7 @@ AFRAME.registerComponent("fly", {
         if (this.freeDirectionalFlight || this.autoForwardFixedDirection) allowAutoLevelPitch = true
 
         const maxPitchDeg = this.maxPitchDeg;
-        const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
+        const pitchSpeedDeg = this.pitchSpeed * deltaSec
 
         const pitchUp = this.freeDirectionalFlight ? this.descending && !this.allowGravity : this.movingBackward;
         const pitchDown = this.freeDirectionalFlight ? this.ascending : this.movingForward;
@@ -533,16 +525,16 @@ AFRAME.registerComponent("fly", {
 
     setYawDeg(deltaSec) {
         // yaw - turn left/right
-        const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg) * 0.8;
-        this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec;
+        const yawSpeedFactor = this.yawSpeedFactor;
+        const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg);
+
+        this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec * yawSpeedFactor;
     },
 
     // AUTO FORWARD FIXED DIRECTION
 
     autoForwardFixedDirectionMove(deltaSec) {
         const speed = this.speed;
-        const speedVertical = this.speedVertical;
-        const speedHorizontal = this.speedHorizontal;
         const currentVelocity = this.el.body.getLinearVelocity();
         const rotationY = this.elementRotationYToDeg;
 
@@ -552,13 +544,13 @@ AFRAME.registerComponent("fly", {
         let offset = new THREE.Vector3(0, 0, 0);
 
         if (this.canMoveVertically) {
-            if (this.movingForward) offset.add(new THREE.Vector3(0, 1, 0).multiplyScalar(speedVertical));
-            if (this.movingBackward) offset.add(new THREE.Vector3(0, -1, 0).multiplyScalar(speedVertical));
+            if (this.movingForward) offset.add(new THREE.Vector3(0, 1, 0).multiplyScalar(speed));
+            if (this.movingBackward) offset.add(new THREE.Vector3(0, -1, 0).multiplyScalar(speed));
         }
 
         if (this.canMoveHorizontally) {
-            if (this.movingRight) offset.add(new THREE.Vector3(-1, 0, 0).multiplyScalar(speedHorizontal));
-            if (this.movingLeft) offset.add(new THREE.Vector3(1, 0, 0).multiplyScalar(speedHorizontal));
+            if (this.movingRight) offset.add(new THREE.Vector3(-1, 0, 0).multiplyScalar(speed));
+            if (this.movingLeft) offset.add(new THREE.Vector3(1, 0, 0).multiplyScalar(speed));
         }
 
         const rotationQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
