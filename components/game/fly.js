@@ -1,3 +1,6 @@
+import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGameKey} from "../../utils/gameUtils";
+
+
 AFRAME.registerComponent("fly", {
     schema: {
         idleClipName: {type: "string", default: "*Yes*"},
@@ -39,6 +42,7 @@ AFRAME.registerComponent("fly", {
         canMoveVertically: {type: "boolean", default: true}, // move up and down
         canMoveHorizontally: {type: "boolean", default: true}, // move left and right
     },
+
 
     init() {
         // GENERAL
@@ -130,6 +134,8 @@ AFRAME.registerComponent("fly", {
 
         // CHECK INPUTS
         this.wrongInput = false
+        this.hasModelAnimations = false
+        this.checkInputs()
 
         if (this.wrongInput) return;
 
@@ -182,12 +188,62 @@ AFRAME.registerComponent("fly", {
         }
     },
 
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CHECK INPUTS
+
+    checkInputs() {
+        // animations check
+        this.el.addEventListener('model-loaded', (e) => {
+            const model = e.detail.model;
+            const hasModelAnimations = hasGLTFAnimations(model)
+            this.hasModelAnimations = hasModelAnimations
+            if (hasModelAnimations === true) {
+                if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
+                if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
+                if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.data.sprintClipName)) this.wrongInput = true
+            }
+        })
+
+        // flight type
+        if (!this.isValidFlightType(this.data.type)) this.wrongInput = true
+
+        // speeds
+        if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
+        if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.pitchSpeed, "pitchSpeed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.rollSpeed, "rollSpeed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.maxPitchDeg, "maxPitchDeg")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.maxRollDeg, "maxRollDeg")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.yawSpeedFactor, "yawSpeedFactor")) this.wrongInput = true
+
+        // keys
+        if (!isValidGameKey(this.data.keyUp)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyDown)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyLeft)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyRight)) this.wrongInput = true
+        if (this.sprintEnabled && !isValidGameKey(this.data.keySprint)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyAscend)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyDescend)) this.wrongInput = true
+    },
+
+    isValidFlightType(type) {
+        const validTypes = ['freeDirectionalFlight', 'autoForward', 'autoForwardFixedDirection'];
+        if (!validTypes.includes(type)) {
+            console.error(`Invalid flight type: "${type}". Valid types are: ${validTypes.join(', ')}`);
+            return false;
+        }
+        return true;
+    },
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // SET METHODS
 
     setAnimation(name) {
         if (!this.characterModel) return;
         if (this.animation === name) return;
+        if (!this.hasModelAnimations) return;
         this.animation = name;
 
         this.characterModel.setAttribute('animation-mixer', {

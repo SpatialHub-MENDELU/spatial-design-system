@@ -24,6 +24,16 @@ export function doesGLTFAnimationExist(model, animationName) {
     return true;
 }
 
+export function hasGLTFAnimations(model) {
+    const animations = model.animations || model.scene?.animations;
+
+    if (!animations || animations.length === 0) {
+        console.log('The model does not contain any animations.');
+        return false;
+    }
+    return true;
+}
+
 export function isPositiveNumber(input, name){
     if (input <= 0) {
         console.error(`Property "${name}" is not a positive number: ${input}`);
