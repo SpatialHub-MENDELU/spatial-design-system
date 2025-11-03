@@ -23,12 +23,12 @@ AFRAME.registerComponent("fly", {
         type: {type: "string", default: "autoForwardFixedDirection"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection, MouseDirectedFlight
 
         allowPitch: {type: "boolean", default: true}, // nose up/down
-        autoLevelPitch: {type: "boolean", default: true},
+        autoLevelPitch: {type: "boolean", default: false}, // only autoForward flight types can have false
         maxPitchDeg: {type: "number", default: 20},
         pitchSpeed: {type: "number", default: 180},
 
         allowRoll: {type: "boolean", default: true}, // tilt left/right
-        autoLevelRoll: {type: "boolean", default: true},
+        autoLevelRoll: {type: "boolean", default: false}, // only autoForward flight types can have false
         maxRollDeg: {type: "number", default: 20},
         rollSpeed: {type: "number", default: 90},
 
@@ -484,6 +484,9 @@ AFRAME.registerComponent("fly", {
         // pitch - nose up/down
         if (this.allowPitch === false) return;
 
+        let allowAutoLevelPitch = this.autoLevelPitch
+        if (this.freeDirectionalFlight || this.autoForwardFixedDirection) allowAutoLevelPitch = true
+
         const maxPitchDeg = this.maxPitchDeg;
         const pitchSpeedDeg = this.pitchSpeed * deltaSec * 0.8;
 
@@ -494,7 +497,7 @@ AFRAME.registerComponent("fly", {
             this.currentPitchDeg = Math.min(maxPitchDeg, this.currentPitchDeg + pitchSpeedDeg);
         } else if (pitchDown) {
             this.currentPitchDeg = Math.max(-maxPitchDeg, this.currentPitchDeg - pitchSpeedDeg);
-        } else if (this.autoLevelPitch) {
+        } else if (allowAutoLevelPitch) {
             this.currentPitchDeg += (0 - this.currentPitchDeg) * 0.05;
         }
     },
@@ -510,13 +513,16 @@ AFRAME.registerComponent("fly", {
             allowRoll = !!(this.movingForward || this.movingBackward);
         }
 
+        let allowAutoRoll = this.autoLevelRoll
+        if (this.freeDirectionalFlight || this.autoForwardFixedDirection) allowAutoRoll = true
+
         // roll - tilt left/right
         if (this.movingRight) {
             if (allowRoll) this.currentRollDeg = Math.min(maxRollDeg, this.currentRollDeg + rollSpeedDeg);
         } else if (this.movingLeft) {
             if (allowRoll) this.currentRollDeg = Math.max(-maxRollDeg, this.currentRollDeg - rollSpeedDeg);
         } else {
-            if (this.autoLevelRoll) this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
+            if (allowAutoRoll) this.currentRollDeg += (0 - this.currentRollDeg) * 0.05;
         }
     },
 
