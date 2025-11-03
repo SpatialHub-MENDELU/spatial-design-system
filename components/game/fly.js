@@ -136,7 +136,7 @@ AFRAME.registerComponent("fly", {
         if (this.wrongInput) return;
 
         this.setType()
-        this.setAnimation(this.animations.idle)
+        this.setInitialAnimation()
         this.bindEvents()
     },
 
@@ -215,6 +215,11 @@ AFRAME.registerComponent("fly", {
                 this.freeDirectionalFlight = true
                 break
         }
+    },
+
+    setInitialAnimation() {
+        if (this.freeDirectionalFlight) this.setAnimation(this.animations.idle)
+        if (this.autoForward || this.autoForwardFixedDirection) this.setAnimation(this.animations.walk)
     },
 
     setIsSprinting(value) {
