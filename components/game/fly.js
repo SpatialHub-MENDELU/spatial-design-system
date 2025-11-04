@@ -3,44 +3,43 @@ import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGame
 
 AFRAME.registerComponent("fly", {
     schema: {
-        idleClipName: {type: "string", default: "*Yes*"},
-        walkClipName: {type: "string", default: "*Flying_Idle*"},
-        sprintClipName: {type: "string", default: "*Fast_Flying*"},
+        idleClipName: {type: "string", default: "*Yes*"}, // Name of the animation clip used when the character is idle.
+        walkClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is flying.
+        sprintClipName: {type: "string", default: "*Fast_Flying*"}, // Name of the animation clip used when the character is sprinting.
 
-        keyUp: {type: "string", default: "w"},
-        keyDown: {type: "string", default: "s"},
-        keyLeft: {type: "string", default: "a"},
-        keyRight: {type: "string", default: "d"},
-        keyAscend: {type: "string", default: " "},
-        keyDescend: {type: "string", default: "c"},
+        keyUp: {type: "string", default: "w"}, // Key used to move the character forward/up.
+        keyDown: {type: "string", default: "s"}, // Key used to move the character backward/down.
+        keyLeft: {type: "string", default: "a"}, // Key used to move the character left.
+        keyRight: {type: "string", default: "d"}, // Key used to move the character right.
+        keyAscend: {type: "string", default: " "}, // Key used to move the character upward while flying.
+        keyDescend: {type: "string", default: "c"}, // Key used to move the character downward while flying.
 
-        allowGravity: {type: "boolean", default: false},
+        allowGravity: {type: "boolean", default: false}, // If true, gravity affects the character when not flying.
 
-        speed: {type: "number", default: 2},
-        rotationSpeed: {type: "number", default: 30}, // works only when allowRoll is false
+        speed: {type: "number", default: 4}, // Defines the player's base flying speed.
+        rotationSpeed: {type: "number", default: 40}, // Defines the turning speed. It is used only when allowRoll is false.
 
-        sprint: {type: "boolean", default: false},
-        keySprint: {type: "string", default: "shift"},
-        sprintSpeed: {type: "number", default: 10},
+        sprint: {type: "boolean", default: false}, // If true, the player can sprint when holding the sprintKey, increasing their speed to sprintSpeed.
+        keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
+        sprintSpeed: {type: "number", default: 10}, // Defines the sprinting speed when the sprint mode is active.
 
-        type: {type: "string", default: "autoForwardFixedDirection"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection, MouseDirectedFlight
+        type: {type: "string", default: "autoForwardFixedDirection"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection. Defines the flying mode and how the player turns the character.
 
-        allowPitch: {type: "boolean", default: true}, // nose up/down
-        autoLevelPitch: {type: "boolean", default: true}, // only autoForward flight types can have false
-        maxPitchDeg: {type: "number", default: 20},
-        pitchSpeed: {type: "number", default: 50},
+        allowPitch: {type: "boolean", default: true}, // If true, the player can tilt the model up and down (change pitch).
+        autoLevelPitch: {type: "boolean", default: true}, // Determines whether the model automatically returns its pitch to a neutral (level) position after being tilted up or down. Only autoForward type can have false value.
+        maxPitchDeg: {type: "number", default: 20}, // Maximum pitch angle in degrees the character can tilt up or down.
+        pitchSpeed: {type: "number", default: 60}, //How fast the pitch angle changes when the player tilts up or down.
 
-        allowRoll: {type: "boolean", default: true}, // tilt left/right
-        autoLevelRoll: {type: "boolean", default: true}, // only autoForward flight types can have false
-        maxRollDeg: {type: "number", default: 30},
-        rollSpeed: {type: "number", default: 60},
-        yawSpeedFactor: {type: "number", default: 1}, // how fast the yaw changes based on roll angle
+        allowRoll: {type: "boolean", default: true}, // If true, the player can roll the model left or right (bank sideways).
+        autoLevelRoll: {type: "boolean", default: true}, // Determines whether the model automatically returns its roll (bank angle) to a neutral, level position after being tilted left or right. Only autoForward flight type can have the false value.
+        maxRollDeg: {type: "number", default: 20}, // Maximum roll angle in degrees the character can tilt left or right.
+        rollSpeed: {type: "number", default: 60}, // How fast the roll angle changes when the player banks left or right.
 
-        forwardOffsetAngle: {type: "number", default: 0}, // how many degrees you must rotate the model’s local forward axis to match what the user considers ‘forward.’
+        forwardOffsetAngle: {type: "number", default: 0}, // The angular offset (in degrees) that defines how much the model’s logical forward direction differs from its visual or model-space forward axis.
 
         // only auto forward fixed direction properties
-        canMoveVertically: {type: "boolean", default: true}, // move up and down
-        canMoveHorizontally: {type: "boolean", default: true}, // move left and right
+        canMoveVertically: {type: "boolean", default: true}, // When using AutoForwardFixedDirection movement, this property allows the character to move up and down.
+        canMoveHorizontally: {type: "boolean", default: true}, // When using AutoForwardFixedDirection movement, this property allows the character to move left and right.
     },
 
 
@@ -70,7 +69,6 @@ AFRAME.registerComponent("fly", {
         this.sprintEnabled = this.data.sprint
         this.sprintSpeed = this.data.sprintSpeed
         this.rotationSpeed = this.data.rotationSpeed
-        this.yawSpeedFactor = this.data.yawSpeedFactor // how fast the yaw changes based on roll angle
 
         this.animation = null
 
@@ -190,7 +188,7 @@ AFRAME.registerComponent("fly", {
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // CHECK INPUTS
+    // CHECK INPUTS & UPDATE
 
     checkInputs() {
         // animations check
@@ -216,7 +214,6 @@ AFRAME.registerComponent("fly", {
         if (!isPositiveNumber(this.data.rollSpeed, "rollSpeed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.maxPitchDeg, "maxPitchDeg")) this.wrongInput = true
         if (!isPositiveNumber(this.data.maxRollDeg, "maxRollDeg")) this.wrongInput = true
-        if (!isPositiveNumber(this.data.yawSpeedFactor, "yawSpeedFactor")) this.wrongInput = true
 
         // keys
         if (!isValidGameKey(this.data.keyUp)) this.wrongInput = true
@@ -235,6 +232,51 @@ AFRAME.registerComponent("fly", {
             return false;
         }
         return true;
+    },
+
+    update(oldData) {
+        this.wrongInput = false
+        this.checkInputs()
+        if (this.wrongInput) return
+
+        // animations
+        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
+        if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
+        if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
+
+        // keys
+        if (oldData.keyUp !== this.data.keyUp.toLowerCase()) this.keys.up = this.data.keyUp.toLowerCase()
+        if (oldData.keyDown !== this.data.keyDown.toLowerCase()) this.keys.down = this.data.keyDown.toLowerCase()
+        if (oldData.keyLeft !== this.data.keyLeft.toLowerCase()) this.keys.left = this.data.keyLeft.toLowerCase()
+        if (oldData.keyRight !== this.data.keyRight.toLowerCase()) this.keys.right = this.data.keyRight.toLowerCase()
+        if (oldData.keySprint !== this.data.keySprint.toLowerCase()) this.keys.sprint = this.data.keySprint.toLowerCase()
+        if (oldData.keyAscend !== this.data.keyAscend.toLowerCase()) this.keys.ascend = this.data.keyAscend.toLowerCase()
+        if (oldData.keyDescend !== this.data.keyDescend.toLowerCase()) this.keys.descend = this.data.keyDescend.toLowerCase()
+
+        // movement
+        if (oldData.allowGravity !== this.data.allowGravity) this.allowGravity = this.data.allowGravity
+
+        if (oldData.speed !== this.data.speed) this.speed = this.data.speed
+        if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
+        if (oldData.sprint !== this.data.sprint) this.sprintEnabled = this.data.sprint
+        if (oldData.sprintSpeed !== this.data.sprintSpeed) this.sprintSpeed = this.data.sprintSpeed
+
+        if (oldData.type !== this.data.type) this.setType()
+
+        if (oldData.allowPitch !== this.data.allowPitch) this.allowPitch = this.data.allowPitch
+        if (oldData.autoLevelPitch !== this.data.autoLevelPitch) this.autoLevelPitch = this.data.autoLevelPitch
+        if (oldData.maxPitchDeg !== this.data.maxPitchDeg) this.maxPitchDeg = this.data.maxPitchDeg
+        if (oldData.pitchSpeed !== this.data.pitchSpeed) this.pitchSpeed = this.data.pitchSpeed
+
+        if (oldData.allowRoll !== this.data.allowRoll) this.allowRoll = this.data.allowRoll
+        if (oldData.autoLevelRoll !== this.data.autoLevelRoll) this.autoLevelRoll = this.data.autoLevelRoll
+        if (oldData.maxRollDeg !== this.data.maxRollDeg) this.maxRollDeg = this.data.maxRollDeg
+        if (oldData.rollSpeed !== this.data.rollSpeed) this.rollSpeed = this.data.rollSpeed
+
+        if (oldData.forwardOffsetAngle !== this.data.forwardOffsetAngle) this.forwardOffsetAngle = this.data.forwardOffsetAngle
+
+        if (oldData.canMoveVertically !== this.data.canMoveVertically) this.canMoveVertically = this.data.canMoveVertically
+        if (oldData.canMoveHorizontally !== this.data.canMoveHorizontally) this.canMoveHorizontally = this.data.canMoveHorizontally
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -581,10 +623,9 @@ AFRAME.registerComponent("fly", {
 
     setYawDeg(deltaSec) {
         // yaw - turn left/right
-        const yawSpeedFactor = this.yawSpeedFactor;
         const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg);
 
-        this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec * yawSpeedFactor;
+        this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec * 1.2; // TODO calculate with rotationSpeed
     },
 
     // AUTO FORWARD FIXED DIRECTION
