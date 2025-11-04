@@ -23,7 +23,7 @@ AFRAME.registerComponent("fly", {
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
         sprintSpeed: {type: "number", default: 10}, // Defines the sprinting speed when the sprint mode is active.
 
-        type: {type: "string", default: "autoForwardFixedDirection"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection. Defines the flying mode and how the player turns the character.
+        type: {type: "string", default: "freeDirectionalFlight"}, // freeDirectionalFlight, autoForward, autoForwardFixedDirection. Defines the flying mode and how the player turns the character.
 
         allowPitch: {type: "boolean", default: true}, // If true, the player can tilt the model up and down (change pitch).
         autoLevelPitch: {type: "boolean", default: true}, // Determines whether the model automatically returns its pitch to a neutral (level) position after being tilted up or down. Only autoForward type can have false value.
@@ -623,9 +623,8 @@ AFRAME.registerComponent("fly", {
 
     setYawDeg(deltaSec) {
         // yaw - turn left/right
-        const yawTurnSpeed = -THREE.MathUtils.degToRad(this.currentRollDeg);
-
-        this.currentYawDeg += THREE.MathUtils.radToDeg(yawTurnSpeed) * deltaSec * 1.2; // TODO calculate with rotationSpeed
+        const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+        this.currentYawDeg = (this.currentYawDeg + dir * this.rotationSpeed * deltaSec) % 360;
     },
 
     // AUTO FORWARD FIXED DIRECTION

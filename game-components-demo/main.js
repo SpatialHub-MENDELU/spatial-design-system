@@ -50,16 +50,16 @@ document.querySelector('#app').innerHTML = `
 
 
 <!--         AUTO FORWARD TYPE -->
-<!--        <a-entity fly="type: autoForward; forwardOffsetAngle: 270; maxPitchDeg: 20; pitchSpeed: 120; maxRollDeg: 25; rollSpeed: 60; rotationSpeed: 60; " id="plane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">-->
-<!--            <a-entity gltf-model="#plane" ammo-shape="type: hull;" position="0.8 -1.2 0" scale="0.2 0.2 0.2" rotation="0 0 0"></a-entity>-->
-<!--        </a-entity>-->
-<!--        <a-entity camera gameview="target: #plane-character" rotation="-30 0 0"></a-entity>-->
+        <a-entity fly="type: autoForward; forwardOffsetAngle: 270; maxPitchDeg: 20; pitchSpeed: 100; maxRollDeg: 25; rollSpeed: 100; rotationSpeed: 40; " id="plane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
+            <a-entity gltf-model="#plane" ammo-shape="type: hull;" position="0.8 -1.2 0" scale="0.2 0.2 0.2" rotation="0 0 0"></a-entity>
+        </a-entity>
+        <a-entity camera gameview="target: #plane-character" rotation="-30 0 0"></a-entity>
 
 <!--         AUTO FORWARD FIXED DIRECTION TYPE -->
-        <a-entity fly="type: autoForwardFixedDirection; forwardOffsetAngle: 180; maxPitchDeg: 10; pitchSpeed: 120; maxRollDeg: 15; rollSpeed: 80; " id="paper-airplane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1 0" rotation="0 180 0">
-            <a-entity gltf-model="#paper-airplane" ammo-shape="type: hull;" position="0 0 0" scale="0.01 0.01 0.01" ></a-entity>
-        </a-entity>
-        <a-entity camera gameview="target: #paper-airplane-character" rotation="-30 0 0"></a-entity>
+<!--        <a-entity fly="type: autoForwardFixedDirection; forwardOffsetAngle: 180; maxPitchDeg: 10; pitchSpeed: 120; maxRollDeg: 15; rollSpeed: 80; " id="paper-airplane-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1 0" rotation="0 180 0">-->
+<!--            <a-entity gltf-model="#paper-airplane" ammo-shape="type: hull;" position="0 0 0" scale="0.01 0.01 0.01" ></a-entity>-->
+<!--        </a-entity>-->
+<!--        <a-entity camera gameview="target: #paper-airplane-character" rotation="-30 0 0"></a-entity>-->
 
 
  <!---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
