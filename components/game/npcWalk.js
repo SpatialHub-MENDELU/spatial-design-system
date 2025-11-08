@@ -271,16 +271,13 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     setRotationToTarget() {
-        // Get the current position *from the physics body*
         const transform = this.el.body.getWorldTransform();
         const currPos = transform.getOrigin();
         const targetPosition = this.targetPosition;
 
-        // Ammo vectors use .x() and .z() methods
         const dx = targetPosition.x - currPos.x();
         const dz = targetPosition.z - currPos.z();
 
-        // atan2 gives the angle in radians to look at the target
         const targetAngleRad = Math.atan2(dx, dz);
         const targetAngleDeg = THREE.MathUtils.radToDeg(targetAngleRad);
 
