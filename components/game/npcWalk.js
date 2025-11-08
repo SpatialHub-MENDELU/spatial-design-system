@@ -11,7 +11,7 @@ AFRAME.registerComponent('npc-walk', {
         waitBeforeStart: {type: "number", default: 0},
 
         allowRotation: {type: "boolean", default: true},
-        rotationSpeed: {type: "number", default: 200},
+        rotationSpeed: {type: "number", default: 450},
 
         type: {type: "string", default: "points"}, // points, randomMoving
 
@@ -50,7 +50,6 @@ AFRAME.registerComponent('npc-walk', {
         this.rotationSpeed = this.data.rotationSpeed
         this.allowRotation = this.data.allowRotation
         this.rotationToTarget = null
-        this.currentRotation = 90
 
         this.pointToPointType = false
         this.pointsType = false
@@ -163,7 +162,7 @@ AFRAME.registerComponent('npc-walk', {
             .filter(Boolean);
     },
 
-    tick(deltaTime) {
+    tick(time, deltaTime) {
         const deltaSec = deltaTime / 1000;
         if (this.wrongInput) return
         if (this.el.body) {
@@ -272,12 +271,16 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     setRotationToTarget() {
-        const currPos = this.el.object3D.position;
+        // Get the current position *from the physics body*
+        const transform = this.el.body.getWorldTransform();
+        const currPos = transform.getOrigin();
         const targetPosition = this.targetPosition;
 
-        const dx = targetPosition.x - currPos.x;
-        const dz = targetPosition.z - currPos.z;
+        // Ammo vectors use .x() and .z() methods
+        const dx = targetPosition.x - currPos.x();
+        const dz = targetPosition.z - currPos.z();
 
+        // atan2 gives the angle in radians to look at the target
         const targetAngleRad = Math.atan2(dx, dz);
         const targetAngleDeg = THREE.MathUtils.radToDeg(targetAngleRad);
 
@@ -285,23 +288,30 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     rotateToPosition(targetPosition, deltaSec) {
-        this.setRotationToTarget(targetPosition);
         if (!this.allowRotation) return;
 
-        const currentRotation = this.currentRotation
-        const targetRotation = this.rotationToTarget
+        this.setRotationToTarget();
+        const targetRotation = this.rotationToTarget;
+
+        const transform = this.el.body.getWorldTransform();
+        const ammoQuat = transform.getRotation();
+        const threeQuat = new THREE.Quaternion(ammoQuat.x(), ammoQuat.y(), ammoQuat.z(), ammoQuat.w());
+
+        const euler = new THREE.Euler().setFromQuaternion(threeQuat, 'YXZ');
+        const currentRotation = (THREE.MathUtils.radToDeg(euler.y) + 360) % 360;
 
         let diff = ((targetRotation - currentRotation + 540) % 360) - 180;
 
         const maxStep = this.rotationSpeed * deltaSec;
 
+        let newRotationDeg;
         if (Math.abs(diff) <= maxStep) {
-            this.currentRotation = targetRotation;
+            newRotationDeg = targetRotation;
         } else {
-            this.currentRotation = (currentRotation + Math.sign(diff) * maxStep + 540) % 360;
+            newRotationDeg = (currentRotation + Math.sign(diff) * maxStep + 360) % 360;
         }
 
-        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        const angleRad = THREE.MathUtils.degToRad(newRotationDeg);
         this.rotateCharacter(angleRad);
     },
 
@@ -340,7 +350,7 @@ AFRAME.registerComponent('npc-walk', {
 
         if (!this.positionReached) {
             this.checkReachedPosition(this.targetPosition)
-            if (this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec); // todo: rotate smoothly to target position
+            if (this.allowRotation) this.rotateToPosition(this.targetPosition, deltaSec);
             this.moveToPosition(this.targetPosition);
         } else {
             if (this.pauseAtPoints) {
