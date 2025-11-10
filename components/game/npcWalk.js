@@ -2,21 +2,21 @@ import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
 
 AFRAME.registerComponent('npc-walk', {
     schema: {
-        walkClipName: {type: "string", default: "Walk"},
-        idleClipName: {type: "string", default: "Idle"},
+        walkClipName: {type: "string", default: "Walk"}, // Name of the animation clip used when the NPC is walking.
+        idleClipName: {type: "string", default: "Idle"}, // Name of the animation clip used when the NPC is idle.
 
-        speed: {type: "number", default: 2},
-        checkHeight: {type: "boolean", default: false},
-        pauseAtPoints: {type: "number", default: 0},
-        waitBeforeStart: {type: "number", default: 0},
+        speed: {type: "number", default: 4}, // Movement speed of the NPC
+        checkHeight: {type: "boolean", default: false}, // If true, the character adjusts its height to reach the target’s exact position; if false, it only moves horizontally and keeps its current height.
+        pauseAtPoints: {type: "number", default: 0}, // Duration (in seconds) the NPC waits after reaching each point.
+        waitBeforeStart: {type: "number", default: 0}, // Duration (in seconds) before the NPC begins moving when initialized.
 
-        allowRotation: {type: "boolean", default: true},
-        rotationSpeed: {type: "number", default: 450},
+        allowRotation: {type: "boolean", default: true}, // If true, it allows the NPC to rotate smoothly in the direction of movement.
+        rotationSpeed: {type: "number", default: 500}, // Speed at which the NPC rotates toward its walking direction
 
-        type: {type: "string", default: "points"}, // points, randomMoving
+        type: {type: "string", default: "points"}, // "points" or "randomMoving". The randomMoving enables random walking within the defined range area. The points type is walking through defined points defined in the points property.
 
         // POINTS TYPE
-        points: {type: "string", default: "0 1 5, 5 1 5, 5 1 0"},
+        points: {type: "string", default: "0 1 5, 5 1 5, 5 1 0"}, // Array of positions the NPC walks through in order.
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
 
