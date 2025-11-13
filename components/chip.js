@@ -1,5 +1,4 @@
 import * as AFRAME from "aframe"
-import * as TWEEN from '@tweenjs/tween.js';
 import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR } from "../utils/colors.js"
 import { createRoundedRectShape, getContrast, setContrastColor} from "../utils/utils.js"
 
@@ -126,7 +125,6 @@ AFRAME.registerComponent("chip", {
             // Only update and alert if the color actually changes
             if (newTextColor !== textcolor) {
                 textcolor = newTextColor;
-                this.data.textcolor = textcolor;
                 console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
             }
         }
@@ -223,7 +221,7 @@ AFRAME.registerComponent("chip", {
         } else if (this.data.elevated) {
             opacityValue = this.data.opacity; // Elevated takes priority over outlined
         } else if (this.data.outlined) {
-            opacityValue = 0.05; // Outlined opacity
+            opacityValue = 0.4; // Outlined opacity
         } else {
             opacityValue = this.data.opacity; // Default user-defined opacity
         }
@@ -254,7 +252,7 @@ AFRAME.registerComponent("chip", {
             const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
             const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
                 color: this.data.color,
-                opacity: 0.5,
+                opacity: 0.9,
                 transparent: true
             });
             const outlineMesh = new AFRAME.THREE.Mesh(outlineGeometry, outlineMaterial);
