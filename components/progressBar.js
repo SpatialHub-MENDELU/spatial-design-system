@@ -19,18 +19,28 @@ AFRAME.registerComponent("progressBar", {
 
     init() {
         this.finalColor = this.data.color;
-        this.wasRounded = this.data.rounded;
-        this.setSize()
-        this.setContent()
-        this.setMode()
-        this.setState()
+        this.userRounded = this.data.rounded; // Store the user's original rounded preference
+        this.effectiveRounded = this.calculateEffectiveRounded(); // Calculate what should actually be displayed
+        this.setSize();
+        this.setContent();
+        this.setMode();
+        this.setState();
     },
 
     update(oldData) {
         // Skip the update for the first time since init() handles the initial setup
         if (!oldData.color) return;
 
-        this.wasRounded = oldData.rounded;
+        // Update userRounded when the rounded property changes
+        if (this.data.rounded !== oldData.rounded) {
+            this.userRounded = this.data.rounded;
+        }
+
+        // Recalculate effective rounded state when value or rounded changes
+        if (this.data.value !== oldData.value || this.data.rounded !== oldData.rounded) {
+            this.effectiveRounded = this.calculateEffectiveRounded();
+        }
+
 
         // Checking which properties have changed and executing the appropriate functions
         const changedProperties = Object.keys(this.data).filter(property => this.data[property] !== oldData[property]);
@@ -46,10 +56,6 @@ AFRAME.registerComponent("progressBar", {
                     this.setContent();
                     break;
                 case 'value':
-                    if (this.data.value >= 10 && this.wasRounded) {
-                        this.data.rounded = true;
-                        console.log("Rounded corners are now applied as the value is greater than or equal to 10.");
-                    }
                     this.setContent();
                     this.updateProgressBarColor();
                     break;
@@ -78,6 +84,13 @@ AFRAME.registerComponent("progressBar", {
         });
     },
 
+    // Helper method to calculate whether rounded corners should be displayed
+    calculateEffectiveRounded() {
+        // use normalized numeric value here
+        const numericValue = this.getValidNumericValue(this.data.value);
+        return this.userRounded && numericValue >= 10;
+    },
+
     updateProgressBarColor() {        
         if (this.shadowMesh) {
             if (this.data.state !== "") {
@@ -93,7 +106,9 @@ AFRAME.registerComponent("progressBar", {
                 this.shadowMesh.material.color.set("#000");
             }
         } 
-        this.progressBarMesh.material.color.set(this.finalColor);
+        if (this.progressBarMesh) {
+            this.progressBarMesh.material.color.set(this.finalColor);
+        }
         this.updateProgressBarOpacity();
 
         // Re-evaluate the text color based on the new background color
@@ -102,7 +117,7 @@ AFRAME.registerComponent("progressBar", {
 
     updateProgressBarOpacity() {
         const opacityValue = this.data.opacity;
-        this.progressBarMesh.material.opacity = opacityValue;
+        if (this.progressBarMesh) this.progressBarMesh.material.opacity = opacityValue;
         if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.65;
     },
 
@@ -111,16 +126,18 @@ AFRAME.registerComponent("progressBar", {
         if ((this.data.state !== "") || ((this.data.mode === 'light' || this.data.mode === 'dark') &&
             (this.data.color === PRIMARY_COLOR_DARK || this.data.color === ""))) return;
 
-        const progressBarColorHex = `#${this.progressBarMesh.material.color.getHexString()}`;
+        const progressBarColorHex = this.progressBarMesh ? `#${this.progressBarMesh.material.color.getHexString()}` : null;
         const shadowColorHex = `#${this.shadowMesh.material.color.getHexString()}`;
         let textcolor = this.data.textcolor;
 
-        // Determine the background color based on the value
-        const backgroundColorHex = this.data.value < 20 ? shadowColorHex : progressBarColorHex;
+        // Use normalized numeric value so non-numeric inputs don't break logic
+        const numericValue = this.getValidNumericValue(this.data.value);
+
+        // Determine the background color based on the (validated) value
+        const backgroundColorHex = numericValue < 20 ? shadowColorHex : progressBarColorHex;
 
         // Calculate contrast
         const contrast = getContrast(textcolor, backgroundColorHex);
-        console.log(`Contrast between ${textcolor} and ${backgroundColorHex} is: ${contrast}`);
 
         // If the contrast is not high enough, adjust the text color
         if (contrast <= 60) {
@@ -168,47 +185,67 @@ AFRAME.registerComponent("progressBar", {
         this.el.setAttribute('sizeCoef',sizeCoef)
     },
 
+    getValidNumericValue(value) {
+        let numericValue = parseFloat(value);
+        if (isNaN(numericValue) || !isFinite(numericValue)) {
+            numericValue = 0;
+        }
+        return Math.max(0, Math.min(100, numericValue));
+    },
+
     createProgressBar(widthArg = 4, heightArg = 0.4){
         const sizeCoef = this.el.getAttribute('sizeCoef')
         const group = new AFRAME.THREE.Group();
 
-        const height = heightArg * sizeCoef
-        const borderRadius = this.data.rounded ? 0.2 * sizeCoef : 0.08 * sizeCoef;
+        const height = heightArg * sizeCoef;
+        let borderRadius;
+
+        let numericValue = this.getValidNumericValue(this.data.value);
+        
+        if (numericValue < 4) {
+            borderRadius = 0.03; // No rounding for very small values, because the shape would be distorted
+        } else {
+            borderRadius = this.effectiveRounded ? 0.2 * sizeCoef : 0.08 * sizeCoef;
+        }
+
         const max_width = widthArg * sizeCoef
-        let width = max_width * (this.data.value / 100)
-        // If the value is set to more then 100, display error and set to 100
-        if (this.data.value > 100){
+        let width = max_width * (numericValue / 100) // Use numericValue instead of this.data.value
+        
+        // If the value is set to more than 100, display error and set to 100
+        if (numericValue > 100){
             width = max_width;
-            this.data.value = 100;
-            console.log("The value can't be more then 100, so it was set to maximum of one hundred percent.");
+            numericValue = 100;
+            console.log("The value can't be more than 100, so it was set to maximum of one hundred percent.");
         }
 
         this.width = width
 
         const opacityValue = this.data.opacity;
     
-        // Create a main ProgressBar mesh
-        const progressBarShape = createRoundedRectShape(width, height, borderRadius)
+        if (numericValue > 0) {
+                // Create a main ProgressBar mesh
+                const progressBarShape = createRoundedRectShape(width, height, borderRadius)
 
-        const progressBarGeometry  = new AFRAME.THREE.ExtrudeGeometry(
-            progressBarShape,
-            { depth: 0.01, bevelEnabled: false }
-        );
+                const progressBarGeometry  = new AFRAME.THREE.ExtrudeGeometry(
+                    progressBarShape,
+                    { depth: 0.01, bevelEnabled: false }
+                );
 
-        const progressBarMaterial = new AFRAME.THREE.MeshBasicMaterial({
-            color: this.finalColor,
-            opacity: opacityValue,
-            transparent: true
-        })
+                const progressBarMaterial = new AFRAME.THREE.MeshBasicMaterial({
+                    color: this.finalColor,
+                    opacity: opacityValue,
+                    transparent: true
+                })
 
-        const progressBarMesh = new AFRAME.THREE.Mesh(progressBarGeometry, progressBarMaterial)
-        
-        const x_axis = 0 - max_width/2 + width/2;
-        progressBarMesh.position.set(x_axis, 0, 0)
+                const progressBarMesh = new AFRAME.THREE.Mesh(progressBarGeometry, progressBarMaterial)
+                
+                const x_axis = 0 - max_width/2 + width/2;
+                progressBarMesh.position.set(x_axis, 0, 0)
 
-        this.progressBarMesh = progressBarMesh
+                this.progressBarMesh = progressBarMesh
 
-        group.add(progressBarMesh);
+                group.add(progressBarMesh);
+        }
 
 
         // Create shadow effect with a slightly larger rectangle as the background
@@ -237,16 +274,20 @@ AFRAME.registerComponent("progressBar", {
         const sizeCoef = this.el.getAttribute('sizeCoef');
         let reversed = this.data.reversed;
         const max_width = 4 * sizeCoef;
-        const width = max_width * (this.data.value / 100);
-        let x_axis = 0;
 
+        let numericValue = this.getValidNumericValue(this.data.value);
+        
+        const width = max_width * (numericValue / 100);      
+        let x_axis = 0;
         if (!reversed) {
             x_axis = 0 - max_width / 2 + width / 2;
         } else {
             x_axis = 0 + max_width / 2 - width / 2;
         }
 
-        this.progressBarMesh.position.set(x_axis, 0, 0);
+        if (this.progressBarMesh) {
+            this.progressBarMesh.position.set(x_axis, 0, 0);
+        }
 
         // Ensure mode is reapplied correctly when reversed changes
         if (this.data.mode !== "" && this.data.state === "" && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
@@ -257,15 +298,27 @@ AFRAME.registerComponent("progressBar", {
     },
 
     setContent() {
-        let text = String(this.data.value) + " %"
-        if (this.data.value > 100) {
-            text = "100 %"
+        let numericValue = this.getValidNumericValue(this.data.value);
+        
+        let text;
+        if (numericValue >= 100) {
+            text = "100 %";
+        } else if (numericValue <= 0) {
+            text = "0 %";
+        } else {
+            // limit to max 3 decimals, remove unnecessary trailing zeros
+            const rounded = Math.round(numericValue * 1000) / 1000;
+            const display = parseFloat(rounded.toFixed(3)).toString();
+            text = `${display} %`;
         }
 
-        if (this.data.rounded && this.data.value < 10) {
-            this.wasRounded = true;
-            this.data.rounded = false;
-            console.log("The progress bar can't be rounded, if the value of progression is less than 10");
+        // Log when rounding state changes
+        if (this.userRounded) {
+            if (numericValue < 10 && this.effectiveRounded) {
+                console.log("Rounded corners removed because value is less than 10");
+            } else if (numericValue >= 10 && !this.effectiveRounded) {
+                console.log("Rounded corners applied because value is now 10 or greater");
+            }
         }
 
         const sizeCoef = this.el.getAttribute('sizeCoef')
@@ -284,22 +337,26 @@ AFRAME.registerComponent("progressBar", {
         // Create the progress bar and calculate its x-axis
         this.createProgressBar();
         const max_width = 4 * sizeCoef;
-        const width = max_width * (this.data.value / 100);
+        const width = this.progressBarMesh ? max_width * (numericValue / 100) : 0; // Fallback to 0 if progressBarMesh is not defined, in that way x_axis will be calculated correctly
         let x_axis = 0
+        let positionForDecimal = 0; // Adjustment  in text for decimal numbers
+        if (String(numericValue).includes('.')) {
+            numericValue < 5 ? positionForDecimal = width/2 + 0.1 : positionForDecimal = width/2 // Adjust for decimal point
+        }
 
         if (!reversed) {
-            if (this.data.value >= 20) {
+            if (numericValue >= 20) {
                 // Set the position of the text element to match the progress bar's center
                 x_axis = 0 - max_width / 2 + width / 2;   
             } else {
                 // Set the position of the text element to match on the right side progress bar with padding
-                x_axis = 0 - max_width / 2 + width + 0.25;
+                x_axis = 0 - max_width / 2 + width + 0.25 + positionForDecimal;
             }
         } else {
-            if (this.data.value >= 20) {
-                x_axis = 0 + max_width / 2 - width / 2;   
+            if (numericValue >= 20) {
+                x_axis = 0 + max_width / 2 - width / 2;
             } else {
-                x_axis = 0 + max_width / 2 - width - 0.25;
+                x_axis = 0 + max_width / 2 - width - 0.25 - positionForDecimal;
             }
         }
 
