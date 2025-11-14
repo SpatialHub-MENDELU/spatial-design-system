@@ -19,8 +19,6 @@ AFRAME.registerComponent("vr-interactive", {
     this.borderLine = null;
     this.isHighlighted = false;
     this.intersecting = false;
-    this._clickScaled = false;
-    this._clickScaleFactor = 1.0;
 
     this.buttonEvents = {
       trigger: ["triggerdown", "triggerup"],
@@ -112,13 +110,7 @@ AFRAME.registerComponent("vr-interactive", {
     if (!this.intersecting) return;
 
     if (this.data.clickAnimation) {
-      if (this._clickScaled) {
-        const inv =
-          this._clickScaleFactor !== 0 ? 1 / this._clickScaleFactor : 1;
-        this.el.object3D.scale.multiplyScalar(inv);
-        this._clickScaled = false;
-        this._clickScaleFactor = 1.0;
-      }
+      this.el.object3D.scale.copy(this.originalScale);
 
       if (this.borderLine) {
         this.borderLine.scale.copy(this.originalScale);

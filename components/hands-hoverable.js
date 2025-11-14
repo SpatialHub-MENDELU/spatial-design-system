@@ -3,11 +3,9 @@ import { VARIANT_DARK_COLOR } from "../utils/colors";
 
 AFRAME.registerComponent("hands-hoverable", {
   schema: {
-    hoverEffect: {
-      type: "string",
-      default: "border",
-      oneOf: ["border", "color"],
-    },
+    useOverlayGeometry: { type: "boolean", default: true },
+    useWireframe: { type: "boolean", default: true },
+    overlaySizeRatio: { type: "number", default: 0.005 },
     hoverColor: { type: "color", default: VARIANT_DARK_COLOR },
   },
   init() {
@@ -15,136 +13,120 @@ AFRAME.registerComponent("hands-hoverable", {
     this.el.setAttribute("obb-collider", "centerModel: true");
     this.el.classList.add("interactable");
 
-    this.baseColor = null;
-
-    this.borderLine = null;
+    this.overlayBox = null;
     this.isHighlighted = false;
 
     this.onHoverStart = this.onHoverStart.bind(this);
     this.onHoverEnd = this.onHoverEnd.bind(this);
 
-    this.el.addEventListener("obbcollisionstarted", this.onHoverStart);
-    this.el.addEventListener("obbcollisionended", this.onHoverEnd);
+    this.el.addEventListener("hand-hover-started", this.onHoverStart);
+    this.el.addEventListener("hand-hover-ended", this.onHoverEnd);
   },
 
   update(oldData) {
-    if (oldData.hoverEffect && oldData.hoverEffect !== this.data.hoverEffect) {
-      if (this.isIntersecting) {
-        this.handleHoverEnd(oldData.hoverEffect);
-        this.handleHoverStart(this.data.hoverEffect);
-      }
-    }
-
-    if (this.isIntersecting) {
-      // If hoverColor changed, update the active effect
-      if (oldData.hoverColor && this.data.hoverColor !== oldData.hoverColor) {
-        if (this.data.hoverEffect === "color") {
-          this.el.setAttribute("material", "color", this.data.hoverColor);
-        } else if (this.data.hoverEffect === "border" && this.borderLine) {
-          this.borderLine.material.color.set(this.data.hoverColor);
-        }
+    // If hoverColor changed while hovering, update the overlay color
+    if (this.isIntersecting && oldData.hoverColor !== this.data.hoverColor) {
+      if (this.overlayBox) {
+        this.overlayBox.material.color.set(this.data.hoverColor);
       }
     }
   },
 
   remove() {
-    this.el.removeEventListener("obbcollisionstarted", this.onHoverStart);
-    this.el.removeEventListener("obbcollisionended", this.onHoverEnd);
+    this.el.removeEventListener("hand-hover-started", this.onHoverStart);
+    this.el.removeEventListener("hand-hover-ended", this.onHoverEnd);
 
-    if (this.borderLine && this.borderLine.parent) {
-      this.borderLine.parent.remove(this.borderLine);
-      this.borderLine.geometry.dispose();
-      this.borderLine.material.dispose();
-      this.borderLine = null;
+    if (this.overlayBox) {
+      if (this.overlayBox.parent) {
+        this.overlayBox.parent.remove(this.overlayBox);
+      }
+      if (this.overlayBox.geometry) {
+        this.overlayBox.geometry.dispose();
+      }
+      if (this.overlayBox.material) {
+        this.overlayBox.material.dispose();
+      }
+      this.overlayBox = null;
     }
   },
 
-  onHoverStart() {
+  onHoverStart(event) {
     this.isIntersecting = true;
-    this.handleHoverStart(this.data.hoverEffect);
+    const isPointing = event.detail?.hand?.getAttribute("pointing");
+    if (isPointing === "true") {
+      return;
+    }
+    this.handleHoverStart();
   },
 
-  onHoverEnd() {
+  onHoverEnd(event) {
     this.isIntersecting = false;
-    this.handleHoverEnd(this.data.hoverEffect);
+    const isPointing = event.detail?.hand?.getAttribute("pointing");
+    if (isPointing === "true") {
+      return;
+    }
+    this.handleHoverEnd();
   },
 
-  handleHoverStart(effect) {
-    if (effect === "color") {
-      const buttonComponent = this.el.components.button;
-      if (buttonComponent) {
-        this.baseColor = buttonComponent.data.primary;
-        this.el.setAttribute("button", "primary", this.data.hoverColor);
-      } else {
-        const material = this.el.getAttribute("material");
-        if (material) {
-          this.baseColor = material.color;
-        }
-        this.el.setAttribute("material", "color", this.data.hoverColor);
-      }
-    } else if (effect === "border") {
-      this.highlightElement(true);
-    }
+  handleHoverStart() {
+    this.highlightElement(true);
   },
 
-  handleHoverEnd(effect) {
-    if (effect === "color") {
-      if (this.baseColor) {
-        const buttonComponent = this.el.components.button;
-        if (buttonComponent) {
-          this.el.setAttribute("button", "primary", this.baseColor);
-        } else {
-          this.el.setAttribute("material", "color", this.baseColor);
-        }
-      }
-      this.baseColor = null;
-    } else if (effect === "border") {
-      this.highlightElement(false);
-    }
+  handleHoverEnd() {
+    this.highlightElement(false);
   },
 
   highlightElement(highlight) {
-    if (this.data.hoverEffect !== "border") return;
     if (this.isHighlighted === highlight) return;
 
-    let mesh = this.el.getObject3D("mesh");
-
-    // If the main object is a group (like in a button), find the first mesh within it.
-    if (mesh && mesh.isGroup) {
-      mesh = mesh.children.find((child) => child.isMesh);
-    }
-
-    if (!mesh) {
-      // Fallback for entities that might not set a mesh directly
-      this.el.object3D.traverse((node) => {
-        if (node.isMesh && !mesh) mesh = node;
-      });
-      if (!mesh) return;
-    }
-
     if (highlight) {
-      if (!this.borderLine) {
+      if (this.data.useOverlayGeometry && !this.overlayBox) {
         try {
-          const geometry = mesh.geometry;
-          if (!geometry) return;
+          // Get the bounding box of the element
+          const bbox = new THREE.Box3().setFromObject(this.el.object3D);
+          const size = new THREE.Vector3();
+          bbox.getSize(size);
+          const center = new THREE.Vector3();
+          bbox.getCenter(center);
 
-          const edges = new THREE.EdgesGeometry(geometry);
-          const material = new THREE.LineBasicMaterial({
+          // Add padding to make overlay slightly larger and more visible
+          const padding = this.data.overlaySizeRatio;
+          const overlaySize = new THREE.Vector3(
+            size.x + padding * 2,
+            size.y + padding * 2,
+            size.z + padding * 2
+          );
+
+          // Create overlay geometry - using box geometry for all elements
+          const geometry = new THREE.BoxGeometry(
+            overlaySize.x,
+            overlaySize.y,
+            overlaySize.z
+          );
+
+          // Create material - wireframe mode doesn't use transparency/opacity
+          const material = new THREE.MeshBasicMaterial({
             color: this.data.hoverColor,
-            transparent: true,
-            opacity: 1.0,
+            transparent: !this.data.useWireframe,
+            opacity: this.data.useWireframe ? 1.0 : 0.4,
+            wireframe: this.data.useWireframe,
           });
 
-          this.borderLine = new THREE.LineSegments(edges, material);
-          this.borderLine.position.z = 0.001;
-          mesh.parent.add(this.borderLine);
+          this.overlayBox = new THREE.Mesh(geometry, material);
+          this.overlayBox.position.copy(center);
+
+          // Add to scene root instead of as child of the element
+          this.el.sceneEl.object3D.add(this.overlayBox);
         } catch (error) {
-          console.error("Hoverable: Error creating highlight", error);
+          console.error(
+            "Hoverable: Error creating bounding box overlay",
+            error
+          );
         }
       }
-      if (this.borderLine) this.borderLine.visible = true;
+      if (this.overlayBox) this.overlayBox.visible = true;
     } else {
-      if (this.borderLine) this.borderLine.visible = false;
+      if (this.overlayBox) this.overlayBox.visible = false;
     }
 
     this.isHighlighted = highlight;
