@@ -206,16 +206,7 @@ AFRAME.registerComponent("hands", {
           "pinky-finger-metacarpal"
         );
 
-        if (
-          !indexTipPos ||
-          !indexMetacarpalPos ||
-          !middleTipPos ||
-          !middleMetacarpalPos ||
-          !ringTipPos ||
-          !ringMetacarpalPos ||
-          !pinkyTipPos ||
-          !pinkyMetacarpalPos
-        ) {
+        if (!indexTipPos || !indexMetacarpalPos) {
           return;
         }
 
@@ -226,9 +217,9 @@ AFRAME.registerComponent("hands", {
 
         const isPointing =
           indexDist > EXTENDED_FINGER_THRESHOLD &&
-          middleDist < CURLED_FINGER_THRESHOLD &&
-          ringDist < CURLED_FINGER_THRESHOLD &&
-          pinkyDist < CURLED_FINGER_THRESHOLD;
+          (middleDist < CURLED_FINGER_THRESHOLD ||
+            ringDist < CURLED_FINGER_THRESHOLD ||
+            pinkyDist < CURLED_FINGER_THRESHOLD);
 
         if (isPointing) {
           handEl.setAttribute("pointing", true);
