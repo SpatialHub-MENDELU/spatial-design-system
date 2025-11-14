@@ -7,6 +7,7 @@ import "../components/finger-touch.js";
 import "../primitives/ar-button.js";
 import "../components/hands-hoverable.js";
 import "../primitives/ar-textbox.js";
+import "../primitives/ar-checkbox.js";
 
 // Function to create a box at a random position
 function createBox() {
@@ -41,11 +42,34 @@ document.querySelector("#app").innerHTML = `
   <!-- or -->
 
   <a-ar-button
-    content="Click Me"
+    content="Box Hover"
     finger-touch
-    position="0 1.6 -1"
-    hands-hoverable="hoverEffect: color; hoverColor:#fc00ce;"
+    position="-0.5 1.6 -1.5"
+    hands-hoverable="hoverColor:#fc00ce;"
   ></a-ar-button>
+
+  <a-ar-button
+    content="Box Overlay"
+    finger-touch
+    position="0.8 1.6 -1.5"
+    hands-hoverable="hoverColor:#00ff00;"
+  ></a-ar-button>
+
+  <a-box
+    position="0 1.2 -1.5"
+    width="0.3"
+    height="0.3"
+    depth="0.3"
+    color="#ff6b35"
+    hands-hoverable="hoverColor:#ffff00;"
+  ></a-box>
+
+  <a-ar-textbox
+    position="-0.8 1.0 -1.5"
+    value="Hover Textbox"
+    hands-hoverable="hoverColor:#ff00ff;"
+  ></a-ar-textbox>
+
 
 </a-scene>`;
 
