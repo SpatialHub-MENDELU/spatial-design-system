@@ -1,5 +1,5 @@
 import { THREE } from "aframe";
-import { center3DModelGeometry } from "../utils/utils";
+import { center3DModelGeometry } from "../../utils/utils";
 
 /**
  * Creates a simple identifier for object3D copy in a format `'copy_of_object3DId'`,
