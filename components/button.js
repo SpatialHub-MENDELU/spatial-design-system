@@ -10,6 +10,7 @@ import {
   getContrast,
   setContrastColor,
 } from "../utils/utils.js";
+import { determineHighlightedColor } from "../utils/colors.js";
 
 AFRAME.registerComponent("button", {
   schema: {
@@ -324,6 +325,7 @@ AFRAME.registerComponent("button", {
 
     this.el.setAttribute("class", "clickable");
     this.el.addEventListener("click", () => {
+      console.log("button clicked");
       this.animateButtonOnClick();
       this.el.emit("button-clicked", { button: this.el });
     });
@@ -373,44 +375,25 @@ AFRAME.registerComponent("button", {
     this.updateButtonColor();
   },
   animateButtonOnClick() {
-    const THREE = AFRAME.THREE;
-
-    const originalColor = new THREE.Color(this.data.primary);
-    const darkerColor = originalColor.clone().multiplyScalar(0.6);
+    const originalColor = this.data.primary;
+    const highlightedColor = determineHighlightedColor(this.data.primary);
 
     const buttonMesh = this.buttonMesh;
     const shadowMesh = this.shadowMesh;
 
-    const visualGroup = buttonMesh.parent;
-
-    const startZ = visualGroup.position.z || 0;
-    new TWEEN.Tween(visualGroup.position)
-      .to({ z: startZ - 0.015 }, 60)
-      .easing(TWEEN.Easing.Quadratic.InOut)
-      .yoyo(true)
-      .repeat(1)
-      .start();
-
-    new TWEEN.Tween(buttonMesh.material.color)
-      .to({ r: darkerColor.r, g: darkerColor.g, b: darkerColor.b }, 80)
-      .easing(TWEEN.Easing.Quadratic.InOut)
-      .yoyo(true)
-      .repeat(1)
-      .onUpdate(() => {
-        buttonMesh.material.needsUpdate = true;
-      })
-      .start();
+    // Change button mesh color directly
+    buttonMesh.material.color.set(highlightedColor);
 
     if (shadowMesh) {
-      new TWEEN.Tween(shadowMesh.material.color)
-        .to({ r: darkerColor.r, g: darkerColor.g, b: darkerColor.b }, 80)
-        .easing(TWEEN.Easing.Quadratic.InOut)
-        .yoyo(true)
-        .repeat(1)
-        .onUpdate(() => {
-          shadowMesh.material.needsUpdate = true;
-        })
-        .start();
+      shadowMesh.material.color.set(highlightedColor);
     }
+
+    setTimeout(() => {
+      buttonMesh.material.color.set(originalColor);
+
+      if (shadowMesh) {
+        shadowMesh.material.color.set(originalColor);
+      }
+    }, 200);
   },
 });
