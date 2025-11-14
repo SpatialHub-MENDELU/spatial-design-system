@@ -1,4 +1,5 @@
 import * as AFRAME from "aframe";
+import { appendTo } from "../../utils/utils.js";
 
 // Joint indices based on WebXR Hand Input spec.
 const jointIndices = {
@@ -41,14 +42,14 @@ AFRAME.registerComponent("hands", {
 
   init() {
     this.handsEls = [];
-    this.activeTargets = new Map();
-    this.pinchingTargets = new Map();
 
     this.hoverByHand = new Map();
 
     // Finger touch helpers
     this.prevTipWorldPosByHand = new Map();
-    this.lastClickAtByTarget = new WeakMap();
+
+    // Store pointing state to avoid unnecessary attribute updates
+    this.pointingStateByHand = new Map();
 
     this.handlePinchStarted = this.handlePinchStarted.bind(this);
     this.handlePinchEnded = this.handlePinchEnded.bind(this);
@@ -71,22 +72,18 @@ AFRAME.registerComponent("hands", {
   },
 
   setupHands() {
+    // Get the rig element - rig is important in XR mode, because it is the parent of the hands
     const rig = this.el.sceneEl.querySelector("#rig");
-
-    const appendTo = (el) => {
-      if (rig) rig.appendChild(el);
-      else this.el.sceneEl.appendChild(el);
-    };
 
     if (this.data.leftEnabled) {
       const leftHand = this.createHand("left", this.data.leftHandColor);
       this.handsEls.push(leftHand);
-      appendTo(leftHand);
+      appendTo(leftHand, rig);
     }
     if (this.data.rightEnabled) {
       const rightHand = this.createHand("right", this.data.rightHandColor);
       this.handsEls.push(rightHand);
-      appendTo(rightHand);
+      appendTo(rightHand, rig);
     }
   },
 
@@ -153,14 +150,15 @@ AFRAME.registerComponent("hands", {
     const tempMatrix = new THREE.Matrix4();
     const tempPosition = new THREE.Vector3();
 
-    const EXTENDED_FINGER_THRESHOLD = 0.08; // 8cm
-    const CURLED_FINGER_THRESHOLD = 0.05; // 5cm
+    const EXTENDED_FINGER_THRESHOLD = 0.08; // 8cm - this is the distance between the index finger tip and the index finger metacarpal
+    const CURLED_FINGER_THRESHOLD = 0.05; // 5cm - this is the distance between the other fingers tips and the metacarpals
 
     // Helper to get joint position from the jointPoses array.
     function getJointPosition(jointPoses, jointName) {
       const jointIndex = jointIndices[jointName];
       if (jointIndex === undefined) return null;
 
+      // This matrixOffset is the offset in the jointPoses array to get the position of the joint, each joint has 16 values in the array.
       const matrixOffset = jointIndex * 16;
       tempMatrix.fromArray(jointPoses, matrixOffset);
       return tempPosition.setFromMatrixPosition(tempMatrix).clone();
@@ -175,10 +173,7 @@ AFRAME.registerComponent("hands", {
           !handTrackingControls.hasPoses ||
           !handTrackingControls.jointPoses
         ) {
-          // If tracking is lost, ensure we clear any active target for this hand
-          if (this.activeTargets.has(handEl)) {
-            this.activeTargets.delete(handEl);
-          }
+          // If tracking is lost, skip processing for this hand
           return;
         }
 
@@ -211,9 +206,20 @@ AFRAME.registerComponent("hands", {
         }
 
         const indexDist = indexTipPos.distanceTo(indexMetacarpalPos);
-        const middleDist = middleTipPos.distanceTo(middleMetacarpalPos);
-        const ringDist = ringTipPos.distanceTo(ringMetacarpalPos);
-        const pinkyDist = pinkyTipPos.distanceTo(pinkyMetacarpalPos);
+
+        // Calculate distances for other fingers, defaulting to 0 if positions unavailable
+        const middleDist =
+          middleTipPos && middleMetacarpalPos
+            ? middleTipPos.distanceTo(middleMetacarpalPos)
+            : 0;
+        const ringDist =
+          ringTipPos && ringMetacarpalPos
+            ? ringTipPos.distanceTo(ringMetacarpalPos)
+            : 0;
+        const pinkyDist =
+          pinkyTipPos && pinkyMetacarpalPos
+            ? pinkyTipPos.distanceTo(pinkyMetacarpalPos)
+            : 0;
 
         const isPointing =
           indexDist > EXTENDED_FINGER_THRESHOLD &&
@@ -221,14 +227,23 @@ AFRAME.registerComponent("hands", {
             ringDist < CURLED_FINGER_THRESHOLD ||
             pinkyDist < CURLED_FINGER_THRESHOLD);
 
-        if (isPointing) {
-          handEl.setAttribute("pointing", true);
-          return;
+        // Only update attribute if pointing state has changed
+        const currentPointingState =
+          this.pointingStateByHand.get(handEl) || false;
+        if (currentPointingState !== isPointing) {
+          this.pointingStateByHand.set(handEl, isPointing);
+          handEl.setAttribute("pointing", isPointing);
         }
-        handEl.setAttribute("pointing", false);
       });
     };
   })(),
+
+  update(oldData) {
+    if (this.needsHandRecreation(oldData)) {
+      this.remove();
+      this.setupHands();
+    }
+  },
 
   needsHandRecreation(oldData) {
     return (
@@ -245,11 +260,8 @@ AFRAME.registerComponent("hands", {
 
   remove() {
     this.handsEls = [];
-    if (this.activeTargets) {
-      this.activeTargets.clear();
-    }
-    if (this.pinchingTargets) {
-      this.pinchingTargets.clear();
+    if (this.pointingStateByHand) {
+      this.pointingStateByHand.clear();
     }
   },
 });
