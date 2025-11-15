@@ -89,11 +89,7 @@ AFRAME.registerComponent("vr-interactive", {
     if (!this.intersecting) return;
 
     if (this.data.clickAnimation) {
-      if (!this._clickScaled) {
-        this._clickScaleFactor = this.data.scaleOnClick;
-        this.el.object3D.scale.multiplyScalar(this._clickScaleFactor);
-        this._clickScaled = true;
-      }
+      this.el.object3D.scale.multiplyScalar(this.data.scaleOnClick);
     }
 
     this.el.emit(
