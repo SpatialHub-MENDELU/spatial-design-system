@@ -80,34 +80,30 @@ AFRAME.registerComponent("hands", {
     const pinchPointWorld = getPinchMidpointWorld(handEl);
     if (!pinchPointWorld) return;
 
-    // Emit pinch event to all stretchable objects - let them decide who handles it
-    const stretchables = Array.from(
-      this.el.sceneEl.querySelectorAll("[stretchable]")
+    // Emit generic hand-pinch-started event
+    document.dispatchEvent(
+      new CustomEvent("hand-pinch-started", {
+        detail: {
+          hand: handEl,
+          pinchPointWorld: pinchPointWorld,
+          handId: handEl.id,
+        },
+      })
     );
-
-    stretchables.forEach((stretchableEl) => {
-      stretchableEl.emit("stretch-start", {
-        hand: handEl,
-        pinchPointWorld: pinchPointWorld,
-        handId: handEl.id,
-      });
-    });
   },
 
   handlePinchEnded(evt) {
     const handEl = evt.currentTarget;
 
-    // Emit pinch end event to all stretchable objects
-    const stretchables = Array.from(
-      this.el.sceneEl.querySelectorAll("[stretchable]")
+    // Emit generic hand-pinch-ended event
+    document.dispatchEvent(
+      new CustomEvent("hand-pinch-ended", {
+        detail: {
+          hand: handEl,
+          handId: handEl.id,
+        },
+      })
     );
-
-    stretchables.forEach((stretchableEl) => {
-      stretchableEl.emit("stretch-end", {
-        hand: handEl,
-        handId: handEl.id,
-      });
-    });
   },
 
   handlePinchMoved(evt) {
@@ -115,18 +111,16 @@ AFRAME.registerComponent("hands", {
     const pinchPointWorld = getPinchMidpointWorld(handEl);
     if (!pinchPointWorld) return;
 
-    // Emit pinch move event to all stretchable objects
-    const stretchables = Array.from(
-      this.el.sceneEl.querySelectorAll("[stretchable]")
+    // Emit generic hand-pinch-moved event
+    document.dispatchEvent(
+      new CustomEvent("hand-pinch-moved", {
+        detail: {
+          hand: handEl,
+          pinchPointWorld: pinchPointWorld,
+          handId: handEl.id,
+        },
+      })
     );
-
-    stretchables.forEach((stretchableEl) => {
-      stretchableEl.emit("stretch-move", {
-        hand: handEl,
-        pinchPointWorld: pinchPointWorld,
-        handId: handEl.id,
-      });
-    });
   },
 
   // Detects collision between hands and objects
@@ -242,6 +236,17 @@ AFRAME.registerComponent("hands", {
           this.pointingStateByHand.set(handEl, isPointing);
           handEl.setAttribute("pointing", isPointing);
         }
+
+        // Emit generic hand-move event for continuous tracking
+        // document.dispatchEvent(
+        //   new CustomEvent("hand-move", {
+        //     detail: {
+        //       hand: handEl,
+        //       isPointing: isPointing,
+        //       handId: handEl.id,
+        //     },
+        //   })
+        // );
       });
     };
   })(),

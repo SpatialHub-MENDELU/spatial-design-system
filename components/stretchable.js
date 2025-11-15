@@ -38,15 +38,15 @@ AFRAME.registerComponent("stretchable", {
     this.onStretchMove = this.onStretchMove.bind(this);
     this.onStretchEnd = this.onStretchEnd.bind(this);
 
-    // Listen for pinch events
-    this.el.addEventListener("stretch-start", this.onStretchStart);
-    this.el.addEventListener("stretch-move", this.onStretchMove);
-    this.el.addEventListener("stretch-end", this.onStretchEnd);
+    // Listen for generic hand events
+    document.addEventListener("hand-pinch-started", this.onStretchStart);
+    document.addEventListener("hand-pinch-moved", this.onStretchMove);
+    document.addEventListener("hand-pinch-ended", this.onStretchEnd);
 
-    // Listen for controller stretch events
-    this.el.addEventListener("controller-stretch-start", this.onStretchStart);
-    this.el.addEventListener("controller-stretch-move", this.onStretchMove);
-    this.el.addEventListener("controller-stretch-end", this.onStretchEnd);
+    // Listen for generic controller events
+    document.addEventListener("controller-triggerdown", this.onStretchStart);
+    document.addEventListener("controller-move", this.onStretchMove);
+    document.addEventListener("controller-triggerup", this.onStretchEnd);
   },
 
   onStretchStart(evt) {
@@ -60,6 +60,7 @@ AFRAME.registerComponent("stretchable", {
     if (!intersectionPoint) return;
 
     // Both scale and dimensions modes require corner interaction for precise control
+    // For generic events, we need to check if this stretchable is near the interaction point
     const stretchables = Array.from(
       this.el.sceneEl.querySelectorAll("[stretchable]")
     );
@@ -116,6 +117,11 @@ AFRAME.registerComponent("stretchable", {
     if (!this.isActive || !this.pinchState) return;
 
     const detail = evt.detail;
+    const handOrController = detail.hand || detail.controller;
+
+    // Only respond if this is the same hand/controller that started the stretch
+    if (handOrController !== this.pinchState.handOrController) return;
+
     const currentPoint = detail.pinchPointWorld || detail.intersectionPoint;
 
     if (!currentPoint) return;
@@ -199,21 +205,27 @@ AFRAME.registerComponent("stretchable", {
   },
 
   onStretchEnd(evt) {
-    if (!this.isActive) return;
+    if (!this.isActive || !this.pinchState) return;
+
+    const detail = evt.detail;
+    const handOrController = detail.hand || detail.controller;
+
+    // Only respond if this is the same hand/controller that started the stretch
+    if (handOrController !== this.pinchState.handOrController) return;
 
     this.pinchState = null;
     this.isActive = false;
   },
 
   remove() {
-    this.el.removeEventListener("stretch-start", this.onStretchStart);
-    this.el.removeEventListener("stretch-move", this.onStretchMove);
-    this.el.removeEventListener("stretch-end", this.onStretchEnd);
-    this.el.removeEventListener(
-      "controller-stretch-start",
-      this.onStretchStart
-    );
-    this.el.removeEventListener("controller-stretch-move", this.onStretchMove);
-    this.el.removeEventListener("controller-stretch-end", this.onStretchEnd);
+    // Remove generic hand event listeners
+    document.removeEventListener("hand-pinch-started", this.onStretchStart);
+    document.removeEventListener("hand-pinch-moved", this.onStretchMove);
+    document.removeEventListener("hand-pinch-ended", this.onStretchEnd);
+
+    // Remove generic controller event listeners
+    document.removeEventListener("controller-triggerdown", this.onStretchStart);
+    document.removeEventListener("controller-move", this.onStretchMove);
+    document.removeEventListener("controller-triggerup", this.onStretchEnd);
   },
 });
