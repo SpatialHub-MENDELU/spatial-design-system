@@ -1,10 +1,12 @@
 import * as AFRAME from "aframe";
+import * as THREE from "three";
 import { VARIANT_DARK_COLOR } from "../utils/colors";
+import { OBB } from "three/addons/math/OBB.js";
 
 AFRAME.registerComponent("hands-hoverable", {
   schema: {
     useOverlayGeometry: { type: "boolean", default: true },
-    useWireframe: { type: "boolean", default: true },
+    useWireframe: { type: "boolean", default: false },
     overlaySizeRatio: { type: "number", default: 0.005 },
     hoverColor: { type: "color", default: VARIANT_DARK_COLOR },
   },
@@ -83,11 +85,26 @@ AFRAME.registerComponent("hands-hoverable", {
       if (this.data.useOverlayGeometry && !this.overlayBox) {
         try {
           // Get the bounding box of the element
-          const bbox = new THREE.Box3().setFromObject(this.el.object3D);
+
+          this.el.object3D.children[0]?.geometry?.computeBoundingBox();
+
+          const bbox = new OBB();
+          const objectBBox =
+            this.el.object3D.children[0]?.geometry?.boundingBox;
+
+          if (!objectBBox) return;
+
+          bbox.fromBox3(objectBBox);
+          bbox.applyMatrix4(this.el.object3D.matrixWorld);
+
           const size = new THREE.Vector3();
           bbox.getSize(size);
-          const center = new THREE.Vector3();
-          bbox.getCenter(center);
+
+          const rot3 = bbox.rotation; // This is a THREE.Matrix3
+          const rot4 = new THREE.Matrix4(); // Convert Matrix3 → Matrix4
+          rot4.setFromMatrix3(rot3);
+
+          const q = new THREE.Quaternion().setFromRotationMatrix(rot4); // Convert Matrix4 → Quaternion
 
           // Add padding to make overlay slightly larger and more visible
           const padding = this.data.overlaySizeRatio;
@@ -113,7 +130,8 @@ AFRAME.registerComponent("hands-hoverable", {
           });
 
           this.overlayBox = new THREE.Mesh(geometry, material);
-          this.overlayBox.position.copy(center);
+          this.overlayBox.position.copy(bbox.center);
+          this.overlayBox.quaternion.copy(q);
 
           // Add to scene root instead of as child of the element
           this.el.sceneEl.object3D.add(this.overlayBox);
