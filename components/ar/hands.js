@@ -1,6 +1,7 @@
 import * as AFRAME from "aframe";
 import { getPinchMidpointWorld } from "../stretchable-utils.js";
 import { jointIndices } from "./hands-utils.js";
+import { appendTo } from "../../utils/utils.js";
 
 AFRAME.registerComponent("hands", {
   schema: {
@@ -8,8 +9,6 @@ AFRAME.registerComponent("hands", {
     rightEnabled: { type: "boolean", default: true },
     leftHandColor: { type: "color", default: "#edccb6" },
     rightHandColor: { type: "color", default: "#edccb6" },
-
-    autoDisableIfNoHands: { type: "boolean", default: true },
   },
 
   init() {
@@ -30,11 +29,6 @@ AFRAME.registerComponent("hands", {
     this.handleCollisionEnded = this.handleCollisionEnded.bind(this);
 
     this.el.sceneEl.addEventListener("loaded", () => {
-      if (this.data.autoDisableIfNoHands) {
-        const gl = this.el.sceneEl.renderer?.xr?.getSession?.();
-        const supported = !!gl?.inputSources?.some?.((s) => s.hand);
-        if (!supported) return;
-      }
       this.setupHands();
     });
   },

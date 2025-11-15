@@ -9,8 +9,12 @@ AFRAME.registerComponent("stretchable", {
       default: "dimensions",
       oneOf: ["scale", "dimensions"],
     },
-    maxScaleFactor: { type: "number", default: 1.5 },
-    minScaleFactor: { type: "number", default: 0.5 },
+    dimensionAxes: {
+      type: "array",
+      default: ["x", "y", "z"],
+    },
+    maxSize: { type: "number", default: 1.5 },
+    minSize: { type: "number", default: 0.5 },
     maxBoxTouchDistance: { type: "number", default: 0.03 },
     maxCornerSelectDistance: { type: "number", default: 0.06 },
     // Note: maxCornerSelectDistance is larger than maxBoxTouchDistance because:
@@ -20,8 +24,10 @@ AFRAME.registerComponent("stretchable", {
   },
   init() {
     this.el.setAttribute("obb-collider", "centerModel: true");
-    this.el.setAttribute("vr-interactive", "");
-    this.el.classList.add("interactable");
+    this.el.classList.add("interactable", "interactive", "clickable");
+
+    // Store the original scale for scaling bounds calculation
+    this.originalScale = this.el.object3D.scale.clone();
 
     // Pinch state for this stretchable object
     this.pinchState = null;
@@ -53,51 +59,40 @@ AFRAME.registerComponent("stretchable", {
 
     if (!intersectionPoint) return;
 
-    // Scale mode: Only activate when pinching near corners for precise control
-    // Dimensions mode: Activate on any intersection point
-    let centerWorld;
-    let initialScale;
-    if (this.data.mode === "scale") {
-      const stretchables = Array.from(
-        this.el.sceneEl.querySelectorAll("[stretchable]")
-      );
-      const best = findNearestStretchableCorner(
-        intersectionPoint,
-        stretchables,
-        this.data.maxBoxTouchDistance,
-        this.data.maxCornerSelectDistance
-      );
-      if (!best || best.targetEl !== this.el) return; // Not a corner of this element
-      centerWorld = best.centerWorld.clone();
-      initialScale = best.initialScale.clone();
-    } else {
-      // Check if this stretchable is the closest to the intersection point
-      if (!this.isClosestStretchable(intersectionPoint)) {
-        return;
-      }
+    // Both scale and dimensions modes require corner interaction for precise control
+    const stretchables = Array.from(
+      this.el.sceneEl.querySelectorAll("[stretchable]")
+    );
+    const best = findNearestStretchableCorner(
+      intersectionPoint,
+      stretchables,
+      this.data.maxBoxTouchDistance,
+      this.data.maxCornerSelectDistance
+    );
+    if (!best || best.targetEl !== this.el) return; // Not a corner of this element
 
-      // Check if the intersection point is close enough to the object's surface
-      const bbox = new THREE.Box3().setFromObject(this.el.object3D);
-      const distToBox = bbox.distanceToPoint(intersectionPoint);
-      if (distToBox > this.data.maxBoxTouchDistance) {
-        return; // Too far from the object surface
-      }
-
-      // Calculate center and initial scale
-      centerWorld = new THREE.Vector3();
-      bbox.getCenter(centerWorld);
-      initialScale = this.el.object3D.scale.clone();
-    }
+    // Both modes use the same corner-based scaling logic
+    const centerWorld = best.centerWorld.clone();
+    const initialScale = best.initialScale.clone();
+    const axes = best.axes;
 
     // Vector from element center to the intersection point
     const initialVector = new THREE.Vector3()
       .copy(intersectionPoint)
       .sub(centerWorld);
-    const initialVectorAbs = new THREE.Vector3(
-      Math.abs(initialVector.x),
-      Math.abs(initialVector.y),
-      Math.abs(initialVector.z)
+
+    const initialLocal = new THREE.Vector3(
+      axes[0].dot(initialVector),
+      axes[1].dot(initialVector),
+      axes[2].dot(initialVector)
     );
+
+    const initialLocalAbs = new THREE.Vector3(
+      Math.abs(initialLocal.x),
+      Math.abs(initialLocal.y),
+      Math.abs(initialLocal.z)
+    );
+
     const initialDistanceToCenter = initialVector.length();
 
     // Avoid zero-distance to prevent division by zero
@@ -109,8 +104,9 @@ AFRAME.registerComponent("stretchable", {
       initialScale,
       centerWorld,
       initialDistanceToCenter,
-      initialVectorAbs,
+      initialLocalAbs,
       uniform: this.data.mode === "scale",
+      axes,
     };
 
     this.isActive = true;
@@ -128,29 +124,37 @@ AFRAME.registerComponent("stretchable", {
       initialScale,
       centerWorld,
       initialDistanceToCenter,
-      initialVectorAbs,
+      initialLocalAbs,
+      axes,
       uniform,
     } = this.pinchState;
 
     const currentVector = new THREE.Vector3()
       .copy(currentPoint)
       .sub(centerWorld);
-    const currentVectorAbs = new THREE.Vector3(
-      Math.abs(currentVector.x),
-      Math.abs(currentVector.y),
-      Math.abs(currentVector.z)
-    );
 
     const currentDistanceToCenter = currentVector.length();
     if (currentDistanceToCenter < 1e-6) return;
 
+    const currentLocal = new THREE.Vector3(
+      axes[0].dot(currentVector),
+      axes[1].dot(currentVector),
+      axes[2].dot(currentVector)
+    );
+    const currentLocalAbs = new THREE.Vector3(
+      Math.abs(currentLocal.x),
+      Math.abs(currentLocal.y),
+      Math.abs(currentLocal.z)
+    );
+
     // Calculate scale bounds (used by both uniform and non-uniform scaling)
-    const maxX = initialScale.x * this.data.maxScaleFactor;
-    const maxY = initialScale.y * this.data.maxScaleFactor;
-    const maxZ = initialScale.z * this.data.maxScaleFactor;
-    const minX = initialScale.x * this.data.minScaleFactor;
-    const minY = initialScale.y * this.data.minScaleFactor;
-    const minZ = initialScale.z * this.data.minScaleFactor;
+    // Use scale factors applied to the original scale
+    const maxX = this.originalScale.x * this.data.maxSize;
+    const maxY = this.originalScale.y * this.data.maxSize;
+    const maxZ = this.originalScale.z * this.data.maxSize;
+    const minX = this.originalScale.x * this.data.minSize;
+    const minY = this.originalScale.y * this.data.minSize;
+    const minZ = this.originalScale.z * this.data.minSize;
 
     // Uniform vs non-uniform scaling based on stretchable mode
     if (uniform) {
@@ -163,21 +167,33 @@ AFRAME.registerComponent("stretchable", {
     } else {
       const EPS = 1e-4;
       const sx =
-        initialVectorAbs.x > EPS
-          ? currentVectorAbs.x / initialVectorAbs.x
+        initialLocalAbs.x > EPS
+          ? currentLocalAbs.x / initialLocalAbs.x
           : currentDistanceToCenter / initialDistanceToCenter;
       const sy =
-        initialVectorAbs.y > EPS
-          ? currentVectorAbs.y / initialVectorAbs.y
+        initialLocalAbs.y > EPS
+          ? currentLocalAbs.y / initialLocalAbs.y
           : currentDistanceToCenter / initialDistanceToCenter;
       const sz =
-        initialVectorAbs.z > EPS
-          ? currentVectorAbs.z / initialVectorAbs.z
+        initialLocalAbs.z > EPS
+          ? currentLocalAbs.z / initialLocalAbs.z
           : currentDistanceToCenter / initialDistanceToCenter;
 
-      const newScaleX = Math.min(maxX, Math.max(minX, initialScale.x * sx));
-      const newScaleY = Math.min(maxY, Math.max(minY, initialScale.y * sy));
-      const newScaleZ = Math.min(maxZ, Math.max(minZ, initialScale.z * sz));
+      // Apply dimensionAxes restrictions for dimensions mode only
+      const allowedAxes = this.data.dimensionAxes || ["x", "y", "z"];
+
+      const newScaleX = allowedAxes.includes("x")
+        ? Math.min(maxX, Math.max(minX, initialScale.x * sx))
+        : initialScale.x;
+
+      const newScaleY = allowedAxes.includes("y")
+        ? Math.min(maxY, Math.max(minY, initialScale.y * sy))
+        : initialScale.y;
+
+      const newScaleZ = allowedAxes.includes("z")
+        ? Math.min(maxZ, Math.max(minZ, initialScale.z * sz))
+        : initialScale.z;
+
       this.el.object3D.scale.set(newScaleX, newScaleY, newScaleZ);
     }
   },
@@ -187,29 +203,6 @@ AFRAME.registerComponent("stretchable", {
 
     this.pinchState = null;
     this.isActive = false;
-  },
-
-  isClosestStretchable(pinchPointWorld) {
-    const stretchables = Array.from(
-      this.el.sceneEl.querySelectorAll("[stretchable]")
-    );
-
-    let closestDistance = Infinity;
-    let closestStretchable = null;
-
-    stretchables.forEach((stretchableEl) => {
-      const bbox = new THREE.Box3().setFromObject(stretchableEl.object3D);
-      const center = new THREE.Vector3();
-      bbox.getCenter(center);
-      const distance = center.distanceTo(pinchPointWorld);
-
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestStretchable = stretchableEl;
-      }
-    });
-
-    return closestStretchable === this.el;
   },
 
   remove() {

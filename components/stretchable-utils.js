@@ -1,4 +1,6 @@
 import { jointIndices } from "./ar/hands-utils.js";
+import * as THREE from "three";
+import { OBB } from "three/addons/math/OBB.js";
 
 // Utilities for stretchable interactions
 
@@ -13,33 +15,57 @@ export function findNearestStretchableCorner(
   maxBoxTouchDistance,
   maxCornerSelectDistance
 ) {
-  const box = new THREE.Box3();
-  const center = new THREE.Vector3();
+  const bbox = new OBB();
+
   let best = null;
   let bestScore = Infinity; // Lower is better
 
   for (const el of elements) {
     if (!el.object3D) continue;
-    el.object3D.updateMatrixWorld(true);
-    box.setFromObject(el.object3D);
-    if (box.isEmpty()) continue;
 
-    // Require pinch point to be close to the element's surface
-    const distToBox = box.distanceToPoint(pointWorld);
+    el.object3D.children[0]?.geometry?.computeBoundingBox();
+    const objectBBox = el.object3D.children[0]?.geometry?.boundingBox;
+    bbox.fromBox3(objectBBox);
+    bbox.applyMatrix4(el.object3D.matrixWorld);
+
+    const rot3 = bbox.rotation; // This is a THREE.Matrix3
+    const rot4 = new THREE.Matrix4(); // Convert Matrix3 → Matrix4
+    rot4.setFromMatrix3(rot3);
+
+    el.object3D.updateMatrixWorld(true);
+
+    const clamped = new THREE.Vector3();
+    bbox.clampPoint(pointWorld, clamped);
+    const distToBox = clamped.distanceTo(pointWorld);
     if (distToBox > maxBoxTouchDistance) continue;
 
-    const min = box.min;
-    const max = box.max;
-    const corners = [
-      new THREE.Vector3(min.x, min.y, min.z),
-      new THREE.Vector3(min.x, min.y, max.z),
-      new THREE.Vector3(min.x, max.y, min.z),
-      new THREE.Vector3(min.x, max.y, max.z),
-      new THREE.Vector3(max.x, min.y, min.z),
-      new THREE.Vector3(max.x, min.y, max.z),
-      new THREE.Vector3(max.x, max.y, min.z),
-      new THREE.Vector3(max.x, max.y, max.z),
+    const corners = [];
+
+    const { center, halfSize, rotation } = bbox; // rotation = Matrix3
+    const axes = [
+      new THREE.Vector3(1, 0, 0).applyMatrix3(rotation),
+      new THREE.Vector3(0, 1, 0).applyMatrix3(rotation),
+      new THREE.Vector3(0, 0, 1).applyMatrix3(rotation),
     ];
+
+    const signs = [
+      new THREE.Vector3(-1, -1, -1),
+      new THREE.Vector3(-1, -1, 1),
+      new THREE.Vector3(-1, 1, -1),
+      new THREE.Vector3(-1, 1, 1),
+      new THREE.Vector3(1, -1, -1),
+      new THREE.Vector3(1, -1, 1),
+      new THREE.Vector3(1, 1, -1),
+      new THREE.Vector3(1, 1, 1),
+    ];
+
+    for (const s of signs) {
+      const corner = new THREE.Vector3().copy(center);
+      corner.addScaledVector(axes[0], s.x * halfSize.x);
+      corner.addScaledVector(axes[1], s.y * halfSize.y);
+      corner.addScaledVector(axes[2], s.z * halfSize.z);
+      corners.push(corner);
+    }
 
     // Find nearest corner but only accept if also close to that corner
     let localBestCorner = null;
@@ -57,12 +83,12 @@ export function findNearestStretchableCorner(
       const score = distToBox * 2 + localBestCornerDist;
       if (score < bestScore) {
         bestScore = score;
-        box.getCenter(center);
         best = {
           targetEl: el,
           closestCornerWorld: localBestCorner.clone(),
-          centerWorld: center.clone(),
+          centerWorld: bbox.center.clone(),
           initialScale: el.object3D.scale.clone(),
+          axes: axes.map((axis) => axis.clone()),
         };
       }
     }
