@@ -236,17 +236,6 @@ AFRAME.registerComponent("hands", {
           this.pointingStateByHand.set(handEl, isPointing);
           handEl.setAttribute("pointing", isPointing);
         }
-
-        // Emit generic hand-move event for continuous tracking
-        // document.dispatchEvent(
-        //   new CustomEvent("hand-move", {
-        //     detail: {
-        //       hand: handEl,
-        //       isPointing: isPointing,
-        //       handId: handEl.id,
-        //     },
-        //   })
-        // );
       });
     };
   })(),
