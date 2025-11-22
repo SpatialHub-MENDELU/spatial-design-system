@@ -45,6 +45,14 @@ export function createRoundedSquareShape(size, borderRadius) {
     return shape;
 }
 
+export function createCircleShape(size) {
+    const shape = new THREE.Shape();
+
+    shape.absarc(0, 0, size, 0, Math.PI * 2, false);
+    
+    return shape;
+}
+
 export function createRoundedRectShape(width, height, radius) {
     const shape = new THREE.Shape();
     shape.moveTo(-width / 2 + radius, -height / 2);
