@@ -2,6 +2,33 @@ import { jointIndices } from "./ar/hands-utils.js";
 import * as THREE from "three";
 import { OBB } from "three/addons/math/OBB.js";
 
+export function computeElementBoundingBox(el) {
+  // First, try to get bounding box from geometry component (for primitives)
+  const geometryComponent = el.components.geometry;
+  if (geometryComponent && geometryComponent.geometry) {
+    geometryComponent.geometry.computeBoundingBox();
+    return geometryComponent.geometry.boundingBox;
+  }
+
+  // Fallback: compute bounding box from all meshes in the object3D
+  const box = new THREE.Box3();
+  let hasGeometry = false;
+
+  el.object3D.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      child.geometry.computeBoundingBox();
+      if (child.geometry.boundingBox) {
+        const childBox = child.geometry.boundingBox.clone();
+        childBox.applyMatrix4(child.matrixWorld);
+        box.union(childBox);
+        hasGeometry = true;
+      }
+    }
+  });
+
+  return hasGeometry ? box : null;
+}
+
 // Utilities for stretchable interactions
 
 // Finds a stretchable whose world-space bounding box is near the pinch point
@@ -23,8 +50,9 @@ export function findNearestStretchableCorner(
   for (const el of elements) {
     if (!el.object3D) continue;
 
-    el.object3D.children[0]?.geometry?.computeBoundingBox();
-    const objectBBox = el.object3D.children[0]?.geometry?.boundingBox;
+    const objectBBox = computeElementBoundingBox(el);
+    if (!objectBBox) continue;
+
     bbox.fromBox3(objectBBox);
     bbox.applyMatrix4(el.object3D.matrixWorld);
 

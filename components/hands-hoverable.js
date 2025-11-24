@@ -2,6 +2,7 @@ import * as AFRAME from "aframe";
 import * as THREE from "three";
 import { VARIANT_DARK_COLOR } from "../utils/colors";
 import { OBB } from "three/addons/math/OBB.js";
+import { computeElementBoundingBox } from "./stretchable-utils.js";
 
 AFRAME.registerComponent("hands-hoverable", {
   schema: {
@@ -85,14 +86,11 @@ AFRAME.registerComponent("hands-hoverable", {
       if (this.data.useOverlayGeometry && !this.overlayBox) {
         try {
           // Get the bounding box of the element
-
-          this.el.object3D.children[0]?.geometry?.computeBoundingBox();
-
-          const bbox = new OBB();
-          const objectBBox =
-            this.el.object3D.children[0]?.geometry?.boundingBox;
+          const objectBBox = computeElementBoundingBox(this.el);
 
           if (!objectBBox) return;
+
+          const bbox = new OBB();
 
           bbox.fromBox3(objectBBox);
           bbox.applyMatrix4(this.el.object3D.matrixWorld);
