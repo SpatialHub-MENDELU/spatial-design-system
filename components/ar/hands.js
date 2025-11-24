@@ -130,7 +130,10 @@ AFRAME.registerComponent("hands", {
 
     this.hoverByHand.set(handEl, targetEl);
 
-    if (targetEl.hasAttribute("hands-hoverable")) {
+    if (
+      targetEl.hasAttribute("hands-hoverable") ||
+      targetEl.hasAttribute("finger-touch")
+    ) {
       targetEl.emit("hand-hover-started", { hand: handEl, side: handEl.id });
     }
   },
@@ -142,7 +145,10 @@ AFRAME.registerComponent("hands", {
     if (this.hoverByHand.get(handEl) === targetEl)
       this.hoverByHand.delete(handEl);
 
-    if (targetEl.hasAttribute("hands-hoverable")) {
+    if (
+      targetEl.hasAttribute("hands-hoverable") ||
+      targetEl.hasAttribute("finger-touch")
+    ) {
       targetEl.emit("hand-hover-ended", { hand: handEl, side: handEl.id });
     }
   },

@@ -15,8 +15,6 @@ document.querySelector("#app").innerHTML = `
        hands>
     </a-entity>
 
-    
-     <a-box position="0 1.6 -0.7" width="0.5" height="0.5" depth="0.5" color="#03FCC6" stretchable="dimensionAxes: x, z"></a-box>
-     <a-box position="1 1.6 -0.7" width="0.5" height="0.5" depth="0.5" color="#2196F3" stretchable="mode: scale; maxSize: 2; minSize: 0.5"></a-box>
+    <a-ar-button finger-touch position="-0.8 1.6 -0.7" content="Ahoj"></a-ar-button>
     
     </a-scene>`;
