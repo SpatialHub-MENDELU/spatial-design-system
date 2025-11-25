@@ -178,6 +178,9 @@ AFRAME.registerComponent("controllers", {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
 
+    const intersections = raycaster.intersections || [];
+    const hitPoint = intersections.length > 0 ? intersections[0].point : null;
+
     // Remove from active trigger controllers
     this.activeTriggerControllers.delete(controller);
 
@@ -186,6 +189,7 @@ AFRAME.registerComponent("controllers", {
       new CustomEvent("controller-triggerup", {
         detail: {
           controller: controller,
+          intersectionPoint: hitPoint,
           controllerId: controller.id,
         },
       })
