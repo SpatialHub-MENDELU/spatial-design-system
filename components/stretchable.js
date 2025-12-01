@@ -111,6 +111,12 @@ AFRAME.registerComponent("stretchable", {
     };
 
     this.isActive = true;
+
+    this.el.emit("stretch-started", {
+      handOrController,
+      intersectionPoint,
+      pinchState: this.pinchState,
+    });
   },
 
   onStretchMove(evt) {
@@ -201,6 +207,13 @@ AFRAME.registerComponent("stretchable", {
         : initialScale.z;
 
       this.el.object3D.scale.set(newScaleX, newScaleY, newScaleZ);
+
+      this.el.emit("stretch-moved", {
+        handOrController,
+        currentPoint,
+        newScale: this.el.object3D.scale.clone(),
+        pinchState: this.pinchState,
+      });
     }
   },
 
@@ -212,6 +225,12 @@ AFRAME.registerComponent("stretchable", {
 
     // Only respond if this is the same hand/controller that started the stretch
     if (handOrController !== this.pinchState.handOrController) return;
+
+    this.el.emit("stretch-ended", {
+      handOrController,
+      finalScale: this.el.object3D.scale.clone(),
+      pinchState: this.pinchState,
+    });
 
     this.pinchState = null;
     this.isActive = false;
