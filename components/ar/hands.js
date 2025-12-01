@@ -130,9 +130,7 @@ AFRAME.registerComponent("hands", {
 
     this.hoverByHand.set(handEl, targetEl);
 
-    if (targetEl.hasAttribute("hands-hoverable")) {
-      targetEl.emit("hand-hover-started", { hand: handEl, side: handEl.id });
-    }
+    targetEl.emit("hand-hover-started", { hand: handEl, side: handEl.id });
   },
 
   handleCollisionEnded(evt) {
@@ -142,9 +140,7 @@ AFRAME.registerComponent("hands", {
     if (this.hoverByHand.get(handEl) === targetEl)
       this.hoverByHand.delete(handEl);
 
-    if (targetEl.hasAttribute("hands-hoverable")) {
-      targetEl.emit("hand-hover-ended", { hand: handEl, side: handEl.id });
-    }
+    targetEl.emit("hand-hover-ended", { hand: handEl, side: handEl.id });
   },
 
   // To make the click work, we need to check, whether the tip is pointing at the object and if the position is within the object's bounds
