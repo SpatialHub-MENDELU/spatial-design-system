@@ -333,9 +333,11 @@ AFRAME.registerComponent("button", {
         // Using aframe animations for button and its children scale (pic, text..)
         // Using tween.js for color change due to problems with aframe color animations
 
+        const elScale = this.el.object3D.scale.clone();
+
         const pressAnimation = {
             property: 'scale',
-            to: { x: 0.9, y: 0.9, z: 0.9 },
+            to: { x: elScale.x * 0.9, y: elScale.y * 0.9, z: elScale.z * 0.9 },
             dur: 100,
             easing: 'easeInOutQuad'
         };
@@ -361,7 +363,7 @@ AFRAME.registerComponent("button", {
         }
     
         setTimeout(() => {
-            const releaseAnimation = { ...pressAnimation, to: { x: 1, y: 1, z: 1 } };
+            const releaseAnimation = { ...pressAnimation, to: { x: elScale.x, y: elScale.y, z: elScale.z } };
             this.el.setAttribute('animation__click', releaseAnimation);
     
             new TWEEN.Tween(buttonMesh.material.color)
