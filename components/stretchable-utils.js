@@ -11,15 +11,54 @@ export function computeElementBoundingBox(el) {
   }
 
   // Fallback: compute bounding box from all meshes in the object3D
+  // Exclude meshes that belong to nested A-Frame entities (child elements)
   const box = new THREE.Box3();
+  const childBox = new THREE.Box3();
+  const tempMatrix = new THREE.Matrix4();
+  const rootInverse = new THREE.Matrix4();
+
+  el.object3D.updateMatrixWorld(true);
+  rootInverse.copy(el.object3D.matrixWorld).invert();
   let hasGeometry = false;
+
+  // Get all child entities' object3Ds to exclude their meshes
+  const childEntityObject3Ds = new Set();
+  for (const childEl of el.children) {
+    if (childEl.object3D) {
+      childEntityObject3Ds.add(childEl.object3D);
+      // Also include any object3D in the object3DMap (like "mesh")
+      if (childEl.object3DMap) {
+        Object.values(childEl.object3DMap).forEach((obj3d) => {
+          if (obj3d) childEntityObject3Ds.add(obj3d);
+        });
+      }
+    }
+  }
 
   el.object3D.traverse((child) => {
     if (child.isMesh && child.geometry) {
+      // Check if this mesh belongs to a nested entity
+      // Walk up the parent chain to see if we hit a child entity's object3D
+      let belongsToChildEntity = false;
+      let parent = child.parent;
+      while (parent && parent !== el.object3D) {
+        if (childEntityObject3Ds.has(parent)) {
+          belongsToChildEntity = true;
+          break;
+        }
+        parent = parent.parent;
+      }
+
+      // Skip meshes that belong to nested entities
+      if (belongsToChildEntity) {
+        return;
+      }
+
       child.geometry.computeBoundingBox();
       if (child.geometry.boundingBox) {
-        const childBox = child.geometry.boundingBox.clone();
-        childBox.applyMatrix4(child.matrixWorld);
+        childBox.copy(child.geometry.boundingBox);
+        tempMatrix.copy(child.matrixWorld).premultiply(rootInverse);
+        childBox.applyMatrix4(tempMatrix);
         box.union(childBox);
         hasGeometry = true;
       }
@@ -38,92 +77,81 @@ export function computeElementBoundingBox(el) {
 // also assigns a score to prefer tight proximity to the box and its corner.
 export function findNearestStretchableCorner(
   pointWorld,
-  elements,
+  element,
   maxBoxTouchDistance,
   maxCornerSelectDistance
 ) {
+  if (!element || !element.object3D) return null;
+
   const bbox = new OBB();
+  const el = element;
 
-  let best = null;
-  let bestScore = Infinity; // Lower is better
+  const objectBBox = computeElementBoundingBox(el);
+  if (!objectBBox) return null;
 
-  for (const el of elements) {
-    if (!el.object3D) continue;
+  bbox.fromBox3(objectBBox);
+  bbox.applyMatrix4(el.object3D.matrixWorld);
 
-    const objectBBox = computeElementBoundingBox(el);
-    if (!objectBBox) continue;
+  const rot3 = bbox.rotation; // This is a THREE.Matrix3
+  const rot4 = new THREE.Matrix4(); // Convert Matrix3 → Matrix4
+  rot4.setFromMatrix3(rot3);
 
-    bbox.fromBox3(objectBBox);
-    bbox.applyMatrix4(el.object3D.matrixWorld);
+  el.object3D.updateMatrixWorld(true);
 
-    const rot3 = bbox.rotation; // This is a THREE.Matrix3
-    const rot4 = new THREE.Matrix4(); // Convert Matrix3 → Matrix4
-    rot4.setFromMatrix3(rot3);
+  const clamped = new THREE.Vector3();
+  bbox.clampPoint(pointWorld, clamped);
+  const distToBox = clamped.distanceTo(pointWorld);
+  if (distToBox > maxBoxTouchDistance) return null;
 
-    el.object3D.updateMatrixWorld(true);
+  const corners = [];
 
-    const clamped = new THREE.Vector3();
-    bbox.clampPoint(pointWorld, clamped);
-    const distToBox = clamped.distanceTo(pointWorld);
-    if (distToBox > maxBoxTouchDistance) continue;
+  const { center, halfSize, rotation } = bbox; // rotation = Matrix3
+  const axes = [
+    new THREE.Vector3(1, 0, 0).applyMatrix3(rotation),
+    new THREE.Vector3(0, 1, 0).applyMatrix3(rotation),
+    new THREE.Vector3(0, 0, 1).applyMatrix3(rotation),
+  ];
 
-    const corners = [];
+  const signs = [
+    new THREE.Vector3(-1, -1, -1),
+    new THREE.Vector3(-1, -1, 1),
+    new THREE.Vector3(-1, 1, -1),
+    new THREE.Vector3(-1, 1, 1),
+    new THREE.Vector3(1, -1, -1),
+    new THREE.Vector3(1, -1, 1),
+    new THREE.Vector3(1, 1, -1),
+    new THREE.Vector3(1, 1, 1),
+  ];
 
-    const { center, halfSize, rotation } = bbox; // rotation = Matrix3
-    const axes = [
-      new THREE.Vector3(1, 0, 0).applyMatrix3(rotation),
-      new THREE.Vector3(0, 1, 0).applyMatrix3(rotation),
-      new THREE.Vector3(0, 0, 1).applyMatrix3(rotation),
-    ];
+  for (const s of signs) {
+    const corner = new THREE.Vector3().copy(center);
+    corner.addScaledVector(axes[0], s.x * halfSize.x);
+    corner.addScaledVector(axes[1], s.y * halfSize.y);
+    corner.addScaledVector(axes[2], s.z * halfSize.z);
+    corners.push(corner);
+  }
 
-    const signs = [
-      new THREE.Vector3(-1, -1, -1),
-      new THREE.Vector3(-1, -1, 1),
-      new THREE.Vector3(-1, 1, -1),
-      new THREE.Vector3(-1, 1, 1),
-      new THREE.Vector3(1, -1, -1),
-      new THREE.Vector3(1, -1, 1),
-      new THREE.Vector3(1, 1, -1),
-      new THREE.Vector3(1, 1, 1),
-    ];
-
-    for (const s of signs) {
-      const corner = new THREE.Vector3().copy(center);
-      corner.addScaledVector(axes[0], s.x * halfSize.x);
-      corner.addScaledVector(axes[1], s.y * halfSize.y);
-      corner.addScaledVector(axes[2], s.z * halfSize.z);
-      corners.push(corner);
-    }
-
-    // Find nearest corner but only accept if also close to that corner
-    let localBestCorner = null;
-    let localBestCornerDist = Infinity;
-    for (const corner of corners) {
-      const d = corner.distanceTo(pointWorld);
-      if (d < localBestCornerDist) {
-        localBestCornerDist = d;
-        localBestCorner = corner;
-      }
-    }
-
-    if (localBestCorner && localBestCornerDist <= maxCornerSelectDistance) {
-      // Score prefers smaller distance to box, then corner proximity
-      const score = distToBox * 2 + localBestCornerDist;
-      if (score < bestScore) {
-        bestScore = score;
-        best = {
-          targetEl: el,
-          closestCornerWorld: localBestCorner.clone(),
-          centerWorld: bbox.center.clone(),
-          initialScale: el.object3D.scale.clone(),
-          axes: axes.map((axis) => axis.clone()),
-        };
-      }
+  // Find nearest corner but only accept if also close to that corner
+  let localBestCorner = null;
+  let localBestCornerDist = Infinity;
+  for (const corner of corners) {
+    const d = corner.distanceTo(pointWorld);
+    if (d < localBestCornerDist) {
+      localBestCornerDist = d;
+      localBestCorner = corner;
     }
   }
 
-  if (!best || !best.targetEl) return null;
-  return best;
+  if (!localBestCorner || localBestCornerDist > maxCornerSelectDistance)
+    return null;
+
+  return {
+    targetEl: el,
+    closestCornerWorld: localBestCorner.clone(),
+    centerWorld: bbox.center.clone(),
+    initialScale: el.object3D.scale.clone(),
+    axes: axes.map((axis) => axis.clone()),
+  };
 }
 
 // Computes the midpoint between thumb-tip and index-tip in world coordinates.

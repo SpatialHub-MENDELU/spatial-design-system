@@ -23,7 +23,7 @@ AFRAME.registerComponent("stretchable", {
     // This allows corner selection even when the corner extends beyond the surface threshold
   },
   init() {
-    this.el.setAttribute("obb-collider", "centerModel: true");
+    this.el.setAttribute("obb-collider", "");
     this.el.classList.add("interactable", "interactive", "clickable");
 
     // Store the original scale for scaling bounds calculation
@@ -60,17 +60,14 @@ AFRAME.registerComponent("stretchable", {
     if (!intersectionPoint) return;
 
     // Both scale and dimensions modes require corner interaction for precise control
-    // For generic events, we need to check if this stretchable is near the interaction point
-    const stretchables = Array.from(
-      this.el.sceneEl.querySelectorAll("[stretchable]")
-    );
+    // Check if the intersection point is near a corner of this element only
     const best = findNearestStretchableCorner(
       intersectionPoint,
-      stretchables,
+      this.el,
       this.data.maxBoxTouchDistance,
       this.data.maxCornerSelectDistance
     );
-    if (!best || best.targetEl !== this.el) return; // Not a corner of this element
+    if (!best) return; // Not a corner of this element
 
     // Both modes use the same corner-based scaling logic
     const centerWorld = best.centerWorld.clone();
@@ -124,6 +121,11 @@ AFRAME.registerComponent("stretchable", {
 
     const detail = evt.detail;
     const handOrController = detail.hand || detail.controller;
+
+    const handEl = detail.hand;
+    if (handEl) {
+      handEl.setAttribute("hand-grabbable-controls", "grabEnabled", false);
+    }
 
     // Only respond if this is the same hand/controller that started the stretch
     if (handOrController !== this.pinchState.handOrController) return;
@@ -207,14 +209,14 @@ AFRAME.registerComponent("stretchable", {
         : initialScale.z;
 
       this.el.object3D.scale.set(newScaleX, newScaleY, newScaleZ);
-
-      this.el.emit("stretch-moved", {
-        handOrController,
-        currentPoint,
-        newScale: this.el.object3D.scale.clone(),
-        pinchState: this.pinchState,
-      });
     }
+
+    this.el.emit("stretch-moved", {
+      handOrController,
+      currentPoint,
+      newScale: this.el.object3D.scale.clone(),
+      pinchState: this.pinchState,
+    });
   },
 
   onStretchEnd(evt) {
@@ -234,6 +236,11 @@ AFRAME.registerComponent("stretchable", {
 
     this.pinchState = null;
     this.isActive = false;
+
+    const handEl = detail.hand;
+    if (handEl) {
+      handEl.setAttribute("hand-grabbable-controls", "grabEnabled", true);
+    }
   },
 
   remove() {
