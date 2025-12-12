@@ -124,6 +124,12 @@ AFRAME.registerComponent("stretchable", {
 
     const handEl = detail.hand;
     if (handEl) {
+      // Store original grabEnabled state if not already stored
+      if (this.pinchState.originalGrabEnabled === undefined) {
+        const grabEnabledAttr = handEl.getAttribute("hand-grabbable-controls");
+        this.pinchState.originalGrabEnabled =
+          grabEnabledAttr?.grabEnabled ?? true;
+      }
       handEl.setAttribute("hand-grabbable-controls", "grabEnabled", false);
     }
 
@@ -234,13 +240,17 @@ AFRAME.registerComponent("stretchable", {
       pinchState: this.pinchState,
     });
 
+    const handEl = detail.hand;
+    if (handEl && this.pinchState.originalGrabEnabled !== undefined) {
+      handEl.setAttribute(
+        "hand-grabbable-controls",
+        "grabEnabled",
+        this.pinchState.originalGrabEnabled
+      );
+    }
+
     this.pinchState = null;
     this.isActive = false;
-
-    const handEl = detail.hand;
-    if (handEl) {
-      handEl.setAttribute("hand-grabbable-controls", "grabEnabled", true);
-    }
   },
 
   remove() {

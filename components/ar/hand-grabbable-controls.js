@@ -1,6 +1,10 @@
 import * as AFRAME from "aframe";
 import * as THREE from "three";
 
+/*
+ * This component copied from A-Frame repository and modified to work with the hands component:
+ * https://github.com/aframevr/aframe/blob/master/src/components/hand-tracking-grab-controls.js
+ */
 AFRAME.registerComponent("hand-grabbable-controls", {
   schema: {
     hand: { default: "right", oneOf: ["left", "right"] },

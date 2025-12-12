@@ -22,6 +22,8 @@ export function computeElementBoundingBox(el) {
   let hasGeometry = false;
 
   // Get all child entities' object3Ds to exclude their meshes
+  // We exclude child meshes so each entity's bounding box only includes its own geometry,
+  // preventing calculation errors and incorrect stretching behavior.
   const childEntityObject3Ds = new Set();
   for (const childEl of el.children) {
     if (childEl.object3D) {
@@ -70,11 +72,9 @@ export function computeElementBoundingBox(el) {
 
 // Utilities for stretchable interactions
 
-// Finds a stretchable whose world-space bounding box is near the pinch point
-// and returns the nearest corner information. This guards the behavior so it
-// only triggers for elements with the `stretchable` component and only when the
-// pinch/controllers is actually close to the element's surface and a corner. The function
-// also assigns a score to prefer tight proximity to the box and its corner.
+// Finds the nearest corner of an element's world-space bounding box to a given point.
+// Returns corner information only if the point is within maxBoxTouchDistance of the box
+// surface and the nearest corner is within maxCornerSelectDistance. Returns null otherwise.
 export function findNearestStretchableCorner(
   pointWorld,
   element,
