@@ -13,10 +13,11 @@ scene.innerHTML = `
     id="dialogBox"
     position="0 2 -3"
     title="Dialog Title"
-    buttons="accept,close,No,Yes"
-    color="yellow"
+    content="It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English."
+    buttons="accept,close"
     mode="dark"
     textcolor="white"
+    color="rgba(73, 128, 223, 1)"
 ></a-ar-dialog>
 <a-ar-button
     id="openDialogButton"
@@ -43,7 +44,7 @@ scene.addEventListener("loaded", () => {
 
 function openDialog(dialog, button) {
     dialog.setAttribute("visible", true);
-    dialog.setAttribute("scale", "0.1 0.1 0.1"); // Start small
+    dialog.setAttribute("scale", "0.1 0.1 0.1");
 
     dialog.setAttribute("animation", {
         property: "scale",

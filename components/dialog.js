@@ -1,5 +1,5 @@
 import * as AFRAME from "aframe"
-import * as TWEEN from '@tweenjs/tween.js';
+import "aframe-troika-text";
 import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR } from "../utils/colors.js"
 import { createRoundedRectShape, getContrast, setContrastColor} from "../utils/utils.js"
 import "../primitives/ar-button.js" 
@@ -23,8 +23,8 @@ AFRAME.registerComponent("dialog", {
     },
 
     init() {
-        // this.el.setAttribute("flexbox", "...")
         this.finalColor = this.data.color;
+        this.createDialog();
         this.setContent();
         this.setMode();
         this.updateDialogColor();
@@ -80,12 +80,15 @@ AFRAME.registerComponent("dialog", {
     },
 
     createDialog(widthArg = 3, heightArg = 2) {
+        if (this.dialogMesh) return;
+
         const group = new AFRAME.THREE.Group();
 
         const width = widthArg
         const height = heightArg
         let  borderRadius = 0.12
         this.width = width
+        this.height = height
 
         // Create a main dialog mesh
         const dialogShape = createRoundedRectShape(width, height, borderRadius)
@@ -108,39 +111,94 @@ AFRAME.registerComponent("dialog", {
         this.el.setAttribute("visible", false);
     },
 
-    setContent() {
-        let title = this.data.title;
-        let content = this.data.content;
+    _clearContent() {
+        const titleEl = this.el.querySelector("#title");
+        const contentEl = this.el.querySelector("#content");
+        if (titleEl) titleEl.remove();
+        if (contentEl) contentEl.remove();
+    },
 
-        let titleEl = this.el.querySelector("#title");
-        if(titleEl) titleEl.remove();
-        titleEl = document.createElement("a-text");
-        titleEl.setAttribute("id", "title");
-        titleEl.setAttribute("value", title === undefined ? "" : title);
-        titleEl.setAttribute("align", "left");
-        titleEl.setAttribute('scale', {x: 0.7 , y: 0.7, z: 0.7});
-        //titleEl.setAttribute("lineHeight", 0.7)
-        //titleEl.setAttribute("width", 0.7)
-        titleEl.setAttribute("position", {x: -1.3, y: 0.7, z: 0.05})
-
-        let contentEl = this.el.querySelector("#content");
-        if(contentEl) contentEl.remove();
-        contentEl = document.createElement("a-text");
-        contentEl.setAttribute("id", "content");
-        contentEl.setAttribute("value", content === undefined ? "" : content);
-        contentEl.setAttribute("align", "center");
-        contentEl.setAttribute("wrap-count", 40);
-        contentEl.setAttribute("width", 4);
-        contentEl.setAttribute('scale', {x: 0.7, y: 0.7, z: 0.7});
-        contentEl.setAttribute("position", {x: 0, y: 0.4, z: 0.05});
+    _appendText(id, value, config) {
+        const el = document.createElement("a-troika-text");
+        el.setAttribute("id", id);
+        el.setAttribute("value", value || "");
+        el.setAttribute("align", config.align || "left");
+        el.setAttribute("anchor", config.anchor || "left");
+        el.setAttribute("baseline", config.baseline || "top");
+        el.setAttribute("font-size", config.fontSize || 0.1);
         
-        this.createDialog();
-        this.el.appendChild(titleEl);
-        this.el.appendChild(contentEl);
+        if (config.clipRect) el.setAttribute("clip-rect", config.clipRect);
+        if (config.position) el.setAttribute("position", config.position);
+        if (config.maxWidth) el.setAttribute("max-width", config.maxWidth);
+        if (config.lineHeight) el.setAttribute("line-height", config.lineHeight);
+        
+        this.el.appendChild(el);
+        return el;
+    },
 
-        //this.updateIconPosition(iconpos)
-        this.updateTextColor();
+    _appendButton(text, index) {
+        const buttonEl = document.createElement("a-ar-button");
+        buttonEl.setAttribute("content", text);
+        buttonEl.setAttribute("size", "medium");
+        buttonEl.setAttribute("textonly", true);
+        buttonEl.setAttribute("uppercase", true);
+        buttonEl.addEventListener("click", () => this.closeDialog());
+
+        // Position buttons: if index 1 (second button), place it to the right, otherwise left
+        const xPos = index === 1 ? 0.9 : 0.3;
+        buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
+
+        if ((this.data.mode === 'light' || this.data.mode === 'dark') 
+            && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
+                if (this.data.mode === 'dark') {
+                    buttonEl.setAttribute("variant", "dark");
+                } else {
+                    buttonEl.setAttribute("variant", "light");
+                }   
+        }
+        
+        this.el.appendChild(buttonEl);
+    },
+
+    setContent() {
+        this._clearContent();
+        if (!this.width) this.createDialog();
+
+        const width = this.width;
+        const height = this.height;
+        const padding = 0.2;
+        // Calculate available width for content considering padding
+        const contentWidth = width - (padding * 2);
+
+        // Add title text
+        this._appendText("title", this.data.title, {
+            fontSize: 0.15,
+            clipRect: `0 -1 ${contentWidth} 1`,
+            position: {x: -width / 2 + padding, y: height / 2 - padding, z: 0.05}
+        });
+
+        // All calculations for content text, so that:
+        // 1. It fits within the dialog, and it is positioned correctly (below the title)
+        // 2. It is clipped if too long, and in a way that only full lines are shown (not lines cut in half vertically)
+        const contentFontSize = 0.1;
+        const lineHeight = 1.2;
+        const contentStartY = height / 2 - padding - 0.25;
+        const maxContentHeight = contentStartY - (-height / 2 + 0.5);
+        const lineHeightUnits = contentFontSize * lineHeight;
+        const maxLines = Math.floor(maxContentHeight / lineHeightUnits);
+        const clippedHeight = maxLines * lineHeightUnits;
+
+        // Add content text
+        this._appendText("content", this.data.content, {
+            fontSize: contentFontSize,
+            lineHeight: lineHeight,
+            maxWidth: contentWidth,
+            clipRect: `0 -${clippedHeight} ${contentWidth} 0`, // Clip text that exceeds available height
+            position: {x: -width / 2 + padding, y: contentStartY, z: 0.05}
+        });
+
         this.setButtons();
+        this.updateTextColor();
     },
 
     setMode() {
@@ -183,35 +241,32 @@ AFRAME.registerComponent("dialog", {
         if ((this.data.mode === 'light' || this.data.mode === 'dark') 
             && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) return;
     
-            const dialogColorHex = `#${this.dialogMesh.material.color.getHexString()}`;
-            let textcolor = this.data.textcolor;
-    
-            // If the contrast is not high enough, set the textcolor to white/black
-            if (getContrast(textcolor, dialogColorHex) <= 60){
-                const newTextColor = setContrastColor(dialogColorHex);
-                // Only update and alert if the color actually changes
-                if (newTextColor !== textcolor) {
-                    textcolor = newTextColor;
-                    //this.data.textcolor = textcolor;
-                    this.setButtons(textcolor);
-                    console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
-                    console.log("buttton text color was changed")
-                }
-            }
+        const dialogColorHex = `#${this.dialogMesh.material.color.getHexString()}`;
+        let textcolor = this.data.textcolor;
 
-            const titleEl = this.el.querySelector("#title");
-            if (titleEl) {
-                titleEl.setAttribute("color", textcolor);
+        // If the contrast is not high enough, set the textcolor to white/black
+        if (getContrast(textcolor, dialogColorHex) <= 60){
+            const newTextColor = setContrastColor(dialogColorHex);
+            // Only update and alert if the color actually changes
+            if (newTextColor !== textcolor) {
+                textcolor = newTextColor;
+                console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
             }
-            const contentEl = this.el.querySelector("#content");
-            if (contentEl) {
-                contentEl.setAttribute("color", textcolor);
-            }
+        }
 
-            const buttons = this.el.querySelectorAll("a-ar-button");
-            buttons.forEach((button) => {
-                button.setAttribute("textcolor", textcolor);
-            });
+        const titleEl = this.el.querySelector("#title");
+        if (titleEl) {
+            titleEl.setAttribute("color", textcolor);
+        }
+        const contentEl = this.el.querySelector("#content");
+        if (contentEl) {
+            contentEl.setAttribute("color", textcolor);
+        }
+
+        const buttons = this.el.querySelectorAll("a-ar-button");
+        buttons.forEach((button) => {
+            button.setAttribute("textcolor", textcolor);
+        });
     },
 
     updateDialogOpacity() {
@@ -220,6 +275,9 @@ AFRAME.registerComponent("dialog", {
     },
 
     setButtons() {
+        const oldButtons = this.el.querySelectorAll("a-ar-button");
+        oldButtons.forEach(b => b.remove());
+
         let buttons = this.data.buttons;
 
         if (buttons.length > 2) {
@@ -228,32 +286,7 @@ AFRAME.registerComponent("dialog", {
         }
     
         buttons.forEach((buttonText, index) => {
-            let buttonEl = document.createElement("a-ar-button");
-            buttonEl.setAttribute("content", buttonText);
-            buttonEl.setAttribute("size", "medium");
-            buttonEl.setAttribute("textonly", true);
-            buttonEl.setAttribute("uppercase", true);
-            //buttonEl.addEventListener("click", () => this.handleButtonClick(buttonText));
-            buttonEl.addEventListener("click", () => this.closeDialog());
-
-            if (index == 1) {
-                buttonEl.setAttribute("position", { x: 1, y: -0.7, z: 0.07 });
-            } else {
-                buttonEl.setAttribute("position", { x: 0.3, y: -0.7, z: 0.07 });
-
-            }
-
-            // If mode will be used, update the color of the buttons accordingly
-            if ((this.data.mode === 'light' || this.data.mode === 'dark') 
-                && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
-                    if (this.data.mode === 'dark') {
-                        buttonEl.setAttribute("variant", "dark");
-                    } else {
-                        buttonEl.setAttribute("mode", "light");
-                    }   
-            }
-
-            this.el.appendChild(buttonEl);
+            this._appendButton(buttonText, index);
         });
     },
 
