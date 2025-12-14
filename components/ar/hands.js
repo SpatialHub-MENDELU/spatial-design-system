@@ -2,6 +2,7 @@ import * as AFRAME from "aframe";
 import { getPinchMidpointWorld } from "../stretchable-utils.js";
 import { jointIndices } from "./hands-utils.js";
 import { appendTo } from "../../utils/utils.js";
+import "./hand-grabbable-controls.js";
 
 AFRAME.registerComponent("hands", {
   schema: {
@@ -61,7 +62,7 @@ AFRAME.registerComponent("hands", {
       `hand: ${hand}; modelColor: ${color};`
     );
     handEl.setAttribute(
-      "hand-tracking-grab-controls",
+      "hand-grabbable-controls",
       `hand: ${hand}; color: ${color}; hoverColor: #00ba92;`
     );
     handEl.setAttribute("pointing", false);
