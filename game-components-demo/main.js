@@ -30,8 +30,12 @@ document.querySelector('#app').innerHTML = `
         </a-entity>
 
         <!-- NPC Character -->
-        <a-entity npc-walk id="dog-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="5 1.8 5" >
-            <a-entity gltf-model="#dog" ammo-shape="type: hull;" position="0 -1.5 0" scale="3 3 3" ></a-entity>
+        <a-entity 
+            npc-walk="walkClipName: Walk; idleClipName: Idle; type: points; points:  0 1 5, 5 1 5, 5 1 0; speed: 2; pauseAtPoints: 2; waitBeforeStart: 3;" 
+            id="dog-character" 
+            ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" 
+            position="5 1.8 5" >
+                <a-entity gltf-model="#dog" ammo-shape="type: hull;" position="0 -1.5 0" scale="3 3 3" ></a-entity>
         </a-entity>
 
         <!-- Camera -->
