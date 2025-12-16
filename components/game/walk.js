@@ -51,6 +51,8 @@ AFRAME.registerComponent("walk", {
         this.isSprinting = false;
 
         this.crossFadeDuration = 0.2
+        this.currentAnimation = null
+        this.currentTimeScale = null
 
         this.autoWalk = this.data.autoWalk;
         this.targetWalk = this.data.targetWalk
@@ -86,7 +88,6 @@ AFRAME.registerComponent("walk", {
         this.checkInputs()
 
         if (this.wrongInput) return;
-
 
         this.setAnimation(this.animations.idle);
         this.bindEvents();
@@ -235,15 +236,19 @@ AFRAME.registerComponent("walk", {
         }
     },
 
-    setAnimation(name) {
-        if (!this.characterModel || this.currentAnimation === name) return;
+    setAnimation(name, reverse = false) {
+        if (!this.characterModel) return;
+        if (this.currentAnimation === name && this.currentTimeScale) return;
+
+        this.currentAnimation = name;
+        this.currentTimeScale = reverse ? -0.99 : 0.99;
+
         this.characterModel.setAttribute('animation-mixer', {
             clip: name,
-            crossFadeDuration: this.crossFadeDuration
+            crossFadeDuration: this.crossFadeDuration,
+            timeScale: this.currentTimeScale,
         });
-        this.currentAnimation = name;
     },
-
 
     tick(time, deltaTime) {
         const deltaSec = deltaTime / 1000;
@@ -351,7 +356,8 @@ AFRAME.registerComponent("walk", {
     stopSprinting() {
         this.speed = this.data.speed;
         if (this.smoothTurn) {
-            if (this.movingForward || this.movingBackward || this.turnDirection) {
+            if (this.movingBackward) this.setAnimation(this.animations.walk, true);
+            else if (this.movingForward || this.turnDirection) {
                 this.setAnimation(this.animations.walk);
             } else {
                 this.setAnimation(this.animations.idle);
@@ -466,8 +472,8 @@ AFRAME.registerComponent("walk", {
 
         if (this.movingForward || this.movingBackward) {
             this.move(this.movingForward)
-            if (this.movingForward || this.movingBackward) this.setAnimation(this.animations.walk);
-
+            if (this.movingForward) this.setAnimation(this.animations.walk);
+            if (this.movingBackward) this.setAnimation(this.animations.walk, true);
         }
 
         if (this.turnDirection) {
