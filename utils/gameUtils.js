@@ -34,9 +34,13 @@ export function hasGLTFAnimations(model) {
     return true;
 }
 
-export function isPositiveNumber(input, name){
-    if (input <= 0) {
+export function isPositiveNumber(input, name, includeZero = false) {
+    if (input < 0) {
         console.error(`Property "${name}" is not a positive number: ${input}`);
+        return false;
+    }
+    if (!includeZero && input === 0) {
+        console.error(`Property "${name}" cannot be zero.`);
         return false;
     }
     return true;
