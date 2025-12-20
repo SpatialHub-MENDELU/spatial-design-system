@@ -14,10 +14,12 @@ scene.innerHTML = `
     position="0 2 -3"
     title="Dialog Title"
     content="It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English."
-    buttons="accept,close"
-    mode="dark"
+    buttons="yes,no"
+    mode="light"
     textcolor="white"
     color="rgba(73, 128, 223, 1)"
+    closingicon="true"
+    prependicon="/info.png"
 ></a-ar-dialog>
 <a-ar-button
     id="openDialogButton"

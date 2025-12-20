@@ -16,9 +16,6 @@ AFRAME.registerComponent("dialog", {
         content: { type: "string", default: "This is the example of basic dialog component." },
         buttons: { type: "array", default: ["Close"] },
         persistent: { type: 'boolean', default: false },
-        autoclose: { type: 'boolean', default: false },
-        seamless: { type: 'boolean', default: false },
-        backdropfilter: { type: 'string', default: "" },
         transition: { type: 'string', default: "" },
     },
 
@@ -44,10 +41,12 @@ AFRAME.registerComponent("dialog", {
                 case 'color':
                     this.updateDialogColor();
                     this.updateTextColor();
+                    this.setButtons();
                     break;
                 case 'mode':
                     this.setMode();
                     this.updateDialogColor();
+                    this.setButtons();
                     break;
                 case 'textcolor':
                     this.updateTextColor(); 
@@ -114,8 +113,12 @@ AFRAME.registerComponent("dialog", {
     _clearContent() {
         const titleEl = this.el.querySelector("#title");
         const contentEl = this.el.querySelector("#content");
+        const prependIconEl = this.el.querySelector("#prependIcon");
+        const closingIconEl = this.el.querySelector("#closingIcon");
         if (titleEl) titleEl.remove();
         if (contentEl) contentEl.remove();
+        if (prependIconEl) prependIconEl.remove();
+        if (closingIconEl) closingIconEl.remove();
     },
 
     _appendText(id, value, config) {
@@ -124,7 +127,7 @@ AFRAME.registerComponent("dialog", {
         el.setAttribute("value", value || "");
         el.setAttribute("align", config.align || "left");
         el.setAttribute("anchor", config.anchor || "left");
-        el.setAttribute("baseline", config.baseline || "top");
+        el.setAttribute("baseline", config.baseline || "center");
         el.setAttribute("font-size", config.fontSize || 0.1);
         
         if (config.clipRect) el.setAttribute("clip-rect", config.clipRect);
@@ -144,18 +147,25 @@ AFRAME.registerComponent("dialog", {
         buttonEl.setAttribute("uppercase", true);
         buttonEl.addEventListener("click", () => this.closeDialog());
 
-        // Position buttons: if index 1 (second button), place it to the right, otherwise left
-        const xPos = index === 1 ? 0.9 : 0.3;
-        buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
+        const rightEdgePadding = 0.2; // Padding from the right edge of the dialog
+        const interButtonSpacing = 0.2; // Space between the buttons
+        const assumedButtonWidth = 0.4;
 
-        if ((this.data.mode === 'light' || this.data.mode === 'dark') 
-            && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
-                if (this.data.mode === 'dark') {
-                    buttonEl.setAttribute("variant", "dark");
-                } else {
-                    buttonEl.setAttribute("variant", "light");
-                }   
+        const rightButtonXCenter = this.width / 2 - rightEdgePadding - (assumedButtonWidth / 2); // E.g., 3/2 - 0.2 - 0.2 = 1.1
+        const leftButtonXCenter = rightButtonXCenter - assumedButtonWidth - interButtonSpacing; // E.g., 1.1 - 0.4 - 0.2 = 0.5
+
+        let xPos;
+        if (index === 0) {
+            if (this.data.buttons.length === 1) {
+                xPos = rightButtonXCenter;
+            } else {
+                xPos = leftButtonXCenter;
+            }
+        } else { // index === 1 (The second, rightmost button)
+            xPos = rightButtonXCenter;
         }
+
+        buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
         
         this.el.appendChild(buttonEl);
     },
@@ -169,12 +179,54 @@ AFRAME.registerComponent("dialog", {
         const padding = 0.2;
         // Calculate available width for content considering padding
         const contentWidth = width - (padding * 2);
+        let titleXOffset = 0;
+
+        const iconSize = 0.15;
+        const titleRowYCenter = height / 2 - padding - (iconSize / 2); // height/2 - 0.2 - 0.075
+
+        // Add prepend icon
+        if (this.data.prependicon) {
+            const iconSrc = this.data.prependicon;
+            const myImg = new Image();
+            myImg.src = iconSrc;
+            myImg.onload = () => {
+                const prependIcon = document.createElement("a-image");
+                prependIcon.setAttribute("id", "prependIcon");
+                prependIcon.setAttribute("src", iconSrc);
+                prependIcon.setAttribute("width", iconSize);
+                prependIcon.setAttribute("height", iconSize);
+                const iconX = -width / 2 + padding + (iconSize / 2);
+                prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
+                this.el.appendChild(prependIcon);
+                this.updateTextColor();
+            };
+            titleXOffset = 0.15 + 0.1; // icon width + spacing
+        }
+
+        // Add closing icon
+        if (this.data.closingicon === true) {
+            const iconSrc = "/close.png";
+            const myImg = new Image();
+            myImg.src = iconSrc;
+            myImg.onload = () => {
+                const closeIcon = document.createElement("a-image");
+                closeIcon.setAttribute("id", "closingIcon");
+                closeIcon.setAttribute("src", iconSrc);
+                closeIcon.setAttribute("width", 0.15);
+                closeIcon.setAttribute("height", 0.15);
+                closeIcon.setAttribute("position", {x: width / 2 - padding - 0.075, y: titleRowYCenter, z: 0.05});
+                closeIcon.classList.add("clickable");
+                closeIcon.addEventListener("click", () => this.closeDialog());
+                this.el.appendChild(closeIcon);
+                this.updateTextColor();
+            };
+        }
 
         // Add title text
         this._appendText("title", this.data.title, {
             fontSize: 0.15,
-            clipRect: `0 -1 ${contentWidth} 1`,
-            position: {x: -width / 2 + padding, y: height / 2 - padding, z: 0.05}
+            clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
+            position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
         });
 
         // All calculations for content text, so that:
@@ -182,7 +234,7 @@ AFRAME.registerComponent("dialog", {
         // 2. It is clipped if too long, and in a way that only full lines are shown (not lines cut in half vertically)
         const contentFontSize = 0.1;
         const lineHeight = 1.2;
-        const contentStartY = height / 2 - padding - 0.25;
+        const contentStartY = titleRowYCenter - (iconSize / 2) - 0.1; // 0.075 for half font size + 0.1 for spacing        
         const maxContentHeight = contentStartY - (-height / 2 + 0.5);
         const lineHeightUnits = contentFontSize * lineHeight;
         const maxLines = Math.floor(maxContentHeight / lineHeightUnits);
@@ -193,6 +245,7 @@ AFRAME.registerComponent("dialog", {
             fontSize: contentFontSize,
             lineHeight: lineHeight,
             maxWidth: contentWidth,
+            baseline: "top",
             clipRect: `0 -${clippedHeight} ${contentWidth} 0`, // Clip text that exceeds available height
             position: {x: -width / 2 + padding, y: contentStartY, z: 0.05}
         });
@@ -262,7 +315,19 @@ AFRAME.registerComponent("dialog", {
         if (contentEl) {
             contentEl.setAttribute("color", textcolor);
         }
+        const prependIconEl = this.el.querySelector("#prependIcon");
+        if (prependIconEl) {
+            prependIconEl.setAttribute("color", textcolor);
+        }
+        const closingIconEl = this.el.querySelector("#closingIcon");
+        if (closingIconEl) {
+            closingIconEl.setAttribute("color", textcolor);
+        }
 
+        return textcolor;
+    },
+
+    _updateButtonTextColor(textcolor) {
         const buttons = this.el.querySelectorAll("a-ar-button");
         buttons.forEach((button) => {
             button.setAttribute("textcolor", textcolor);
@@ -288,6 +353,20 @@ AFRAME.registerComponent("dialog", {
         buttons.forEach((buttonText, index) => {
             this._appendButton(buttonText, index);
         });
+
+        let finalTextColor = this.data.textcolor; // Default to user-set textcolor
+
+        // Check if mode will be used
+        if ((this.data.mode === "dark" || this.data.mode === "light")
+            && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
+            finalTextColor = this.data.mode === 'dark' ? 'white' : 'black';
+        } 
+        // Otherwise, the text color is determined by contrast, which is run in updateTextColor
+        else {
+            finalTextColor = this.updateTextColor() || this.data.textcolor;
+        }
+
+        this._updateButtonTextColor(finalTextColor);
     },
 
     closeDialog() {

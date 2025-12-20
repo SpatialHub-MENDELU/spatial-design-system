@@ -12,15 +12,12 @@ AFRAME.registerPrimitive('a-ar-dialog', {
         color: 'dialog.color',
         mode: 'dialog.mode',
         textcolor: 'dialog.textcolor',
-        prependicon: 'dialog.icon',
-        closingicon: 'dialog.close',
+        prependicon: 'dialog.prependicon',
+        closingicon: 'dialog.closingicon',
         title: 'dialog.title',
         content: 'dialog.content',
         buttons: 'dialog.buttons',
         persistent: 'dialog.persistent',
-        autoclose: 'dialog.autoclose',
-        seamless: 'dialog.seamless',
-        backdropfilter: 'dialog.backdropfilter',
         transition: 'dialog.transition',
     }
 })
