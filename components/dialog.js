@@ -14,13 +14,32 @@ AFRAME.registerComponent("dialog", {
         closingicon: { type: "boolean", default: false},
         title: { type: "string", default: "Dialog" },
         content: { type: "string", default: "This is the example of basic dialog component." },
-        buttons: { type: "array", default: ["Close"] },
+        buttons: { 
+            default: [{ label: "Close", action: "close" }],
+            parse: function (value) {
+                if (typeof value === 'string') {
+                    try {
+                        // Attempt to parse JSON string (e.g. '[{"label": "Yes", "action": "confirm"}]')
+                        return JSON.parse(value.replace(/'/g, '"'));
+                    } catch (e) {
+                        // Fallback for simple comma-separated strings (e.g. "Yes,No")
+                        return value.split(',').map(label => ({ label: label.trim(), action: label.trim().toLowerCase() }));
+                    }
+                }
+                return value;
+            },
+            stringify: JSON.stringify
+        },
         persistent: { type: 'boolean', default: false },
         transition: { type: 'string', default: "" },
     },
 
     init() {
+        // Initialize state variables
         this.finalColor = this.data.color;
+        this.basePosition = null;
+        this.closeTimer = null;
+
         this.createDialog();
         this.setContent();
         this.setMode();
@@ -28,7 +47,7 @@ AFRAME.registerComponent("dialog", {
     },
 
     update(oldData) {
-        // Skip the update for the first time since init() handles the initial setup
+        // Skip the first update loop as init() handles initial setup
         if (!oldData.color) return;
     
         // Checking which properties have changed and executing the appropriate functions
@@ -55,22 +74,11 @@ AFRAME.registerComponent("dialog", {
                 case 'closingicon':
                 case 'title':
                 case 'content':
+                case 'persistent':
                     this.setContent();
                     break;
                 case 'buttons':
                     this.setButtons();
-                    break;
-                case 'persistent':
-                    this.setPersistency();
-                    break;
-                case 'autoclose':
-                    this.setAutoClose();
-                    break;
-                case 'backdropfilter':
-                    this.setBackdropFilter();
-                    break;
-                case 'transition':
-                    this.setTransition();
                     break;
                 default:
                     break;
@@ -89,8 +97,8 @@ AFRAME.registerComponent("dialog", {
         this.width = width
         this.height = height
 
-        // Create a main dialog mesh
-        const dialogShape = createRoundedRectShape(width, height, borderRadius)
+        // Create the main dialog background mesh
+        const dialogShape = createRoundedRectShape(this.width, this.height, borderRadius);
         const dialogGeometry  = new AFRAME.THREE.ExtrudeGeometry(
             dialogShape,
             { depth: 0.01, bevelEnabled: false }
@@ -102,26 +110,24 @@ AFRAME.registerComponent("dialog", {
             transparent: true
         })
 
-        const dialogMesh = new AFRAME.THREE.Mesh(dialogGeometry, dialogMaterial)
-        this.dialogMesh = dialogMesh;
-
-        group.add(dialogMesh);
+        this.dialogMesh = new AFRAME.THREE.Mesh(dialogGeometry, dialogMaterial);
+        group.add(this.dialogMesh);
+        
         this.el.setObject3D('mesh', group);
         this.el.setAttribute("visible", false);
     },
 
     _clearContent() {
-        const titleEl = this.el.querySelector("#title");
-        const contentEl = this.el.querySelector("#content");
-        const prependIconEl = this.el.querySelector("#prependIcon");
-        const closingIconEl = this.el.querySelector("#closingIcon");
-        if (titleEl) titleEl.remove();
-        if (contentEl) contentEl.remove();
-        if (prependIconEl) prependIconEl.remove();
-        if (closingIconEl) closingIconEl.remove();
+        // Helper to remove existing content elements
+        const selectors = ["#title", "#content", "#prependIcon", "#closingIcon"];
+        selectors.forEach(sel => {
+            const el = this.el.querySelector(sel);
+            if (el) el.remove();
+        });
     },
 
     _appendText(id, value, config) {
+        // Helper to create troika-text elements
         const el = document.createElement("a-troika-text");
         el.setAttribute("id", id);
         el.setAttribute("value", value || "");
@@ -139,29 +145,37 @@ AFRAME.registerComponent("dialog", {
         return el;
     },
 
-    _appendButton(text, index) {
+    _appendButton(buttonData, index) {
+        const label = buttonData.label || "Button";
+        const action = buttonData.action || "close";
+
         const buttonEl = document.createElement("a-ar-button");
-        buttonEl.setAttribute("content", text);
+        buttonEl.setAttribute("content", label);
         buttonEl.setAttribute("size", "medium");
         buttonEl.setAttribute("textonly", true);
         buttonEl.setAttribute("uppercase", true);
-        buttonEl.addEventListener("click", () => this.closeDialog());
 
-        const rightEdgePadding = 0.2; // Padding from the right edge of the dialog
+        
+        buttonEl.addEventListener("click", () => {
+            this.el.emit('dialogAction', { action: action, label: label });
+            this.closeDialog();
+        });
+
+        // Button positioning logic
+        const rightEdgePadding = 0.3; // Padding from the right edge of the dialog
         const interButtonSpacing = 0.2; // Space between the buttons
         const assumedButtonWidth = 0.4;
 
-        const rightButtonXCenter = this.width / 2 - rightEdgePadding - (assumedButtonWidth / 2); // E.g., 3/2 - 0.2 - 0.2 = 1.1
-        const leftButtonXCenter = rightButtonXCenter - assumedButtonWidth - interButtonSpacing; // E.g., 1.1 - 0.4 - 0.2 = 0.5
+        const rightButtonXCenter = this.width / 2 - rightEdgePadding - (assumedButtonWidth / 2);
+        const leftButtonXCenter = rightButtonXCenter - assumedButtonWidth - interButtonSpacing;
 
+        // Determine X position based on index and total buttons
         let xPos;
         if (index === 0) {
-            if (this.data.buttons.length === 1) {
-                xPos = rightButtonXCenter;
-            } else {
-                xPos = leftButtonXCenter;
-            }
-        } else { // index === 1 (The second, rightmost button)
+            // If it's the first button, check if it's the only one
+            xPos = (this.data.buttons.length === 1) ? rightButtonXCenter : leftButtonXCenter;
+        } else {
+            // Second button goes to the right
             xPos = rightButtonXCenter;
         }
 
@@ -174,17 +188,15 @@ AFRAME.registerComponent("dialog", {
         this._clearContent();
         if (!this.width) this.createDialog();
 
-        const width = this.width;
-        const height = this.height;
+        const { width, height } = this;
         const padding = 0.2;
-        // Calculate available width for content considering padding
         const contentWidth = width - (padding * 2);
         let titleXOffset = 0;
 
         const iconSize = 0.15;
-        const titleRowYCenter = height / 2 - padding - (iconSize / 2); // height/2 - 0.2 - 0.075
+        const titleRowYCenter = height / 2 - padding - (iconSize / 2);
 
-        // Add prepend icon
+        // 1. Add Prepend Icon
         if (this.data.prependicon) {
             const iconSrc = this.data.prependicon;
             const myImg = new Image();
@@ -195,16 +207,18 @@ AFRAME.registerComponent("dialog", {
                 prependIcon.setAttribute("src", iconSrc);
                 prependIcon.setAttribute("width", iconSize);
                 prependIcon.setAttribute("height", iconSize);
+                
                 const iconX = -width / 2 + padding + (iconSize / 2);
                 prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
+                
                 this.el.appendChild(prependIcon);
-                this.updateTextColor();
+                this.updateTextColor(); // Ensure color is correct after load
             };
-            titleXOffset = 0.15 + 0.1; // icon width + spacing
+            titleXOffset = iconSize + 0.1; // Shift title to the right
         }
 
-        // Add closing icon
-        if (this.data.closingicon === true) {
+        // 2. Add Closing Icon (if enabled and not persistent)
+        if (this.data.closingicon === true && !this.data.persistent) {
             const iconSrc = "/close.png";
             const myImg = new Image();
             myImg.src = iconSrc;
@@ -214,39 +228,42 @@ AFRAME.registerComponent("dialog", {
                 closeIcon.setAttribute("src", iconSrc);
                 closeIcon.setAttribute("width", 0.15);
                 closeIcon.setAttribute("height", 0.15);
-                closeIcon.setAttribute("position", {x: width / 2 - padding - 0.075, y: titleRowYCenter, z: 0.05});
+                
+                const iconX = width / 2 - padding - 0.075;
+                closeIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
                 closeIcon.classList.add("clickable");
+                
                 closeIcon.addEventListener("click", () => this.closeDialog());
                 this.el.appendChild(closeIcon);
                 this.updateTextColor();
             };
         }
 
-        // Add title text
+        // 3. Add Title
         this._appendText("title", this.data.title, {
             fontSize: 0.15,
             clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
             position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
         });
 
-        // All calculations for content text, so that:
-        // 1. It fits within the dialog, and it is positioned correctly (below the title)
-        // 2. It is clipped if too long, and in a way that only full lines are shown (not lines cut in half vertically)
+        // 4. Add Content Text
+        // Calculate layout to fit text within the dialog body
         const contentFontSize = 0.1;
         const lineHeight = 1.2;
-        const contentStartY = titleRowYCenter - (iconSize / 2) - 0.1; // 0.075 for half font size + 0.1 for spacing        
-        const maxContentHeight = contentStartY - (-height / 2 + 0.5);
+        const contentStartY = titleRowYCenter - (iconSize / 2) - 0.1;      
+        const maxContentHeight = contentStartY - (-height / 2 + 0.5); // Space until buttons area
+        
+        // Calculate clipping to avoid cutting lines in half
         const lineHeightUnits = contentFontSize * lineHeight;
         const maxLines = Math.floor(maxContentHeight / lineHeightUnits);
         const clippedHeight = maxLines * lineHeightUnits;
 
-        // Add content text
         this._appendText("content", this.data.content, {
             fontSize: contentFontSize,
             lineHeight: lineHeight,
             maxWidth: contentWidth,
             baseline: "top",
-            clipRect: `0 -${clippedHeight} ${contentWidth} 0`, // Clip text that exceeds available height
+            clipRect: `0 -${clippedHeight} ${contentWidth} 0`,
             position: {x: -width / 2 + padding, y: contentStartY, z: 0.05}
         });
 
@@ -255,7 +272,7 @@ AFRAME.registerComponent("dialog", {
     },
 
     setMode() {
-        //If color is set ignore the mode
+        // Mode is ignored if a specific color is set (and it's not the default)
         if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
             return;
         }
@@ -275,9 +292,16 @@ AFRAME.registerComponent("dialog", {
             default:
                 break;
         }
+
+        // Update text elements if they exist
+        const title = this.el.querySelector("#title");
+        const content = this.el.querySelector("#content");
+        if (title) title.setAttribute("color", this.data.mode === "light" ? "black" : "white");
+        if (content) content.setAttribute("color", this.data.mode === "light" ? "black" : "white");
     },
 
     updateDialogColor() {
+        // Determine final color based on props
         if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
             this.finalColor = this.data.color;
         } else if (this.data.mode !== "") {
@@ -286,43 +310,37 @@ AFRAME.registerComponent("dialog", {
             this.finalColor = PRIMARY_COLOR_DARK;
             this.updateTextColor();
         }
-        this.dialogMesh.material.color.set(this.finalColor);
+        
+        if (this.dialogMesh) {
+            this.dialogMesh.material.color.set(this.finalColor);
+        }
     },
 
     updateTextColor() {
-        // If mode will be used, ignore the textcolor
+        // Skip auto-contrast if mode is explicitly set
         if ((this.data.mode === 'light' || this.data.mode === 'dark') 
             && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) return;
     
+        if (!this.dialogMesh) return;
+
         const dialogColorHex = `#${this.dialogMesh.material.color.getHexString()}`;
         let textcolor = this.data.textcolor;
 
-        // If the contrast is not high enough, set the textcolor to white/black
+        // Check contrast and adjust if necessary
         if (getContrast(textcolor, dialogColorHex) <= 60){
             const newTextColor = setContrastColor(dialogColorHex);
-            // Only update and alert if the color actually changes
             if (newTextColor !== textcolor) {
                 textcolor = newTextColor;
                 console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
             }
         }
 
-        const titleEl = this.el.querySelector("#title");
-        if (titleEl) {
-            titleEl.setAttribute("color", textcolor);
-        }
-        const contentEl = this.el.querySelector("#content");
-        if (contentEl) {
-            contentEl.setAttribute("color", textcolor);
-        }
-        const prependIconEl = this.el.querySelector("#prependIcon");
-        if (prependIconEl) {
-            prependIconEl.setAttribute("color", textcolor);
-        }
-        const closingIconEl = this.el.querySelector("#closingIcon");
-        if (closingIconEl) {
-            closingIconEl.setAttribute("color", textcolor);
-        }
+        // Apply color to all text/icon elements
+        const elements = ["#title", "#content", "#prependIcon", "#closingIcon"];
+        elements.forEach(sel => {
+            const el = this.el.querySelector(sel);
+            if (el) el.setAttribute("color", textcolor);
+        });
 
         return textcolor;
     },
@@ -335,56 +353,141 @@ AFRAME.registerComponent("dialog", {
     },
 
     updateDialogOpacity() {
-        const opacityValue = this.data.opacity;
-        this.dialogMesh.material.opacity = opacityValue;
+        if (this.dialogMesh) {
+            this.dialogMesh.material.opacity = this.data.opacity;
+        }
     },
 
     setButtons() {
+        // Remove old buttons
         const oldButtons = this.el.querySelectorAll("a-ar-button");
         oldButtons.forEach(b => b.remove());
 
         let buttons = this.data.buttons;
 
+        // Enforce max 2 buttons limit
         if (buttons.length > 2) {
-            console.log(`The dialog can have a maximum of 2 buttons. That's why other buttons have been removed.`);
+            console.warn(`Dialog: Maximum of 2 buttons allowed. Truncating extra buttons.`);
             buttons = buttons.slice(0, 2); // Keep only the first two buttons
         }
     
-        buttons.forEach((buttonText, index) => {
-            this._appendButton(buttonText, index);
+        buttons.forEach((button, index) => {
+            this._appendButton(button, index);
         });
 
-        let finalTextColor = this.data.textcolor; // Default to user-set textcolor
-
-        // Check if mode will be used
+        // Determine button text color
+        let finalTextColor = this.data.textcolor;
         if ((this.data.mode === "dark" || this.data.mode === "light")
             && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
             finalTextColor = this.data.mode === 'dark' ? 'white' : 'black';
-        } 
-        // Otherwise, the text color is determined by contrast, which is run in updateTextColor
-        else {
+        } else {
             finalTextColor = this.updateTextColor() || this.data.textcolor;
         }
 
         this._updateButtonTextColor(finalTextColor);
     },
 
+    openDialog() {
+        const dialog = this.el;
+        const transition = this.data.transition;
+        const duration = 300;
+        
+        // Clear any pending close actions
+        if (this.closeTimer) {
+            clearTimeout(this.closeTimer);
+            this.closeTimer = null;
+            dialog.removeAttribute("animation__scale");
+            dialog.removeAttribute("animation__pos");
+        }
+
+        // Capture base position for animations
+        if (!dialog.getAttribute("visible") || !this.basePosition) {
+            const pos = dialog.getAttribute("position");
+            this.basePosition = {x: pos.x, y: pos.y, z: pos.z};
+        }
+        const targetPos = this.basePosition;
+
+        dialog.setAttribute("visible", true);
+        dialog.removeAttribute("animation__scale");
+        dialog.removeAttribute("animation__pos");
+
+        // Apply transition animation
+        if (transition === "bottom-top") {
+            dialog.setAttribute("scale", "1 1 1");
+            dialog.setAttribute("position", {x: targetPos.x, y: targetPos.y - 0.5, z: targetPos.z});
+            dialog.setAttribute("animation__pos", {
+                property: "position",
+                to: targetPos,
+                dur: duration,
+                easing: "easeOutQuad"
+            });
+        } else if (transition === "top-bottom") {
+            dialog.setAttribute("scale", "1 1 1");
+            dialog.setAttribute("position", {x: targetPos.x, y: targetPos.y + 0.5, z: targetPos.z});
+            dialog.setAttribute("animation__pos", {
+                property: "position",
+                to: targetPos,
+                dur: duration,
+                easing: "easeOutQuad"
+            });
+        } else {
+            // Default scale animation
+            dialog.setAttribute("position", targetPos);
+            dialog.setAttribute("scale", "0.1 0.1 0.1");
+            dialog.setAttribute("animation__scale", {
+                property: "scale",
+                to: "1 1 1",
+                dur: duration,
+                easing: "easeOutQuad"
+            });
+        }
+    },
+
     closeDialog() {
         const dialog = this.el;
+        const transition = this.data.transition;
+        const duration = 200;
+        const currentPos = this.basePosition || dialog.getAttribute("position");
 
-        dialog.setAttribute("animation", {
-            property: "scale",
-            to: "0.1 0.1 0.1",
-            dur: 100,
-            easing: "easeInOutQuad"
-        });
+        dialog.removeAttribute("animation__scale");
+        dialog.removeAttribute("animation__pos");
 
-        setTimeout(() => {
+        // Apply closing animation
+        if (transition === "bottom-top") {
+            dialog.setAttribute("animation__pos", {
+                property: "position",
+                to: {x: currentPos.x, y: currentPos.y - 0.5, z: currentPos.z},
+                dur: duration,
+                easing: "easeInQuad"
+            });
+        } else if (transition === "top-bottom") {
+            dialog.setAttribute("animation__pos", {
+                property: "position",
+                to: {x: currentPos.x, y: currentPos.y + 0.5, z: currentPos.z},
+                dur: duration,
+                easing: "easeInQuad"
+            });
+        } else {
+            dialog.setAttribute("animation__scale", {
+                property: "scale",
+                to: "0.1 0.1 0.1",
+                dur: duration,
+                easing: "easeInQuad"
+            });
+        }
+
+        // Hide dialog after animation completes
+        this.closeTimer = setTimeout(() => {
+            dialog.removeAttribute("animation__scale");
+            dialog.removeAttribute("animation__pos");
             dialog.setAttribute("visible", false);
-            dialog.setAttribute("scale", "1 1 1"); // Reset scale for next open
-            dialog.emit("dialogClosed")
-        }, 100);
+            
+            // Reset position and scale for next open
+            dialog.setAttribute("position", {x: currentPos.x, y: currentPos.y, z: currentPos.z});
+            dialog.setAttribute("scale", "1 1 1"); 
+            dialog.emit("dialogClosed");
+            this.closeTimer = null;
+        }, duration);
     }
 
-    
 })

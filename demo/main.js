@@ -14,12 +14,14 @@ scene.innerHTML = `
     position="0 2 -3"
     title="Dialog Title"
     content="It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English."
-    buttons="yes,no"
+    buttons='[{"label": "confirm", "action": "confirm"}, {"label": "cancel", "action": "cancel"}]'
     mode="light"
     textcolor="white"
     color="rgba(73, 128, 223, 1)"
     closingicon="true"
     prependicon="/info.png"
+    persistent="true"
+    transition="top-bottom"
 ></a-ar-dialog>
 <a-ar-button
     id="openDialogButton"
@@ -42,18 +44,20 @@ scene.addEventListener("loaded", () => {
     button.addEventListener("click", () => {
         openDialog(dialog, button);
     });
+
+    dialog.addEventListener("dialogAction", (e) => {
+        console.log("Dialog action:", e.detail.action);
+        // Example of handling different actions
+        if (e.detail.action === 'confirm') {
+            console.log("Action confirmed!");
+        } else if (e.detail.action === 'cancel') {
+            console.log("Action cancelled.");
+        }
+    });
 });
 
 function openDialog(dialog, button) {
-    dialog.setAttribute("visible", true);
-    dialog.setAttribute("scale", "0.1 0.1 0.1");
-
-    dialog.setAttribute("animation", {
-        property: "scale",
-        to: "1 1 1",
-        dur: 200,
-        easing: "easeOutQuad"
-    });
+    dialog.components.dialog.openDialog();
 
     button.setAttribute("visible", false);
     button.classList.remove("clickable");
