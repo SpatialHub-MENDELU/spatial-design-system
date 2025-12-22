@@ -16,7 +16,7 @@ const animals = [
     scale: "0.0009 0.0009 0.0009",
     rotation: "-90 0 90",
     spacing: 0.2,
-    position: "0 1.8 -0.3",
+    position: "0 1.2 -0.7",
     hint: "This little rabbit wants to play on the grass. Make enough space for him to play!",
   },
   {
@@ -24,7 +24,7 @@ const animals = [
     scale: "0.9 0.9 0.9",
     rotation: "0 -90 0",
     spacing: 0.2,
-    position: "0 1.8 -0.3",
+    position: "0 1.2 -0.7",
     hint: "This cat is very curious. She wants to see from above. Use 2 pieces to build nice scratching posts.",
   },
   {
@@ -32,7 +32,7 @@ const animals = [
     scale: "0.01 0.01 0.01",
     rotation: "0 0 0",
     spacing: 0.3,
-    position: "0 1.8 -0.6",
+    position: "0 1.2 -0.7",
     hint: "This puppy likes to lay on couch. Use 2 pieces to build nice red couch.",
   },
   {
@@ -40,7 +40,7 @@ const animals = [
     scale: "0.08 0.08 0.08",
     rotation: "0 0 0",
     spacing: 0.3,
-    position: "0 1.8 -0.6",
+    position: "0 1.2 -0.7",
     hint: "This pig is very lazy. He wants to lay in his shed. Use 3 pieces to build nice shed.",
   },
   {
@@ -48,7 +48,7 @@ const animals = [
     scale: "0.2 0.2 0.2",
     rotation: "0 90 0",
     spacing: 0.4,
-    position: "0 1.8 -0.6",
+    position: "0 1 -1",
     hint: "This whale likes to swim in deep ocean.",
   },
 ];
@@ -77,7 +77,7 @@ function spawnAnimal() {
 
   el.setAttribute("gltf-model", `#${animal.id}`);
   el.setAttribute("scale", animal.scale);
-  el.setAttribute("position", `0 1.8 -0.2`);
+  el.setAttribute("position", animal.position);
   el.setAttribute("rotation", animal.rotation);
   el.setAttribute("grabbable", "");
   el.setAttribute("data-animal-id", animal.id); // Store animal ID for detection
@@ -111,22 +111,9 @@ function disableAddAnimalButton() {
   }
 }
 
-function enableAddAnimalButton() {
-  const btn = document.querySelector("#addAnimalButton");
-  if (btn) {
-    // Re-enable finger-touch
-    btn.setAttribute("finger-touch", "");
-    // Update button text and make it look enabled
-    btn.setAttribute("content", "Add animal");
-    btn.setAttribute("opacity", "1");
-  }
-}
-
 function disableSubmitButton() {
   const btn = document.querySelector("#submitButton");
   if (btn) {
-    // Remove finger-touch to make it non-interactive
-    btn.removeAttribute("finger-touch");
     // Make it look disabled (keep text unchanged)
     btn.setAttribute("opacity", "0.5");
   }
@@ -135,8 +122,6 @@ function disableSubmitButton() {
 function enableSubmitButton() {
   const btn = document.querySelector("#submitButton");
   if (btn) {
-    // Re-enable finger-touch
-    btn.setAttribute("finger-touch", "");
     // Make it look enabled
     btn.setAttribute("opacity", "1");
   }
@@ -149,16 +134,33 @@ function showHint(hintText) {
   // Remove existing hint if any
   hideHint();
 
-  // Create hint text entity - positioned above the button
+  // Create hint panel container entity
+  const hintPanel = document.createElement("a-entity");
+  hintPanel.setAttribute("id", "animal-hint");
+  hintPanel.setAttribute("position", "0 2.1 -2");
+  hintPanel.setAttribute("visible", "true");
+
+  // Background box
+  const bgBox = document.createElement("a-box");
+  bgBox.setAttribute("width", "2.2");
+  bgBox.setAttribute("height", "0.4");
+  bgBox.setAttribute("depth", "0.1");
+  bgBox.setAttribute("color", "#ffffff");
+  bgBox.setAttribute("opacity", "0.95");
+  bgBox.setAttribute("position", "0 0 0");
+  hintPanel.appendChild(bgBox);
+
+  // Create hint text entity - positioned on top of background
   const hintEl = document.createElement("a-text");
   hintEl.setAttribute("value", hintText);
   hintEl.setAttribute("align", "center");
-  hintEl.setAttribute("position", "0 2.1 -2");
+  hintEl.setAttribute("position", "0 0 0.1");
   hintEl.setAttribute("scale", "0.25 0.25 0.25");
   hintEl.setAttribute("color", "black");
-  hintEl.setAttribute("id", "animal-hint");
   hintEl.setAttribute("width", "8");
-  scene.appendChild(hintEl);
+  hintPanel.appendChild(hintEl);
+
+  scene.appendChild(hintPanel);
 }
 
 function hideHint() {
@@ -401,8 +403,86 @@ function hideResultsPanel() {
   }
 }
 
+function showInstructionPanel() {
+  const scene = document.querySelector("a-scene");
+  if (!scene) return;
+
+  // Create instruction panel entity
+  const instructionPanel = document.createElement("a-entity");
+  instructionPanel.setAttribute("id", "instructionPanel");
+  instructionPanel.setAttribute("position", "0 2 -1.5");
+  instructionPanel.setAttribute("visible", "true");
+
+  // Background box
+  const bgBox = document.createElement("a-box");
+  bgBox.setAttribute("width", "2.8");
+  bgBox.setAttribute("height", "3.2");
+  bgBox.setAttribute("depth", "0.1");
+  bgBox.setAttribute("color", "#ffffff");
+  bgBox.setAttribute("opacity", "0.95");
+  bgBox.setAttribute("position", "0 0 0");
+  instructionPanel.appendChild(bgBox);
+
+  // Title text
+  const titleText = document.createElement("a-text");
+  titleText.setAttribute("value", "INSTRUCTIONS");
+  titleText.setAttribute("align", "center");
+  titleText.setAttribute("position", "0 1.3 0.1");
+  titleText.setAttribute("scale", "0.2 0.2 0.2");
+  titleText.setAttribute("color", "black");
+  titleText.setAttribute("font-weight", "bold");
+  instructionPanel.appendChild(titleText);
+
+  // Instruction text
+  const instructionText = document.createElement("a-text");
+  instructionText.setAttribute(
+    "value",
+    "Welcome to the demo!\n\nThis demo showcases components using hand gestures. Your task is to add animals to the scene and place them into their correct environments - such as water for fishes, or a comfy sofa for a dog.\n\nAs it gets harder, you'll need to use more materials for their comfort. Think twice before you build it. You can always open Help to see what you should use. After you are done, press Submit to proceed to results.\n\nYour goal is to test new components. You should be able to move materials to free space and stretch them to match the size and shape you need. Some materials you can stretch along specific axes."
+  );
+  instructionText.setAttribute("align", "center");
+  instructionText.setAttribute("position", "0 0.1 0.1");
+  instructionText.setAttribute("scale", "0.11 0.11 0.11");
+  instructionText.setAttribute("color", "black");
+  instructionText.setAttribute("width", "12");
+  instructionText.setAttribute("wrap-count", "35");
+  instructionText.setAttribute("id", "instructionText");
+  instructionPanel.appendChild(instructionText);
+
+  // Continue button
+  const continueButton = document.createElement("a-ar-button");
+  continueButton.setAttribute("id", "continueButton");
+  continueButton.setAttribute("position", "0 -1 0.1");
+  continueButton.setAttribute("size", "small");
+  continueButton.setAttribute("content", "Continue");
+  continueButton.setAttribute("finger-touch", "");
+  instructionPanel.appendChild(continueButton);
+
+  scene.appendChild(instructionPanel);
+}
+
+function hideInstructionPanel() {
+  const instructionPanel = document.querySelector("#instructionPanel");
+  if (instructionPanel && instructionPanel.parentElement) {
+    instructionPanel.parentElement.removeChild(instructionPanel);
+  }
+}
+
+function showScene() {
+  const sceneContent = document.querySelector("#sceneContent");
+  if (sceneContent) {
+    sceneContent.setAttribute("visible", "true");
+  }
+}
+
+function hideScene() {
+  const sceneContent = document.querySelector("#sceneContent");
+  if (sceneContent) {
+    sceneContent.setAttribute("visible", "false");
+  }
+}
+
 document.querySelector("#app").innerHTML = `
-<a-scene auto-xr="autoEnter: false;">
+<a-scene auto-xr="autoEnter: true;">
     <a-assets>
         <a-asset-item id="cat" src="../models/cat.glb"></a-asset-item>
         <a-asset-item id="clown_fish" src="../models/clown_fish.glb"></a-asset-item>
@@ -423,6 +503,9 @@ document.querySelector("#app").innerHTML = `
     </a-assets>
 
     <a-entity id="rig" hands></a-entity>
+
+    <!-- Scene content container - initially hidden -->
+    <a-entity id="sceneContent" visible="true">
 
     <!-- Water Areas Sign -->
     <a-entity position="-1 1.5 0.8">
@@ -465,7 +548,7 @@ document.querySelector("#app").innerHTML = `
 
     <!-- Clown fish - initial animal -->
         <a-entity gltf-model="#clown_fish" 
-              position="0 1.8 -0.6" 
+              position="0 1.2 -0.7" 
               scale="1.2 1.2 1.2" 
               grabbable
               data-animal-id="clown_fish"
@@ -478,6 +561,7 @@ document.querySelector("#app").innerHTML = `
             position="-0.8 0 0"
             size="small"
             content="Submit"
+            finger-touch
             opacity="0.5">
         </a-ar-button>
 
@@ -494,6 +578,7 @@ document.querySelector("#app").innerHTML = `
             position="0.8 0 0"
             size="small"
             content="Help"
+            primary="rgb(162, 162, 162)"
             finger-touch>
         </a-ar-button>
     </a-entity>
@@ -529,7 +614,7 @@ document.querySelector("#app").innerHTML = `
 
     <!-- Users can select which one to grab/stretch -->
     <a-box data-box-for="clown_fish"
-           position="-0.8 1 0.8"
+           position="-0.8 1.2 0.8"
            depth="0.2" height="0.2" width="0.2"
            material="src: #turtleVideo"
            opacity="0.5"
@@ -537,7 +622,7 @@ document.querySelector("#app").innerHTML = `
 
     <a-box data-box-for="orca_whale"
            position="-1 1 0.8"
-           depth="0.4" height="0.4" width="0.4"
+           depth="0.6" height="0.4" width="0.4"
            material="src: #jellyfishesVideo"
            opacity="0.5"
            grabbable stretchable hands-hoverable></a-box>
@@ -552,9 +637,9 @@ document.querySelector("#app").innerHTML = `
 
     <a-box data-box-for="cat"
            position="1 1.2 1"
-           depth="0.3" height="0.1" width="0.3"
-           material="src: #wood"
-           grabbable stretchable hands-hoverable></a-box>
+           depth="0.3" height="0.03" width="0.3"
+           material="src: #carpet"
+           grabbable stretchable="dimensionAxes: x, z" hands-hoverable></a-box>
 
     <!-- Labrador couch - 2 pieces -->
     <a-box data-box-for="labrador"
@@ -571,48 +656,60 @@ document.querySelector("#app").innerHTML = `
     <!-- Rabbit grass - 1 piece -->
     <a-box data-box-for="rabbit"
            position="-0.7 1.1 0.2"
-           depth="0.2" height="0.05" width="0.2"
+           depth="0.2" height="0.025" width="0.2"
            material="src: #grass"
-           grabbable stretchable hands-hoverable></a-box>
+           grabbable stretchable="dimensionAxes: x, z" hands-hoverable></a-box>
 
     <!-- Pig shed - 3 pieces (2 roof, 1 wood) -->
     <a-box data-box-for="pig"
            position="-0.7 1 0.2"
-           depth="0.3" height="0.05" width="0.3"
+           depth="0.3" height="0.025" width="0.3"
            material="src: #roof"
-           grabbable stretchable hands-hoverable></a-box>
+           grabbable stretchable="dimensionAxes: x, z" hands-hoverable></a-box>
 
     <a-box data-box-for="pig"
            position="-0.7 0.9 0.2"
-           depth="0.3" height="0.05" width="0.3"
+           depth="0.3" height="0.025" width="0.3"
            material="src: #roof"
-           grabbable stretchable hands-hoverable></a-box>
+           grabbable stretchable="dimensionAxes: x, z" hands-hoverable></a-box>
 
     <a-box data-box-for="pig"
            position="-0.7 0.8 0.2"
            depth="0.3" height="0.05" width="0.3"
            material="src: #wood"
-           grabbable stretchable hands-hoverable></a-box>
+           grabbable stretchable="dimensionAxes: x, z" hands-hoverable></a-box>
+
+    </a-entity>
 
 </a-scene>
 `;
 
 setTimeout(() => {
-  // Initially disable submit button (will be enabled when all animals are added)
+  showInstructionPanel();
+  hideScene();
+
+  const continueBtn = document.querySelector("#continueButton");
+  if (continueBtn) {
+    continueBtn.addEventListener("button-clicked", (event) => {
+      hideInstructionPanel();
+
+      setTimeout(() => {
+        showScene();
+      }, 50);
+    });
+  }
+
   disableSubmitButton();
 
-  // AR button → add new animal
   const btn = document.querySelector("#addAnimalButton");
   if (btn) {
     btn.addEventListener("button-clicked", () => {
-      // Only spawn if not all animals have been spawned
       if (spawnCount < animals.length) {
         spawnAnimal();
       }
     });
   }
 
-  // Help button → toggle help panel
   const helpBtn = document.querySelector("#helpButton");
   const helpPanel = document.querySelector("#helpPanel");
   if (helpBtn && helpPanel) {
@@ -624,7 +721,6 @@ setTimeout(() => {
     });
   }
 
-  // Submit button → check all animals and show results (toggle panel)
   const submitBtn = document.querySelector("#submitButton");
   if (submitBtn) {
     submitBtn.addEventListener("button-clicked", () => {
@@ -635,19 +731,15 @@ setTimeout(() => {
           resultsPanel.getAttribute("visible") === true);
 
       if (isVisible) {
-        // Hide panel if it's visible
         hideResultsPanel();
       } else {
-        // Show results only when submit button is clicked
         checkAllAnimalsAndShowResults();
       }
     });
   }
 
-  // Initialize placement check for existing clown_fish
   const clownFish = document.querySelector('[data-animal-id="clown_fish"]');
   if (clownFish) {
-    // Treat clown_fish as current unplaced animal if it exists
     if (!placedAnimals.has("clown_fish")) {
       currentUnplacedAnimal = {
         el: clownFish,
