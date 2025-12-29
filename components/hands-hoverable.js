@@ -86,10 +86,12 @@ AFRAME.registerComponent("hands-hoverable", {
 
   handleHoverStart() {
     this.highlightElement(true);
+      this.el.emit("hover-started");
   },
 
   handleHoverEnd() {
     this.highlightElement(false);
+      this.el.emit("hover-ended");
   },
 
   highlightElement(highlight) {
