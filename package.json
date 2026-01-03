@@ -12,7 +12,7 @@
   "scripts": {
     "demo": "vite demo",
     "demo-follow-entity": "vite follow-entity-demo",
-    "demo-tereza": "vite tereza-demo",
+    "hands-demo": "vite demos/hands-components-demo",
     "flexbox-demo": "vite demos/flexbox-demo",
     "flex-col-demo": "vite demos/flex-col-demo",
     "dev": "vite debug/",
