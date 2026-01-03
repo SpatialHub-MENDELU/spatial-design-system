@@ -21,15 +21,15 @@ const animals = [
   },
   {
     id: "cat",
-    scale: "0.9 0.9 0.9",
-    rotation: "0 -90 0",
+    scale: "0.01 0.01 0.01",
+    rotation: "0 0 0",
     spacing: 0.2,
     position: "0 1.2 -0.7",
     hint: "This cat is very curious. She wants to see from above. Use 2 pieces to build nice scratching posts.",
   },
   {
-    id: "labrador",
-    scale: "0.01 0.01 0.01",
+    id: "dog",
+    scale: "0.5 0.5 0.5",
     rotation: "0 0 0",
     spacing: 0.3,
     position: "0 1.2 -0.7",
@@ -37,15 +37,15 @@ const animals = [
   },
   {
     id: "pig",
-    scale: "0.08 0.08 0.08",
+    scale: "0.3 0.3 0.3",
     rotation: "0 0 0",
     spacing: 0.3,
     position: "0 1.2 -0.7",
     hint: "This pig is very lazy. He wants to lay in his shed. Use 3 pieces to build nice shed.",
   },
   {
-    id: "orca_whale",
-    scale: "0.2 0.2 0.2",
+    id: "whale",
+    scale: "0.002 0.002 0.002",
     rotation: "0 90 0",
     spacing: 0.4,
     position: "0 1 -1",
@@ -287,7 +287,7 @@ function checkAllAnimalsAndShowResults() {
   if (!scene) return;
 
   const results = [];
-  const allAnimalIds = ["clown_fish", ...animals.map((a) => a.id)];
+  const allAnimalIds = ["fish", ...animals.map((a) => a.id)];
 
   // Check each animal
   for (const animalId of allAnimalIds) {
@@ -484,22 +484,18 @@ function hideScene() {
 document.querySelector("#app").innerHTML = `
 <a-scene auto-xr="autoEnter: true;">
     <a-assets>
-        <a-asset-item id="cat" src="../models/cat.glb"></a-asset-item>
-        <a-asset-item id="clown_fish" src="../models/clown_fish.glb"></a-asset-item>
-        <a-asset-item id="rabbit" src="../models/rabbit.glb"></a-asset-item>
-        <a-asset-item id="labrador" src="../models/labrador.glb"></a-asset-item>
-        <a-asset-item id="orca_whale" src="../models/orca_whale.glb"></a-asset-item>
-        <a-asset-item id="pig" src="../models/pig.glb"></a-asset-item>
-        
-        <video id="jellyfishesVideo" src="../textures/jellyfishes.mp4" autoplay="true" loop="true"></video>
-        <video id="turtleVideo" src="../textures/turtle.mp4" autoplay="true" loop="true"></video>
+        <a-asset-item id="cat" src="../models/Kitten.glb"></a-asset-item>
+        <a-asset-item id="fish" src="../models/Blowfish.glb"></a-asset-item>
+        <a-asset-item id="rabbit" src="../models/Rabbit.glb"></a-asset-item>
+        <a-asset-item id="dog" src="../models/Corgi.glb"></a-asset-item>
+        <a-asset-item id="whale" src="../models/Killer Whale.glb"></a-asset-item>
+        <a-asset-item id="pig" src="../models/Piggy bank.glb"></a-asset-item>
 
-        <img id="brick-wall" src="../textures/brick-wall.jpg">
-        <img id="carpet" src="../textures/carpet.jpg">
-        <img id="grass" src="../textures/grass.jpg">
-        <img id="roof" src="../textures/roof.jpg">
-        <img id="wood" src="../textures/wood.jpg">
-        <img id="textile" src="../textures/pink-texture.jpg">
+        <img id="carpet" src="../textures/Carpet001.jpg">
+        <img id="grass" src="../textures/Grass001.jpg">
+        <img id="roof" src="../textures/RoofingTiles008.jpg">
+        <img id="wood" src="../textures/Wood062.jpg">
+        <img id="textile" src="../textures/Fabric006.jpg">
     </a-assets>
 
     <a-entity id="rig" hands></a-entity>
@@ -546,12 +542,12 @@ document.querySelector("#app").innerHTML = `
         </a-text>
     </a-entity>
 
-    <!-- Clown fish - initial animal -->
-        <a-entity gltf-model="#clown_fish" 
+    <!-- Fish - initial animal -->
+        <a-entity gltf-model="#fish" 
               position="0 1.2 -0.7" 
-              scale="1.2 1.2 1.2" 
+              scale="0.02 0.02 0.02"
               grabbable
-              data-animal-id="clown_fish"
+              data-animal-id="fish"
               class="animal"></a-entity>
 
     <!-- Buttons group -->
@@ -613,17 +609,17 @@ document.querySelector("#app").innerHTML = `
     </a-entity>
 
     <!-- Users can select which one to grab/stretch -->
-    <a-box data-box-for="clown_fish"
+    <a-box data-box-for="fish"
            position="-0.8 1.2 0.8"
            depth="0.2" height="0.2" width="0.2"
-           material="src: #turtleVideo"
+           material="color: rgb(120, 231, 241)"
            opacity="0.5"
            grabbable stretchable="mode: scale" hands-hoverable></a-box>
 
-    <a-box data-box-for="orca_whale"
+    <a-box data-box-for="whale"
            position="-1 1 0.8"
-           depth="0.6" height="0.4" width="0.4"
-           material="src: #jellyfishesVideo"
+           depth="0.7" height="0.4" width="0.4"
+           material="color: rgb(39, 57, 224)"
            opacity="0.5"
            grabbable stretchable hands-hoverable></a-box>
 
@@ -641,13 +637,13 @@ document.querySelector("#app").innerHTML = `
            material="src: #carpet"
            grabbable stretchable="dimensionAxes: x, z" hands-hoverable></a-box>
 
-    <!-- Labrador couch - 2 pieces -->
-    <a-box data-box-for="labrador"
+    <!-- Corgi couch - 2 pieces -->
+    <a-box data-box-for="dog"
            position="1 0.8 0.5"
            depth="0.4" height="0.4" width="0.4"
            material="src: #textile"
            grabbable stretchable hands-hoverable></a-box>
-    <a-box data-box-for="labrador"
+    <a-box data-box-for="dog"
            position="1 0.9 0.7"
            depth="0.4" height="0.4" width="0.4"
            material="src: #textile"
@@ -738,18 +734,18 @@ setTimeout(() => {
     });
   }
 
-  const clownFish = document.querySelector('[data-animal-id="clown_fish"]');
-  if (clownFish) {
-    if (!placedAnimals.has("clown_fish")) {
+  const fish = document.querySelector('[data-animal-id="fish"]');
+  if (fish) {
+    if (!placedAnimals.has("fish")) {
       currentUnplacedAnimal = {
-        el: clownFish,
-        animalId: "clown_fish",
+        el: fish,
+        animalId: "fish",
         animal: {
           hint: "This fish needs a water to swim in with her friends.",
         },
       };
       showHint(currentUnplacedAnimal.animal.hint);
     }
-    checkAnimalPlacement(clownFish, "clown_fish");
+    checkAnimalPlacement(fish, "fish");
   }
 }, 50);
