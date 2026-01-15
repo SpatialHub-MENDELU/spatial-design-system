@@ -12,8 +12,8 @@ AFRAME.registerComponent("dialog", {
         textcolor: { type: "string", default: "black"},
         prependicon: { type: "string", default: ""},
         closingicon: { type: "boolean", default: false},
-        title: { type: "string", default: "Dialog" },
-        content: { type: "string", default: "This is the example of basic dialog component." },
+        title: { type: "string", default: "Dialog Title" },
+        content: { type: "string", default: "This is an example of the basic dialog component." },
         buttons: { 
             default: [{ label: "Close", action: "close" }],
             parse: function (value) {
@@ -146,7 +146,8 @@ AFRAME.registerComponent("dialog", {
     },
 
     _appendButton(buttonData, index) {
-        const label = buttonData.label || "Button";
+        let label = buttonData.label || "Button";
+        if (label.length > 8) label = label.substring(0, 8);
         const action = buttonData.action || "close";
 
         const buttonEl = document.createElement("a-ar-button");
@@ -154,7 +155,6 @@ AFRAME.registerComponent("dialog", {
         buttonEl.setAttribute("size", "medium");
         buttonEl.setAttribute("textonly", true);
         buttonEl.setAttribute("uppercase", true);
-
         
         buttonEl.addEventListener("click", () => {
             this.el.emit('dialogAction', { action: action, label: label });
@@ -164,7 +164,7 @@ AFRAME.registerComponent("dialog", {
         // Button positioning logic
         const rightEdgePadding = 0.3; // Padding from the right edge of the dialog
         const interButtonSpacing = 0.2; // Space between the buttons
-        const assumedButtonWidth = 0.4;
+        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attrib
 
         const rightButtonXCenter = this.width / 2 - rightEdgePadding - (assumedButtonWidth / 2);
         const leftButtonXCenter = rightButtonXCenter - assumedButtonWidth - interButtonSpacing;

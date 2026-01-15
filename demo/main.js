@@ -1,33 +1,14 @@
 import "../primitives/ar-button.js";
-import "../primitives/ar-dialog.js"
 import "../components/position.js";
 
 const app = document.getElementById("app");
 const scene = document.createElement("a-scene");
 
 scene.innerHTML = `
-<a-entity id="mouseRaycaster" raycaster="objects: .clickable"
-          cursor="rayOrigin: mouse; fuse: false;">
-</a-entity>
-<a-ar-dialog
-    id="dialogBox"
-    position="0 2 -3"
-    title="Dialog Title"
-    content="It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English."
-    buttons='[{"label": "confirm", "action": "confirm"}, {"label": "cancel", "action": "cancel"}]'
-    mode="light"
-    textcolor="white"
-    color="rgba(73, 128, 223, 1)"
-    closingicon="true"
-    prependicon="/info.png"
-    persistent="true"
-    transition="top-bottom"
-></a-ar-dialog>
 <a-ar-button
-    id="openDialogButton"
     position="0 1.6 -3"
     size="medium"
-    content="Open dialog"
+    content="Click me"
     uppercase=true
     rounded=true
     outlined=true
@@ -36,42 +17,3 @@ scene.innerHTML = `
 `;
 
 app.appendChild(scene);
-
-scene.addEventListener("loaded", () => {
-    const button = document.getElementById("openDialogButton");
-    const dialog = document.getElementById("dialogBox");
-
-    button.addEventListener("click", () => {
-        openDialog(dialog, button);
-    });
-
-    dialog.addEventListener("dialogAction", (e) => {
-        console.log("Dialog action:", e.detail.action);
-        // Example of handling different actions
-        if (e.detail.action === 'confirm') {
-            console.log("Action confirmed!");
-        } else if (e.detail.action === 'cancel') {
-            console.log("Action cancelled.");
-        }
-    });
-});
-
-function openDialog(dialog, button) {
-    dialog.components.dialog.openDialog();
-
-    button.setAttribute("visible", false);
-    button.classList.remove("clickable");
-
-    // Attach event to re-enable button
-    dialog.addEventListener("dialogClosed", () => {
-        enableButton(button);
-    }); 
-}
-
-function enableButton(button) {
-    setTimeout(() => {
-    // Show the button again and re-enable interaction
-    button.setAttribute("visible", true);
-    button.classList.add("clickable");
-    }, 100);
-}
