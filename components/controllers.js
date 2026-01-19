@@ -8,7 +8,7 @@ AFRAME.registerComponent("controllers", {
     leftColor: { type: "color", default: "#cfc7c6" },
     rightColor: { type: "color", default: "#cfc7c6" },
     cursorSize: { type: "number", default: 0.01 },
-    raycastLength: { type: "number", default: 10 }
+    raycastLength: { type: "number", default: 10 },
   },
 
   init() {
@@ -30,30 +30,58 @@ AFRAME.registerComponent("controllers", {
     this.handleTrackpadUp = this.handleTrackpadUp.bind(this);
 
     this.controllerEls = [];
+    this.activeTriggerControllers = new Set();
 
-    this.el.sceneEl.addEventListener('loaded', () => {
+    this.el.sceneEl.addEventListener("loaded", () => {
       this.setupControllers();
     });
-    
+
     if (!AFRAME.components["raycaster-cursor"]) {
       this.registerRaycasterCursor();
     }
   },
 
+  tick() {
+    // Emit generic controller-move events for all controllers
+    this.controllerEls.forEach((controller) => {
+      const raycaster = controller.components.raycaster;
+      if (!raycaster) return;
+
+      const intersections = raycaster.intersections || [];
+      let pointWorld = null;
+
+      // Get the intersection point
+      if (intersections.length > 0) {
+        pointWorld = intersections[0].point;
+      }
+
+      // Emit generic controller-move event
+      document.dispatchEvent(
+        new CustomEvent("controller-move", {
+          detail: {
+            controller: controller,
+            intersectionPoint: pointWorld,
+            controllerId: controller.id,
+          },
+        })
+      );
+    });
+  },
+
   setupControllers() {
     const rig = this.el.sceneEl.querySelector("#rig");
-    
+
     if (this.data.leftEnabled) {
       const leftHand = this.createController("left", this.data.leftColor);
       this.controllerEls.push(leftHand);
-      
+
       if (rig) {
         rig.appendChild(leftHand);
       } else {
         this.el.sceneEl.appendChild(leftHand);
       }
     }
-    
+
     if (this.data.rightEnabled) {
       const rightHand = this.createController("right", this.data.rightColor);
       this.controllerEls.push(rightHand);
@@ -65,7 +93,7 @@ AFRAME.registerComponent("controllers", {
       }
     }
   },
-  
+
   createController(hand, color) {
     const controller = document.createElement("a-entity");
     controller.setAttribute("id", `${hand}Hand`);
@@ -73,16 +101,16 @@ AFRAME.registerComponent("controllers", {
     controller.setAttribute("vive-controls", `hand: ${hand}`);
     controller.setAttribute("meta-touch-controls", `hand: ${hand}`);
     controller.setAttribute("windows-motion-controls", `hand: ${hand}`);
-    
+
     controller.setAttribute("raycaster", {
       showLine: true,
       lineColor: color,
       far: this.data.raycastLength,
       direction: "0 -0.4 -1",
       origin: "0 0 0",
-      objects: ".interactive, .clickable"
+      objects: ".interactive, .clickable",
     });
-    
+
     controller.addEventListener("triggerdown", this.handleTriggerDown);
     controller.addEventListener("triggerup", this.handleTriggerUp);
     controller.addEventListener("gripdown", this.handleGripDown);
@@ -99,40 +127,74 @@ AFRAME.registerComponent("controllers", {
     controller.addEventListener("menuup", this.handleMenuUp);
     controller.addEventListener("trackpaddown", this.handleTrackpadDown);
     controller.addEventListener("trackpadup", this.handleTrackpadUp);
-    
+
     const cursor = document.createElement("a-sphere");
     cursor.setAttribute("radius", this.data.cursorSize);
     cursor.setAttribute("material", {
       color: color,
       shader: "flat",
       transparent: true,
-      depthTest: true
+      depthTest: true,
     });
     cursor.setAttribute("position", "0 0 0");
     cursor.setAttribute("raycaster-cursor", "");
     cursor.setAttribute("auto-scale", {
       enabled: true,
-      factor: 1.0
-    }); 
+      factor: 1.0,
+    });
     controller.appendChild(cursor);
-    
+
     return controller;
   },
 
   handleTriggerDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
+    const intersections = raycaster.intersections || [];
+    const hitPoint = intersections.length > 0 ? intersections[0].point : null;
+
+    // Track active trigger controllers
+    this.activeTriggerControllers.add(controller);
+
+    // Emit generic controller-triggerdown event
+    document.dispatchEvent(
+      new CustomEvent("controller-triggerdown", {
+        detail: {
+          controller: controller,
+          intersectionPoint: hitPoint,
+          controllerId: controller.id,
+        },
+      })
+    );
+
+    // Fallback: forward event to intersected element
     if (raycaster && raycaster.intersectedEls.length > 0) {
-      const intersectedEl = raycaster.intersectedEls[0];
-      intersectedEl.emit("triggerdown");
+      raycaster.intersectedEls[0].emit("triggerdown");
     }
   },
 
   handleTriggerUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
+    const intersections = raycaster.intersections || [];
+    const hitPoint = intersections.length > 0 ? intersections[0].point : null;
+
+    // Remove from active trigger controllers
+    this.activeTriggerControllers.delete(controller);
+
+    // Emit generic controller-triggerup event
+    document.dispatchEvent(
+      new CustomEvent("controller-triggerup", {
+        detail: {
+          controller: controller,
+          intersectionPoint: hitPoint,
+          controllerId: controller.id,
+        },
+      })
+    );
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("triggerup");
     }
@@ -141,7 +203,7 @@ AFRAME.registerComponent("controllers", {
   handleGripDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("gripdown");
     }
@@ -150,7 +212,7 @@ AFRAME.registerComponent("controllers", {
   handleGripUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("gripup");
     }
@@ -159,7 +221,7 @@ AFRAME.registerComponent("controllers", {
   handleAButtonDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("abuttondown");
     }
@@ -168,7 +230,7 @@ AFRAME.registerComponent("controllers", {
   handleAButtonUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("abuttonup");
     }
@@ -177,7 +239,7 @@ AFRAME.registerComponent("controllers", {
   handleBButtonDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("bbuttondown");
     }
@@ -186,7 +248,7 @@ AFRAME.registerComponent("controllers", {
   handleBButtonUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("bbuttonup");
     }
@@ -195,7 +257,7 @@ AFRAME.registerComponent("controllers", {
   handleXButtonDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("xbuttondown");
     }
@@ -204,7 +266,7 @@ AFRAME.registerComponent("controllers", {
   handleXButtonUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("xbuttonup");
     }
@@ -213,7 +275,7 @@ AFRAME.registerComponent("controllers", {
   handleYButtonDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("ybuttondown");
     }
@@ -222,7 +284,7 @@ AFRAME.registerComponent("controllers", {
   handleYButtonUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("ybuttonup");
     }
@@ -230,34 +292,34 @@ AFRAME.registerComponent("controllers", {
   handleMenuDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("menudown");
     }
   },
-  
+
   handleMenuUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("menuup");
     }
   },
-  
+
   handleTrackpadDown(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("trackpaddown");
     }
   },
-  
+
   handleTrackpadUp(evt) {
     const controller = evt.target;
     const raycaster = controller.components.raycaster;
-    
+
     if (raycaster && raycaster.intersectedEls.length > 0) {
       raycaster.intersectedEls[0].emit("trackpadup");
     }
@@ -269,19 +331,24 @@ AFRAME.registerComponent("controllers", {
       this.setupControllers();
     }
   },
-  
+
   needsControllerRecreation(oldData) {
     return (
-      oldData.leftEnabled !== undefined && oldData.leftEnabled !== this.data.leftEnabled ||
-      oldData.rightEnabled !== undefined && oldData.rightEnabled !== this.data.rightEnabled ||
-      oldData.leftColor !== undefined && oldData.leftColor !== this.data.leftColor ||
-      oldData.rightColor !== undefined && oldData.rightColor !== this.data.rightColor ||
-      oldData.cursorSize !== undefined && oldData.cursorSize !== this.data.cursorSize
+      (oldData.leftEnabled !== undefined &&
+        oldData.leftEnabled !== this.data.leftEnabled) ||
+      (oldData.rightEnabled !== undefined &&
+        oldData.rightEnabled !== this.data.rightEnabled) ||
+      (oldData.leftColor !== undefined &&
+        oldData.leftColor !== this.data.leftColor) ||
+      (oldData.rightColor !== undefined &&
+        oldData.rightColor !== this.data.rightColor) ||
+      (oldData.cursorSize !== undefined &&
+        oldData.cursorSize !== this.data.cursorSize)
     );
   },
 
   remove() {
-    this.controllerEls.forEach(controller => {
+    this.controllerEls.forEach((controller) => {
       controller.removeEventListener("triggerdown", this.handleTriggerDown);
       controller.removeEventListener("triggerup", this.handleTriggerUp);
       controller.removeEventListener("gripdown", this.handleGripDown);
@@ -298,85 +365,102 @@ AFRAME.registerComponent("controllers", {
       controller.removeEventListener("menuup", this.handleMenuUp);
       controller.removeEventListener("trackpaddown", this.handleTrackpadDown);
       controller.removeEventListener("trackpadup", this.handleTrackpadUp);
-      
+
       if (controller.parentNode) {
         controller.parentNode.removeChild(controller);
       }
     });
-    
+
     this.controllerEls = [];
   },
 
   registerRaycasterCursor() {
     AFRAME.registerComponent("raycaster-cursor", {
-      init: function() {
+      init: function () {
         this.cursorDirection = new THREE.Vector3();
         this.defaultDistance = 0;
-        
+
         this.onLoaded = this.onLoaded.bind(this);
         this.onIntersection = this.onIntersection.bind(this);
         this.onIntersectionCleared = this.onIntersectionCleared.bind(this);
-        
+
         this.el.parentNode.addEventListener("loaded", this.onLoaded);
-        this.el.parentNode.addEventListener("raycaster-intersection", this.onIntersection);
-        this.el.parentNode.addEventListener("raycaster-intersection-cleared", this.onIntersectionCleared);
+        this.el.parentNode.addEventListener(
+          "raycaster-intersection",
+          this.onIntersection
+        );
+        this.el.parentNode.addEventListener(
+          "raycaster-intersection-cleared",
+          this.onIntersectionCleared
+        );
       },
-      
-      onLoaded: function() {
+
+      onLoaded: function () {
         if (this.el.parentNode.components.raycaster) {
           this.raycaster = this.el.parentNode.components.raycaster;
           this.defaultDistance = this.raycaster.data.far;
-          
+
           const direction = this.raycaster.data.direction;
-          if (typeof direction === 'string') {
-            const dir = direction.split(' ').map(Number);
+          if (typeof direction === "string") {
+            const dir = direction.split(" ").map(Number);
             this.cursorDirection.set(dir[0], dir[1], dir[2]).normalize();
-          } else if (typeof direction === 'object') {
-            this.cursorDirection.set(
-              direction.x !== undefined ? direction.x : 0, 
-              direction.y !== undefined ? direction.y : 0, 
-              direction.z !== undefined ? direction.z : -1
-            ).normalize();
+          } else if (typeof direction === "object") {
+            this.cursorDirection
+              .set(
+                direction.x !== undefined ? direction.x : 0,
+                direction.y !== undefined ? direction.y : 0,
+                direction.z !== undefined ? direction.z : -1
+              )
+              .normalize();
           } else {
             this.cursorDirection.set(0, 0, -1).normalize();
           }
-          
+
           this.updateCursorPosition(this.defaultDistance);
         }
       },
-      
-      onIntersection: function(evt) {
+
+      onIntersection: function (evt) {
         const intersection = evt.detail.intersections[0];
         if (intersection) {
           this.updateCursorPosition(intersection.distance);
         }
       },
-      
-      onIntersectionCleared: function() {
+
+      onIntersectionCleared: function () {
         this.updateCursorPosition(this.defaultDistance);
       },
-      
-      updateCursorPosition: function(distance) {
+
+      updateCursorPosition: function (distance) {
         const pos = this.cursorDirection.clone().multiplyScalar(distance);
         this.el.object3D.position.copy(pos);
       },
 
-      tick: function() {
+      tick: function () {
         if (!this.raycaster) return;
-        
-        if (this.raycaster.intersections && this.raycaster.intersections.length > 0) {
+
+        if (
+          this.raycaster.intersections &&
+          this.raycaster.intersections.length > 0
+        ) {
           const closestIntersection = this.raycaster.intersections[0];
           this.updateCursorPosition(closestIntersection.distance);
         } else {
           this.updateCursorPosition(this.defaultDistance);
         }
       },
-      
-      remove: function() {
+
+      remove: function () {
         this.el.parentNode.removeEventListener("loaded", this.onLoaded);
-        this.el.parentNode.removeEventListener("raycaster-intersection", this.onIntersection);
-        this.el.parentNode.removeEventListener("raycaster-intersection-cleared", this.onIntersectionCleared);
-      }
+        this.el.parentNode.removeEventListener(
+          "raycaster-intersection",
+          this.onIntersection
+        );
+        this.el.parentNode.removeEventListener(
+          "raycaster-intersection-cleared",
+          this.onIntersectionCleared
+        );
+      },
     });
-  }
+  },
 });
