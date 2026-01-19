@@ -98,7 +98,13 @@ AFRAME.registerComponent("button", {
   },
 
   updateTextColor() {
-    // If variant will be used, ignore the textcolor
+      // If button is textonly, set the text color directly
+      if (this.data.textonly) {
+          this.el.querySelector("a-text").setAttribute("color", this.data.textcolor);
+          return;
+      }
+
+      // If variant will be used, ignore the textcolor
     if (
       (this.data.variant === "light" || this.data.variant === "dark") &&
       this.data.primary === PRIMARY_COLOR_DARK
@@ -112,7 +118,7 @@ AFRAME.registerComponent("button", {
     if (getContrast(textcolor, buttonColorHex) <= 60) {
       textcolor = setContrastColor(buttonColorHex);
       this.data.textcolor = textcolor;
-      alert(
+      console.log(
         `The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`
       );
     }
@@ -212,7 +218,7 @@ AFRAME.registerComponent("button", {
 
     let opacityValue;
     if (this.data.textonly) {
-      opacityValue = 0.1;
+      opacityValue = 0.0;
     } else if (this.data.outlined) {
       opacityValue = 0.05;
     } else {
