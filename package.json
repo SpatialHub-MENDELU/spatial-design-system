@@ -1,6 +1,13 @@
 {
   "name": "spatial-design-system",
-  "version": "1.8.1",
+  "version": "1.9.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SpatialHub-MENDELU/spatial-design-system.git"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
   "files": [
     "/components",
     "/primitives",
@@ -11,6 +18,8 @@
   ],
   "scripts": {
     "demo": "vite demo",
+    "demo-follow-entity": "vite follow-entity-demo",
+    "hands-demo": "vite demos/hands-components-demo",
     "flexbox-demo": "vite demos/flexbox-demo",
     "flex-col-demo": "vite demos/flex-col-demo",
     "dev": "vite debug/",
@@ -19,7 +28,8 @@
   "dependencies": {
     "@tweenjs/tween.js": "^23.1.1",
     "aframe": "~1.5.0",
-    "aframe-extras": "^7.5.4"
+    "aframe-extras": "^7.5.4",
+    "aframe-troika-text": "^0.14.0"
   },
   "devDependencies": {
     "vite": "^6.0.11"
