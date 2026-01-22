@@ -19,6 +19,7 @@ AFRAME.registerComponent('npc-walk', {
         points: {type: "string", default: "0 1 5, 5 1 5, 5 1 0"}, // Array of positions the NPC walks through in order.
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
+        stopAtLastPoint: {type: "boolean", default: false}, // If true, the NPC stops moving after reaching the last point in the sequence.
 
         // RANDOM MOVING TYPE
         xMin: {type: "number", default: -5}, // Minimum allowed position along the-axis(left boundary). Prevents the entity from moving too far left. Only used when type is set to randomMoving.
@@ -67,6 +68,9 @@ AFRAME.registerComponent('npc-walk', {
         this.cyclePath = this.data.cyclePath
         this.randomizePointsOrder = this.data.randomizePointsOrder
 
+        this.stopAtLastPoint = this.data.stopAtLastPoint
+        this.isFinished = false
+
         // RANDOM MOVING
         this.xMin = this.data.xMin;
         this.xMax = this.data.xMax;
@@ -76,6 +80,7 @@ AFRAME.registerComponent('npc-walk', {
         this.yMax = this.data.yMax;
 
         // SET INITIAL VALUES
+        if (this.stopAtLastPoint) this.randomizePointsOrder = false
         this.checkInput()
         if (this.wrongInput) return
 
@@ -112,6 +117,10 @@ AFRAME.registerComponent('npc-walk', {
 
         if (oldData.cyclePath !== this.data.cyclePath) this.cyclePath = this.data.cyclePath
         if (oldData.randomizePointsOrder !== this.data.randomizePointsOrder) this.randomizePointsOrder = this.data.randomizePointsOrder
+        if (oldData.stopAtLastPoint !== this.data.stopAtLastPoint) {
+            this.stopAtLastPoint = this.data.stopAtLastPoint
+            if (this.stopAtLastPoint) this.randomizePointsOrder = false
+        }
 
         // random moving type
         if (oldData.xMin !== this.data.xMin) this.xMin = this.data.xMin
@@ -337,13 +346,14 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     setTargetPosition() {
+        if (this.isFinished) return;
         if (this.pointsType) this.setNextTargetPosition();
         if (this.randomMovingType) this.targetPosition = this.generateRandomPosition();
-        this.positionReached = false;
+        if (!this.isFinished) this.positionReached = false;
     },
 
     pointsMovement(deltaSec) {
-        if (this.isWaiting) return;
+        if (this.isWaiting || this.isFinished) return;
 
         if (!this.positionReached) {
             this.checkReachedPosition(this.targetPosition)
@@ -357,8 +367,10 @@ AFRAME.registerComponent('npc-walk', {
                 setTimeout(() => {
                     this.setTargetPosition()
 
-                    this.isWaiting = false;
-                    this.setAnimation(this.animations.walk);
+                    if (!this.isFinished) {
+                        this.isWaiting = false;
+                        this.setAnimation(this.animations.walk);
+                    }
                 }, this.pauseAtPointsDuration * 1000);
             } else this.setTargetPosition()
 
@@ -389,16 +401,28 @@ AFRAME.registerComponent('npc-walk', {
 
     setNextTargetPosition() {
         this.setNewIndex()
-        this.targetPosition = this.convertObjectToVector3Array(this.pointsArray[this.currentIndex]);
+        if (!this.isFinished) {
+            this.targetPosition = this.convertObjectToVector3Array(this.pointsArray[this.currentIndex]);
+        }
     },
 
     setNewIndex() {
-        if (this.pointToPointType) {
+        if (this.stopAtLastPoint) { // stop at last point
+            if (this.currentIndex >= this.pointsArray.length - 1) {
+                this.isFinished = true;
+                this.setAnimation(this.animations.idle);
+                return
+            }
+            this.currentIndex++;
+            return
+        }
+
+        if (this.pointToPointType) { // visit just two points
             this.currentIndex = (this.currentIndex === 0) ? 1 : 0;
             return;
         }
 
-        if (this.randomizePointsOrder) {
+        if (this.randomizePointsOrder) { // visit points in random order
             let newIndex = this.currentIndex;
 
             while (newIndex === this.currentIndex && this.pointsArray.length > 1) {
@@ -406,12 +430,12 @@ AFRAME.registerComponent('npc-walk', {
             }
 
             this.currentIndex = newIndex;
-        } else if (this.cyclePath) {
+        } else if (this.cyclePath) { // cycle through points
             this.currentIndex++;
             if (this.currentIndex === this.pointsArray.length) {
                 this.currentIndex = 0;
             }
-        } else {
+        } else { // back and forth through points
             this.currentIndex += this.arrayDirection;
 
             if (this.currentIndex === this.pointsArray.length - 1 || this.currentIndex === 0) {
