@@ -6,7 +6,7 @@ AFRAME.registerComponent('npc-walk', {
         idleClipName: {type: "string", default: "Idle"}, // Name of the animation clip used when the NPC is idle.
 
         speed: {type: "number", default: 4}, // Movement speed of the NPC
-        checkHeight: {type: "boolean", default: false}, // If true, the character adjusts its height to reach the target’s exact position; if false, it only moves horizontally and keeps its current height.
+        altitude: {type: "boolean", default: false}, // If true, the character adjusts its height to reach the target’s exact position; if false, it only moves horizontally and keeps its current height.
         pauseAtPoints: {type: "number", default: 0}, // Duration (in seconds) the NPC waits after reaching each point.
         waitBeforeStart: {type: "number", default: 0}, // Duration (in seconds) before the NPC begins moving when initialized.
 
@@ -38,7 +38,7 @@ AFRAME.registerComponent('npc-walk', {
         }
 
         this.speed = this.data.speed
-        this.checkHeight = this.data.checkHeight
+        this.altitude = this.data.altitude
 
         this.waitBeforeStart = false
         this.waitingBeforeStartsDuration = this.data.waitBeforeStart
@@ -98,7 +98,7 @@ AFRAME.registerComponent('npc-walk', {
 
         // movement
         if (oldData.speed !== this.data.speed) this.speed = this.data.speed
-        if (oldData.checkHeight !== this.data.checkHeight) this.checkHeight = this.data.checkHeight
+        if (oldData.altitude !== this.data.altitude) this.altitude = this.data.altitude
         if (oldData.pauseAtPoints !== this.data.pauseAtPoints) this.pauseAtPointsDuration = this.data.pauseAtPoints
         if (oldData.waitBeforeStart !== this.data.waitBeforeStart) this.waitingBeforeStartsDuration = this.data.waitBeforeStart
 
@@ -247,7 +247,7 @@ AFRAME.registerComponent('npc-walk', {
         const currentVelocity = this.el.body.getLinearVelocity();
         if (!this.positionReached) {
             const direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
-            if (this.checkHeight) {
+            if (this.altitude) {
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y, direction.z * this.speed));
             } else {
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, currentVelocity.y(), direction.z * this.speed));
@@ -257,7 +257,7 @@ AFRAME.registerComponent('npc-walk', {
 
     checkReachedPosition(targetPosition) {
         const currentPosition = this.el.object3D.position;
-        if (this.checkHeight) {
+        if (this.altitude) {
             if (currentPosition.distanceTo(targetPosition) < 0.2) this.positionReached = true;
         } else {
             const dx = currentPosition.x - targetPosition.x;
@@ -440,7 +440,7 @@ AFRAME.registerComponent('npc-walk', {
     generateRandomPosition() {
         const currentPosition = this.el.object3D.position;
 
-        if (this.checkHeight) {
+        if (this.altitude) {
             return new THREE.Vector3(
                 THREE.MathUtils.randFloat(this.xMin, this.xMax),
                 THREE.MathUtils.randFloat(this.yMin, this.yMax),
