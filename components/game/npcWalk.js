@@ -15,6 +15,8 @@ AFRAME.registerComponent('npc-walk', {
 
         type: {type: "string", default: "points"}, // "points" or "randomMoving". The randomMoving enables random walking within the defined range area. The points type is walking through defined points defined in the points property.
 
+        pointTolerance: {type: "number", default: 0.2}, // Tolerance distance to consider the NPC has reached the target position.
+
         // POINTS TYPE
         points: {type: "string", default: "0 1 5, 5 1 5, 5 1 0"}, // Array of positions the NPC walks through in order.
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
@@ -40,6 +42,8 @@ AFRAME.registerComponent('npc-walk', {
 
         this.speed = this.data.speed
         this.altitude = this.data.altitude
+
+        this.pointTolerance = this.data.pointTolerance
 
         this.waitBeforeStart = false
         this.waitingBeforeStartsDuration = this.data.waitBeforeStart
@@ -114,6 +118,8 @@ AFRAME.registerComponent('npc-walk', {
             this.setType()
             this.setPositions()
         }
+
+        if (oldData.pointTolerance !== this.data.pointTolerance) this.pointTolerance = this.data.pointTolerance
 
         if (oldData.cyclePath !== this.data.cyclePath) this.cyclePath = this.data.cyclePath
         if (oldData.randomizePointsOrder !== this.data.randomizePointsOrder) this.randomizePointsOrder = this.data.randomizePointsOrder
@@ -267,13 +273,13 @@ AFRAME.registerComponent('npc-walk', {
     checkReachedPosition(targetPosition) {
         const currentPosition = this.el.object3D.position;
         if (this.altitude) {
-            if (currentPosition.distanceTo(targetPosition) < 0.5) this.positionReached = true;
+            if (currentPosition.distanceTo(targetPosition) < this.pointTolerance) this.positionReached = true;
         } else {
             const dx = currentPosition.x - targetPosition.x;
             const dz = currentPosition.z - targetPosition.z;
             const distanceXZ = Math.sqrt(dx * dx + dz * dz);
 
-            if (distanceXZ < 0.5) {
+            if (distanceXZ < this.pointTolerance) {
                 this.positionReached = true;
             }
         }
