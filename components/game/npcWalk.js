@@ -15,10 +15,11 @@ AFRAME.registerComponent('npc-walk', {
 
         type: {type: "string", default: "points"}, // "points" or "randomMoving". The randomMoving enables random walking within the defined range area. The points type is walking through defined points defined in the points property.
 
-        pointTolerance: {type: "number", default: 0.2}, // Tolerance distance to consider the NPC has reached the target position.
+        horizontalPointTolerance: {type: "number", default: 0.1}, // Tolerance distance to consider the NPC has reached the target position.
+        verticalPointTolerance: {type: "number", default: 0.1}, // Vertical tolerance distance to consider the NPC has reached the target position when altitude is enabled.
 
         // POINTS TYPE
-        points: {type: "string", default: "0 1 5, 5 1 5, 5 1 0"}, // Array of positions the NPC walks through in order.
+        points: {type: "string", default: "0 2 5, 5 5 5, 5 2 0"}, // Array of positions the NPC walks through in order.
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
         stopAtLastPoint: {type: "boolean", default: false}, // If true, the NPC stops moving after reaching the last point in the sequence.
@@ -43,7 +44,8 @@ AFRAME.registerComponent('npc-walk', {
         this.speed = this.data.speed
         this.altitude = this.data.altitude
 
-        this.pointTolerance = this.data.pointTolerance
+        this.horizontalPointTolerance = this.data.horizontalPointTolerance
+        this.verticalPointTolerance = this.data.verticalPointTolerance
 
         this.waitBeforeStart = false
         this.waitingBeforeStartsDuration = this.data.waitBeforeStart
@@ -119,7 +121,8 @@ AFRAME.registerComponent('npc-walk', {
             this.setPositions()
         }
 
-        if (oldData.pointTolerance !== this.data.pointTolerance) this.pointTolerance = this.data.pointTolerance
+        if (oldData.horizontalPointTolerance !== this.data.horizontalPointTolerance) this.horizontalPointTolerance = this.data.horizontalPointTolerance
+        if (oldData.verticalPointTolerance !== this.data.verticalPointTolerance) this.verticalPointTolerance = this.data.verticalPointTolerance
 
         if (oldData.cyclePath !== this.data.cyclePath) this.cyclePath = this.data.cyclePath
         if (oldData.randomizePointsOrder !== this.data.randomizePointsOrder) this.randomizePointsOrder = this.data.randomizePointsOrder
@@ -216,6 +219,8 @@ AFRAME.registerComponent('npc-walk', {
         if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.pauseAtPoints, "pauseAtPoints", true)) this.wrongInput = true
         if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart", true)) this.wrongInput = true
+        if (!isPositiveNumber(this.data.horizontalPointTolerance, "horizontalPointTolerance")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.verticalPointTolerance, "verticalPointTolerance")) this.wrongInput = true
 
         if (!this.isValidType(this.data.type)) {
             this.wrongInput = true;
@@ -260,11 +265,14 @@ AFRAME.registerComponent('npc-walk', {
 
     moveToPosition(targetPosition) {
         const currentVelocity = this.el.body.getLinearVelocity();
+        let direction;
         if (!this.positionReached) {
-            const direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
+
             if (this.altitude) {
-                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y, direction.z * this.speed));
+                direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
+                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y  * this.speed, direction.z * this.speed));
             } else {
+                direction = new AFRAME.THREE.Vector3(targetPosition.x - this.el.object3D.position.x, 0, targetPosition.z - this.el.object3D.position.z).normalize();
                 this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, currentVelocity.y(), direction.z * this.speed));
             }
         }
@@ -273,13 +281,13 @@ AFRAME.registerComponent('npc-walk', {
     checkReachedPosition(targetPosition) {
         const currentPosition = this.el.object3D.position;
         if (this.altitude) {
-            if (currentPosition.distanceTo(targetPosition) < this.pointTolerance) this.positionReached = true;
+            if (currentPosition.distanceTo(targetPosition) < this.verticalPointTolerance) this.positionReached = true;
         } else {
             const dx = currentPosition.x - targetPosition.x;
             const dz = currentPosition.z - targetPosition.z;
             const distanceXZ = Math.sqrt(dx * dx + dz * dz);
 
-            if (distanceXZ < this.pointTolerance) {
+            if (distanceXZ < this.horizontalPointTolerance) {
                 this.positionReached = true;
             }
         }

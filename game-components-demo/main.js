@@ -67,9 +67,17 @@ document.querySelector('#app').innerHTML = `
 
 
         <!-- NPC Character -->
-        <a-entity npc-walk="stopAtLastPoint: false; pointTolerance: 0.5;" id="dog-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="-2 1.8 -2" >
-            <a-entity gltf-model="#dog" ammo-shape="type: hull;" position="0 -1.5 0" scale="3 3 3" ></a-entity>
+        
+        <!-- stopAtLastPoint -->
+<!--        <a-entity npc-walk="stopAtLastPoint: true;" id="dog-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="-2 1.8 -2" >-->
+<!--            <a-entity gltf-model="#dog" ammo-shape="type: hull;" position="0 -1.5 0" scale="3 3 3" ></a-entity>-->
+<!--        </a-entity>-->
+        
+        <!-- enable altitude -->
+        <a-entity npc-walk="idleClipName: *Flying_Idle*; walkClipName: *Flying_Idle*; altitude: true; horizontalPointTolerance: 0.1;" id="monster-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 180 0">
+            <a-entity gltf-model="#monster" ammo-shape="type: hull;" position="0 -1.7 0" scale="1 1 1" ></a-entity>
         </a-entity>
+
 
         <!-- Camera -->
         <a-entity camera  wasd-controls rotation="-40 0 0" position="0 10 20" ></a-entity>
