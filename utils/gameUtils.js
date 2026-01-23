@@ -58,3 +58,11 @@ export function isValidGameKey(key) {
     }
     return true
 }
+
+export function isValidValue(value, propertyName, validValuesArray) {
+    if (!validValuesArray.includes(value)) {
+        console.error(`Property "${propertyName}" has invalid value: "${value}". Valid values are: ${validValuesArray.join(', ')}`);
+        return false;
+    }
+    return true;
+}
