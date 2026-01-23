@@ -321,10 +321,10 @@ AFRAME.registerComponent("fly", {
     setIsSprinting(value) {
         if (value === true) {
             if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = true
-            if (this.autoForward) this.isSprinting = true
+            if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = true
         } else {
             if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = false
-            if (this.autoForward) this.isSprinting = false
+            if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = false
         }
     },
 
@@ -630,6 +630,10 @@ AFRAME.registerComponent("fly", {
     // AUTO FORWARD FIXED DIRECTION
 
     autoForwardFixedDirectionMove(deltaSec) {
+        if (this.sprintEnabled) {
+            this.isSprinting ? this.startSprinting() : this.stopSprinting();
+        }
+
         const speed = this.speed;
         const currentVelocity = this.el.body.getLinearVelocity();
         const rotationY = this.elementRotationYToDeg;
