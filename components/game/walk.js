@@ -23,6 +23,7 @@ AFRAME.registerComponent("walk", {
         targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
+        forwardOffsetAngle: {type: "number", default: 0}, // The angular offset (in degrees) that defines how much the model’s logical forward direction differs from its visual or model-space forward axis.
     },
 
     init() {
@@ -54,6 +55,8 @@ AFRAME.registerComponent("walk", {
         this.currentAnimation = null
         this.currentTimeScale = null
 
+        this.forwardOffsetAngle = this.data.forwardOffsetAngle
+
         this.autoWalk = this.data.autoWalk;
         this.targetWalk = this.data.targetWalk
 
@@ -66,7 +69,8 @@ AFRAME.registerComponent("walk", {
         this.movingForward = false;
         this.movingBackward = false;
         this.rotationSpeed = this.data.rotationSpeed;
-        this.currentRotation = 0;
+        const initialRotationY = this.el.getAttribute('rotation').y
+        this.currentRotation = initialRotationY
 
         // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
         this.rotationY = 0;
@@ -74,7 +78,7 @@ AFRAME.registerComponent("walk", {
         this.newDirection = this.data.startMovingDirection
         this.movingLeft = false;
         this.movingRight = false;
-        this.targetRotation = 0;
+        this.targetRotation = initialRotationY;
 
         // TARGET WALK
         this.reachTarget = true;
@@ -87,6 +91,14 @@ AFRAME.registerComponent("walk", {
         this.checkInputs()
 
         if (this.wrongInput) return;
+
+        if (this.el.body) {
+            this.instantSyncRotation();
+        } else {
+            this.el.addEventListener('body-loaded', () => {
+                setTimeout(() => this.instantSyncRotation(), 0);
+            }, { once: true });
+        }
 
         this.setAnimation(this.animations.idle);
         this.bindEvents();
@@ -122,6 +134,14 @@ AFRAME.registerComponent("walk", {
         if (oldData.targetWalk !== this.data.targetWalk) {
             this.targetWalk = this.data.targetWalk
             if (this.targetWalk) this.rotationSpeed = 460
+        }
+
+        // rotation offset
+        if (oldData.forwardOffsetAngle !== this.data.forwardOffsetAngle) {
+            this.forwardOffsetAngle = this.data.forwardOffsetAngle;
+            if (this.el.body) {
+                this.instantSyncRotation();
+            }
         }
     },
 
@@ -248,29 +268,55 @@ AFRAME.registerComponent("walk", {
             timeScale: this.currentTimeScale,
         });
     },
+    instantSyncRotation() {
+        if (!this.el.body) return;
+
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        const offsetRad = THREE.MathUtils.degToRad(this.data.forwardOffsetAngle);
+        const finalRotationRad = angleRad + offsetRad;
+
+        const quaternion = new Ammo.btQuaternion();
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), finalRotationRad);
+
+        const transform = this.el.body.getWorldTransform();
+        const origin = transform.getOrigin(); // zachováme pozici
+
+        const newTransform = new Ammo.btTransform();
+        newTransform.setIdentity();
+        newTransform.setOrigin(origin);
+        newTransform.setRotation(quaternion);
+
+        this.el.body.setWorldTransform(newTransform);
+
+        this.el.body.activate();
+
+        if (this.characterModel) {
+            this.characterModel.setAttribute('rotation', {x: 0, y: 0, z: 0});
+        }
+    },
 
     tick(time, deltaTime) {
+        if (!this.el.body) return;
         const deltaSec = deltaTime / 1000;
 
-        if (this.el.body) {
-            if (this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
-            if (this.stepTurnDiagonal || this.stepTurnCardinal) {
-                this.updateDirection();
-                this.applyStepRotation(deltaSec);
-                this.setSmoothStepTurn();
-            }
-            if (this.autoWalk) {
-                this.move()
-            }
-            if (this.targetWalk) {
-                this.checkReachedTarget()
-                if (!this.reachTarget) {
-                    this.rotateToTarget(deltaSec)
-                    this.moveToTarget()
-                }
-                if (this.reachTarget) this.stopMovement()
-            }
+        if (this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
+        if (this.stepTurnDiagonal || this.stepTurnCardinal) {
+            this.updateDirection();
+            this.applyStepRotation(deltaSec);
+            this.setSmoothStepTurn();
         }
+        if (this.autoWalk) {
+            this.move()
+        }
+        if (this.targetWalk) {
+            this.checkReachedTarget()
+            if (!this.reachTarget) {
+                this.rotateToTarget(deltaSec)
+                this.moveToTarget()
+            }
+            if (this.reachTarget) this.stopMovement()
+        }
+
     },
 
     stopMovement() {
@@ -295,8 +341,11 @@ AFRAME.registerComponent("walk", {
     },
 
     rotateCharacterSmoothly(angleRad) {
+        const offsetRad = THREE.MathUtils.degToRad(this.data.forwardOffsetAngle);
+        const finalRotationRad = angleRad + offsetRad;
+
         const quaternion = new Ammo.btQuaternion();
-        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), finalRotationRad);
 
         const transform = this.el.body.getWorldTransform();
         const origin = transform.getOrigin();
@@ -308,6 +357,10 @@ AFRAME.registerComponent("walk", {
 
         this.el.body.setWorldTransform(newTransform);
         this.el.body.activate();
+
+        if (this.characterModel) {
+            this.characterModel.object3D.rotation.set(0, 0, 0);
+        }
     },
 
     // SPRINT
@@ -406,7 +459,6 @@ AFRAME.registerComponent("walk", {
         const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
         this.rotateCharacterSmoothly(angleRad);
 
-        this.characterModel.setAttribute('rotation', {x: 0, y: 0, z: 0});
     },
 
     // SMOOTH TURN
