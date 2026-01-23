@@ -1,4 +1,4 @@
-import {doesGLTFAnimationExist, isPositiveNumber} from "../../utils/gameUtils";
+import {doesGLTFAnimationExist, isPositiveNumber, isValidValue} from "../../utils/gameUtils";
 
 AFRAME.registerComponent('npc-walk', {
     schema: {
@@ -202,10 +202,7 @@ AFRAME.registerComponent('npc-walk', {
         if (!isPositiveNumber(this.data.pauseAtPoints, "pauseAtPoints", true)) this.wrongInput = true
         if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart", true)) this.wrongInput = true
 
-        if (!this.isValidType(this.data.type)) {
-            this.wrongInput = true;
-            console.error(`Invalid type "${this.data.type}". Expected "points" or "randomMoving".`);
-        }
+        if (!isValidValue(this.data.type, "type", ["points", "randomMoving"])) this.wrongInput = true
     },
 
     initializeDelays() {
@@ -218,10 +215,6 @@ AFRAME.registerComponent('npc-walk', {
         }
 
         if (this.pauseAtPointsDuration > 0) this.pauseAtPoints = true
-    },
-
-    isValidType(type) {
-        return ['points', 'randomMoving'].includes(type);
     },
 
     setAnimation(name) {

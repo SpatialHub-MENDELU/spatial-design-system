@@ -1,4 +1,4 @@
-import {doesGLTFAnimationExist, isPositiveNumber, isValidGameKey} from "../../utils/gameUtils";
+import {doesGLTFAnimationExist, isPositiveNumber, isValidGameKey, isValidValue} from "../../utils/gameUtils";
 
 AFRAME.registerComponent("walk", {
     schema: {
@@ -138,7 +138,7 @@ AFRAME.registerComponent("walk", {
         if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
         if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
 
-        if (!this.isValidTurnType(this.data.turnType)) this.wrongInput = true
+        if (!isValidValue(this.data.turnType, "turnType", ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal'])) this.wrongInput = true
 
         if (!isValidGameKey(this.data.keyUp)) this.wrongInput = true
         if (!isValidGameKey(this.data.keyDown)) this.wrongInput = true
@@ -146,16 +146,6 @@ AFRAME.registerComponent("walk", {
         if (!isValidGameKey(this.data.keyRight)) this.wrongInput = true
         if (this.sprintEnabled && !isValidGameKey(this.data.keySprint)) this.wrongInput = true
     },
-
-    isValidTurnType(value) {
-        const validTypes = ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal'];
-        if (!validTypes.includes(value)) {
-            console.warn(`Invalid turnType: "${value}". Valid options are: ${validTypes.join(', ')}.`);
-            return false
-        }
-        return true
-    },
-
 
     setTurnType() {
         if (this.targetWalk) return
