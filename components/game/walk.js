@@ -12,7 +12,7 @@ AFRAME.registerComponent("walk", {
         keyRight: {type: "string", default: "d"}, // Key used to move the character right.
 
         speed: {type: "number", default: 5}, // Defines the player's base walking speed.
-        rotationSpeed: {type: "number", default: 90}, // Defines the turning speed for smoothTurn mode.
+        rotationSpeed: {type: "number", default: 90}, // Defines the turning speed. NOTE: For stepTurnCardinal and stepTurnDiagonal, set a higher value (p.e. 600). For target walk as well (p.e. 450)
 
         sprint: {type: "boolean", default: false}, // If true, the player can sprint when holding the sprintKey, increasing their speed to sprintSpeed.
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
@@ -74,8 +74,7 @@ AFRAME.registerComponent("walk", {
         this.newDirection = this.data.startMovingDirection
         this.movingLeft = false;
         this.movingRight = false;
-        // this.movingForward
-        // this.movingBackward
+        this.targetRotation = 0;
 
         // TARGET WALK
         this.reachTarget = true;
@@ -257,6 +256,7 @@ AFRAME.registerComponent("walk", {
             if (this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
             if (this.stepTurnDiagonal || this.stepTurnCardinal) {
                 this.updateDirection();
+                this.applyStepRotation(deltaSec);
                 this.setSmoothStepTurn();
             }
             if (this.autoWalk) {
@@ -282,46 +282,15 @@ AFRAME.registerComponent("walk", {
 
     move(forward = true) {
         const currentVelocity = this.el.body.getLinearVelocity();
-        let velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
-        const speed = this.speed;
+        const speed = this.isSprinting ? this.sprintSpeed : this.speed;
 
-        if (this.smoothTurn) {
-            const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
-            const factor = forward ? 1 : -1;
-            const x = Math.sin(angleRad) * speed * factor;
-            const z = Math.cos(angleRad) * speed * factor;
-            velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
-        }
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        const factor = forward ? 1 : -1;
 
-        if (this.stepTurnDiagonal || this.stepTurnCardinal) {
-            switch (this.movingDirection) {
-                case 'up':
-                    velocity.setValue(0, currentVelocity.y(), -speed);
-                    break;
-                case 'down':
-                    velocity.setValue(0, currentVelocity.y(), speed);
-                    break;
-                case 'left':
-                    velocity.setValue(-speed, currentVelocity.y(), 0);
-                    break;
-                case 'right':
-                    velocity.setValue(speed, currentVelocity.y(), 0);
-                    break;
-                case 'upLeft':
-                    velocity.setValue(-speed, currentVelocity.y(), -speed);
-                    break;
-                case 'upRight':
-                    velocity.setValue(speed, currentVelocity.y(), -speed);
-                    break;
-                case 'downLeft':
-                    velocity.setValue(-speed, currentVelocity.y(), speed);
-                    break;
-                case 'downRight':
-                    velocity.setValue(speed, currentVelocity.y(), speed);
-                    break;
-            }
-        }
+        const x = Math.sin(angleRad) * speed * factor;
+        const z = Math.cos(angleRad) * speed * factor;
 
+        const velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
         this.el.body.setLinearVelocity(velocity);
     },
 
@@ -408,54 +377,36 @@ AFRAME.registerComponent("walk", {
 
         if (newDir && newDir !== this.movingDirection) {
             this.newDirection = newDir;
-            this.rotateStepTurn();
+            this.movingDirection = newDir;
+
+            const angles = {
+                'down': 0, 'downRight': 45, 'right': 90, 'upRight': 135,
+                'up': 180, 'upLeft': 225, 'left': 270, 'downLeft': 315
+            };
+
+            this.targetRotation = angles[newDir];
         }
     },
 
-    rotateStepTurn() {
-        if (this.newDirection === this.movingDirection) return;
-        const angle = this.stepTurnDiagonal ? 45 : 90;
+    applyStepRotation(deltaSec) {
+        if (this.currentRotation === this.targetRotation) return;
 
-        const directions = this.stepTurnDiagonal ? ['down', 'downRight', 'right', 'upRight', 'up', 'upLeft', 'left', 'downLeft'] : ['down', 'right', 'up', 'left'];
-        let diff = directions.indexOf(this.newDirection) - directions.indexOf(this.movingDirection);
-        if (this.stepTurnDiagonal) {
-            if (diff > 4) diff -= 8;
-            if (diff < -4) diff += 8;
-        }
-        if (this.stepTurnCardinal) {
-            diff = diff >= 3 ? diff - 4 : diff;
-            diff = diff <= -3 ? diff + 4 : diff;
+        let diff = (this.targetRotation - this.currentRotation + 540) % 360 - 180;
+
+        const step = this.rotationSpeed * deltaSec;
+
+        if (Math.abs(diff) <= step) {
+            this.currentRotation = this.targetRotation;
+        } else {
+            this.currentRotation += Math.sign(diff) * step;
         }
 
-        this.rotationY += diff * angle;
-        this.movingDirection = this.newDirection;
+        this.currentRotation = (this.currentRotation + 360) % 360;
 
-        if (diff === 0) return;
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        this.rotateCharacterSmoothly(angleRad);
 
-        this.characterModel.setAttribute('animation', {
-            property: 'rotation',
-            to: {x: 0, y: this.rotationY, z: 0},
-            dur: 200,
-            easing: 'easeOutQuad'
-        });
-
-        // todo: move also the physics body
-
-        // const angleRad = THREE.MathUtils.degToRad(this.rotationY);
-        // const quaternion = new Ammo.btQuaternion();
-        // quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
-        //
-        // const transform = this.el.body.getWorldTransform();
-        // const origin = transform.getOrigin();
-        //
-        // const newTransform = new Ammo.btTransform();
-        // newTransform.setIdentity();
-        // newTransform.setOrigin(new Ammo.btVector3(origin.x(), origin.y(), origin.z()));
-        // newTransform.setRotation(quaternion);
-        //
-        // this.el.body.setWorldTransform(newTransform);
-        // this.el.body.activate();
-
+        this.characterModel.setAttribute('rotation', {x: 0, y: 0, z: 0});
     },
 
     // SMOOTH TURN
