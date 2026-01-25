@@ -13,7 +13,6 @@ AFRAME.registerPrimitive('a-ar-avatar', {
         color: 'avatar.color',
         textcolor: 'avatar.textcolor',
         initial: 'avatar.initial',
-        icon: 'avatar.icon',
         image: 'avatar.image',
         tile: 'avatar.tile',
         rounded: 'avatar.rounded',
