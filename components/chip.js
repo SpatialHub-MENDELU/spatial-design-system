@@ -39,8 +39,8 @@ AFRAME.registerComponent("chip", {
                     this.setContent();
                     break;
                 case 'icon':
+                case 'iconpos':
                 case 'rounded':
-                case 'closable': // test this later
                     this.setContent();
                     break;
                 case 'outlined':
@@ -64,9 +64,6 @@ AFRAME.registerComponent("chip", {
                 case 'opacity':
                     this.updateChipOpacity();
                     break;
-                case 'iconpos':
-                    this.updateIconPosition(this.data.iconpos);
-                    break;
                 default:
                     break;
             }
@@ -88,9 +85,11 @@ AFRAME.registerComponent("chip", {
     },
 
     updateChipOpacity() {
-        const opacityValue = this.data.textonly ? 0 : this.data.opacity;
-        this.chipMesh.material.opacity = opacityValue;
-        if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.6;
+        if (this.chipMesh) {
+            this.chipMesh.material.opacity = this.data.outlined && !this.data.textonly && !this.data.elevated ? this.data.opacity * 0.6 : this.data.opacity;
+        }
+        if (this.outlineMesh) this.outlineMesh.material.opacity = this.data.opacity;
+        if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.65;
     },
 
     updateTextColor() {
@@ -103,8 +102,8 @@ AFRAME.registerComponent("chip", {
         // If the chip is outlined, calculate the lighter color inside color using opacity
         if (this.data.outlined && !this.data.textonly && !this.data.elevated) {
             const borderColor = new AFRAME.THREE.Color(this.data.color);
-            const backgroundColor = new AFRAME.THREE.Color('#FFFFFF'); // Assuming white background
-            const opacity = 0.05; // Opacity for outlined chips
+            const backgroundColor = new AFRAME.THREE.Color('#808080'); // Assuming gray background = middle between light and dark
+            const opacity = this.chipMesh ? this.chipMesh.material.opacity : this.data.opacity * 0.6;
             const blendedColor = borderColor.clone().lerp(backgroundColor, 1 - opacity);
             chipColorHex = `#${blendedColor.getHexString()}`;
         } else {
@@ -119,7 +118,7 @@ AFRAME.registerComponent("chip", {
         console.log(`Contrast between ${textcolor} and ${chipColorHex} is: ${contrast}`);
 
         // If the contrast is not high enough, adjust the text color
-        if (contrast <= 60 && !this.data.textonly) {
+        if (contrast <= 120 && !this.data.textonly) {
             const newTextColor = setContrastColor(chipColorHex);
 
             // Only update and alert if the color actually changes
@@ -134,46 +133,9 @@ AFRAME.registerComponent("chip", {
         if (textEl) {
             textEl.setAttribute("color", textcolor);
         }
-    },
-
-    updateIconPosition(iconpos) {
-        const sizeCoef = this.el.getAttribute('sizeCoef')
-
-        let textEl = this.el.querySelector("a-text")
-        let iconEl = this.el.querySelector("a-image")
-        if(iconEl) {
-            iconEl.remove();
-        }
-
-        const icon = this.data.icon === "" ? "" : this.data.icon
-        const iconWidth = icon !== "" && !this.data.textonly ? 0.2 * this.el.getAttribute('sizeCoef') : 0
-
-        if(icon !== "" && !this.data.textonly) {
-            iconEl = document.createElement("a-image")
-
-            // Have to be loaded like this, otherwise the icon shows error
-            // First I have to make sure the image exists before I can use it
-            var myImg = new Image;
-            myImg.src = icon;
-            myImg.onload = () => {
-                let textXPosition;
-                let iconXPosition;
-                if (iconpos === "right") {
-                    textXPosition = -iconWidth * 0.5;
-                    iconXPosition = this.width * 0.5 - 0.17 * sizeCoef;
-                } else {
-                    textXPosition = iconWidth * 0.5;
-                    iconXPosition = -this.width * 0.5 + 0.18 * sizeCoef;
-                }
-                
-                // Moving the text to the right, so it doesn't hide the icon
-                textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.05 })
-                
-                iconEl.setAttribute("geometry", { width: iconWidth, height: 0.2 * this.el.getAttribute('sizeCoef')})
-                iconEl.setAttribute("position", { x: iconXPosition, y: 0, z: 0.02 })
-                iconEl.setAttribute("material", { src: icon })
-                this.el.appendChild(iconEl)
-            }
+        const iconEl = this.el.querySelector("a-image");
+        if (iconEl) {
+            iconEl.setAttribute("color", textcolor);
         }
     },
 
@@ -221,7 +183,7 @@ AFRAME.registerComponent("chip", {
         } else if (this.data.elevated) {
             opacityValue = this.data.opacity; // Elevated takes priority over outlined
         } else if (this.data.outlined) {
-            opacityValue = 0.4; // Outlined opacity
+            opacityValue = this.data.opacity * 0.6; // Outlined opacity
         } else {
             opacityValue = this.data.opacity; // Default user-defined opacity
         }
@@ -252,7 +214,7 @@ AFRAME.registerComponent("chip", {
             const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
             const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
                 color: this.data.color,
-                opacity: 0.9,
+                opacity: this.data.opacity,
                 transparent: true
             });
             const outlineMesh = new AFRAME.THREE.Mesh(outlineGeometry, outlineMaterial);
@@ -280,8 +242,37 @@ AFRAME.registerComponent("chip", {
         this.el.setObject3D('mesh', group);
     },
 
+    _clearContent() {
+        const textEl = this.el.querySelector("a-text");
+        if (textEl) textEl.remove();
+        const iconEl = this.el.querySelector("a-image");
+        if (iconEl) iconEl.remove();
+    },
+
+    _appendText(value, sizeCoef) {
+        const textEl = document.createElement("a-text");
+        textEl.setAttribute("value", value === undefined ? "" : value);
+        textEl.setAttribute("align", "center");
+        textEl.setAttribute('scale', { x: 0.7 * sizeCoef, y: 0.7 * sizeCoef, z: 0.7 * sizeCoef });
+        textEl.setAttribute("position", '0 0 0.05');
+        textEl.setAttribute("fill-opacity", this.data.opacity);
+        this.el.appendChild(textEl);
+        return textEl;
+    },
+
+    _appendIcon(src, size) {
+        const iconEl = document.createElement("a-image");
+        iconEl.setAttribute("src", src);
+        iconEl.setAttribute("geometry", { width: size, height: size });
+        iconEl.setAttribute("position", { x: 0, y: 0, z: 0.02 });
+        this.el.appendChild(iconEl);
+        return iconEl;
+    },
+
     setContent() {
-        const icon = this.data.icon === "" ? "" : this.data.icon;
+        this._clearContent();
+
+        const icon = this.data.icon || "";
         const iconpos = this.data.iconpos;
         let text = this.data.label;
 
@@ -292,26 +283,47 @@ AFRAME.registerComponent("chip", {
 
         const sizeCoef = this.el.getAttribute('sizeCoef');
 
-        let textEl = this.el.querySelector("a-text");
-        if (textEl) textEl.remove();
+        const letterWidth = 0.08;
+        const textWidth = text.length * letterWidth;
+        const iconWidth = 0.2;
+        const paddingInner = 0.1;
+        const paddingOuter = 0.2;
 
-        textEl = document.createElement("a-text");
-        textEl.setAttribute("value", text === undefined ? "" : text);
-        textEl.setAttribute("align", "center");
-        textEl.setAttribute('scale', { x: 0.7 * sizeCoef, y: 0.7 * sizeCoef, z: 0.7 * sizeCoef });
-        textEl.setAttribute("position", '0 0 0.05');
+        let widthArg = 0;
+        if (icon !== "") {
+            widthArg = paddingInner + iconWidth + paddingInner + textWidth + paddingOuter;
+        } else {
+            widthArg = paddingOuter + textWidth + paddingOuter;
+        }
+        
+        this.createChip(widthArg);
 
-        // If there is an icon, the button has to be wider
-        const iconWidth = icon !== "" && !this.data.textonly ? 0.2 * this.el.getAttribute('sizeCoef') : 0;
+        const textEl = this._appendText(text, sizeCoef);
+        let iconEl = null;
 
-        // If the text is longer than 8 chars, the button has to be wider
-        // Have to create a new button, if using button.scale.set(), the border radius will not scale
-        const defaultLetterWidth = 0.08;
-        this.createChip(0.9 + defaultLetterWidth * (text.length - 8) + iconWidth * 0.7);
+        if (icon !== "") {
+            const scaledIconWidth = iconWidth * sizeCoef;
+            iconEl = this._appendIcon(icon, scaledIconWidth);
 
-        this.el.appendChild(textEl);
+            const scaledTextWidth = textWidth * sizeCoef;
+            const scaledPaddingInner = paddingInner * sizeCoef;
+            const scaledPaddingOuter = paddingOuter * sizeCoef;
+            
+            let textXPosition;
+            let iconXPosition;
+            
+            if (iconpos === "right") {
+                textXPosition = -this.width/2 + scaledPaddingOuter + scaledTextWidth/2;
+                iconXPosition = -this.width/2 + scaledPaddingOuter + scaledTextWidth + scaledPaddingInner + scaledIconWidth/2;
+            } else {
+                iconXPosition = -this.width/2 + scaledPaddingInner + scaledIconWidth/2;
+                textXPosition = -this.width/2 + scaledPaddingInner + scaledIconWidth + scaledPaddingInner + scaledTextWidth/2;
+            }
+            
+            textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.05 });
+            iconEl.setAttribute("position", { x: iconXPosition, y: 0, z: 0.02 });
+        }
 
-        this.updateIconPosition(iconpos);
         this.updateTextColor();
     },
 
