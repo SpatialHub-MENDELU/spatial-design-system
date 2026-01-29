@@ -75,7 +75,7 @@ AFRAME.registerComponent("avatar", {
 
         // Calculate contrast and adjust if needed
         const contrast = getContrast(textcolor, avatarColorHex);
-        if (contrast <= 60) {
+        if (contrast <= 120) {
             const newTextColor = setContrastColor(avatarColorHex);
             if (newTextColor && newTextColor !== textcolor) {
                 textcolor = newTextColor;
@@ -83,8 +83,12 @@ AFRAME.registerComponent("avatar", {
             }
         }
 
-        const textEl = this.el.querySelector("a-troika-text");
-        if (textEl) textEl.setAttribute("color", textcolor);
+        // Update the text color of text and image elements
+        const elements = ["a-troika-text", "a-image"];
+        elements.forEach(sel => {
+            const el = this.el.querySelector(sel);
+            if (el) el.setAttribute("color", textcolor);
+        });
     },
 
     setSize() {
