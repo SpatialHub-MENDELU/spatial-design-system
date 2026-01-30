@@ -30,7 +30,6 @@ AFRAME.registerComponent("dialog", {
             },
             stringify: JSON.stringify
         },
-        persistent: { type: 'boolean', default: false },
         transition: { type: 'string', default: "" },
     },
 
@@ -44,6 +43,9 @@ AFRAME.registerComponent("dialog", {
         this.setContent();
         this.setMode();
         this.updateDialogColor();
+
+        this.el.addEventListener("open-dialog", this.openDialog.bind(this));
+        this.el.addEventListener("close-dialog", this.closeDialog.bind(this));
     },
 
     update(oldData) {
@@ -74,7 +76,6 @@ AFRAME.registerComponent("dialog", {
                 case 'closingicon':
                 case 'title':
                 case 'content':
-                case 'persistent':
                     this.setContent();
                     break;
                 case 'buttons':
@@ -145,7 +146,7 @@ AFRAME.registerComponent("dialog", {
         return el;
     },
 
-    _appendButton(buttonData, index) {
+    _appendButton(buttonData, index, totalButtons) {
         let label = buttonData.label || "Button";
         if (label.length > 8) label = label.substring(0, 8);
         const action = buttonData.action || "close";
@@ -161,26 +162,16 @@ AFRAME.registerComponent("dialog", {
             this.closeDialog();
         });
 
+
         // Button positioning logic
-        const rightEdgePadding = 0.3; // Padding from the right edge of the dialog
-        const interButtonSpacing = 0.2; // Space between the buttons
-        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attrib
+        const interButtonSpacing = 0.4; // Space between the buttons
+        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attribe
 
-        const rightButtonXCenter = this.width / 2 - rightEdgePadding - (assumedButtonWidth / 2);
-        const leftButtonXCenter = rightButtonXCenter - assumedButtonWidth - interButtonSpacing;
-
-        // Determine X position based on index and total buttons
-        let xPos;
-        if (index === 0) {
-            // If it's the first button, check if it's the only one
-            xPos = (this.data.buttons.length === 1) ? rightButtonXCenter : leftButtonXCenter;
-        } else {
-            // Second button goes to the right
-            xPos = rightButtonXCenter;
-        }
+        const distanceBetweenCenters = assumedButtonWidth + interButtonSpacing;
+        const xPos = (index - (totalButtons - 1) / 2) * distanceBetweenCenters;
 
         buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
-        
+
         this.el.appendChild(buttonEl);
     },
 
@@ -217,8 +208,8 @@ AFRAME.registerComponent("dialog", {
             titleXOffset = iconSize + 0.1; // Shift title to the right
         }
 
-        // 2. Add Closing Icon (if enabled and not persistent)
-        if (this.data.closingicon === true && !this.data.persistent) {
+        // 2. Add Closing Icon
+        if (this.data.closingicon === true) {
             const iconSrc = "/close.png";
             const myImg = new Image();
             myImg.src = iconSrc;
@@ -372,7 +363,7 @@ AFRAME.registerComponent("dialog", {
         }
     
         buttons.forEach((button, index) => {
-            this._appendButton(button, index);
+            this._appendButton(button, index, buttons.length);
         });
 
         // Determine button text color
