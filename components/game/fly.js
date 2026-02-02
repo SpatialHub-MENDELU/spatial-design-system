@@ -128,7 +128,10 @@ AFRAME.registerComponent("fly", {
 
         // autoForwardFixedDirection
         this.canMoveVertically = this.data.canMoveVertically
+        if (this.canMoveVertically === false) this.allowPitch = false
+
         this.canMoveHorizontally = this.data.canMoveHorizontally
+        if (this.canMoveHorizontally === false) this.allowRoll = false
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -276,7 +279,10 @@ AFRAME.registerComponent("fly", {
         if (oldData.forwardOffsetAngle !== this.data.forwardOffsetAngle) this.forwardOffsetAngle = this.data.forwardOffsetAngle
 
         if (oldData.canMoveVertically !== this.data.canMoveVertically) this.canMoveVertically = this.data.canMoveVertically
+        if (this.canMoveVertically === false) this.allowPitch = false
+
         if (oldData.canMoveHorizontally !== this.data.canMoveHorizontally) this.canMoveHorizontally = this.data.canMoveHorizontally
+        if (this.canMoveHorizontally === false) this.allowRoll = false
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
