@@ -18,7 +18,7 @@ AFRAME.registerComponent("walk", {
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
         sprintSpeed: {type: "number", default: 8}, // Defines the sprinting speed when the sprint mode is active.
 
-        turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
+        turnType: {type: "string", default: "hybrid"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
         autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
         targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
@@ -63,6 +63,7 @@ AFRAME.registerComponent("walk", {
         this.smoothTurn = false;
         this.stepTurnDiagonal = false;
         this.stepTurnCardinal = false;
+        this.hybrid = false;
 
         // SMOOTH WALKING
         this.turnDirection = null;
@@ -85,6 +86,9 @@ AFRAME.registerComponent("walk", {
         this.targetPosition = this.el.object3D.position
         this.rotationToTarget = null
         if (this.targetWalk) this.rotationSpeed = 450
+
+        // HYBRID
+        this.baseRotation = initialRotationY;
 
         // Check inputs
         this.wrongInput = false;
@@ -167,7 +171,7 @@ AFRAME.registerComponent("walk", {
     },
 
     isValidTurnType(value) {
-        const validTypes = ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal'];
+        const validTypes = ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal', 'hybrid'];
         if (!validTypes.includes(value)) {
             console.warn(`Invalid turnType: "${value}". Valid options are: ${validTypes.join(', ')}.`);
             return false
@@ -182,6 +186,7 @@ AFRAME.registerComponent("walk", {
         this.smoothTurn = false;
         this.stepTurnDiagonal = false;
         this.stepTurnCardinal = false
+        this.hybrid = false;
 
         switch (this.data.turnType) {
             case 'smoothTurn':
@@ -192,6 +197,9 @@ AFRAME.registerComponent("walk", {
                 break;
             case "stepTurnCardinal":
                 this.stepTurnCardinal = true;
+                break;
+            case "hybrid":
+                this.hybrid = true;
                 break;
             default:
                 this.smoothTurn = true;
@@ -304,6 +312,9 @@ AFRAME.registerComponent("walk", {
             this.updateDirection();
             this.applyStepRotation(deltaSec);
             this.setSmoothStepTurn();
+        }
+        if (this.hybrid) {
+            this.setHybridMove(deltaSec);
         }
         if (this.autoWalk) {
             this.move()
@@ -497,6 +508,58 @@ AFRAME.registerComponent("walk", {
 
         const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
         this.rotateCharacterSmoothly(angleRad)
+    },
+
+    // HYBRID
+    setHybridMove(deltaSec) {
+        if (!this.movingForward && !this.movingBackward && !this.movingLeft && !this.movingRight) {
+            this.stopMovement();
+            this.baseRotation = this.currentRotation;
+            return;
+        }
+
+        if (this.sprintEnabled) {
+            this.isSprinting ? this.startSprinting() : this.stopSprinting();
+        }
+
+        this.setAnimation(this.isSprinting ? this.animations.sprint : this.animations.walk);
+
+        if (this.movingForward) {
+
+            if (this.movingLeft) {
+                this.currentRotation += this.rotationSpeed/7 * deltaSec;
+            }
+            if (this.movingRight) {
+                this.currentRotation -= this.rotationSpeed/7 * deltaSec;
+            }
+
+            this.baseRotation = this.currentRotation;
+
+        } else {
+
+            let targetOffset = 0;
+
+            if (this.movingBackward) targetOffset = 180;
+            else if (this.movingLeft) targetOffset = 90;
+            else if (this.movingRight) targetOffset = -90;
+
+            const targetRotation = this.baseRotation + targetOffset;
+
+            let diff = (targetRotation - this.currentRotation + 540) % 360 - 180;
+            const step = this.rotationSpeed * deltaSec;
+
+            if (Math.abs(diff) <= step) {
+                this.currentRotation = targetRotation;
+            } else {
+                this.currentRotation += Math.sign(diff) * step;
+            }
+        }
+
+        this.currentRotation = (this.currentRotation + 360) % 360;
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        this.rotateCharacterSmoothly(angleRad);
+
+        this.move(true);
     },
 
     // TARGET WALK
