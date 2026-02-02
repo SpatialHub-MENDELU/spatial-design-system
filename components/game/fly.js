@@ -516,7 +516,14 @@ AFRAME.registerComponent("fly", {
 
     // AUTO FORWARD
 
+    handleAutoForwardAnimations() {
+        const animation = this.sprintEnabled && this.isSprinting ? this.animations.sprint : this.animations.walk;
+        this.setAnimation(animation);
+    },
+
     autoForwardMove(deltaSec) {
+        this.handleAutoForwardAnimations()
+
         // yaw - turn left/right
         if (this.allowRoll) this.setYawDeg(deltaSec);
         else {
@@ -633,6 +640,8 @@ AFRAME.registerComponent("fly", {
         if (this.sprintEnabled) {
             this.isSprinting ? this.startSprinting() : this.stopSprinting();
         }
+
+        this.handleAutoForwardAnimations()
 
         const speed = this.speed;
         const currentVelocity = this.el.body.getLinearVelocity();
