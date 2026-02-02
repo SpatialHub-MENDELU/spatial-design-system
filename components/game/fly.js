@@ -635,9 +635,16 @@ AFRAME.registerComponent("fly", {
     },
 
     setYawDeg(deltaSec) {
-        // yaw - turn left/right
-        const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
-        this.currentYawDeg = (this.currentYawDeg + dir * this.rotationSpeed * deltaSec) % 360;
+        const keyDir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+        let finalDir = keyDir;
+
+        if (this.autoLevelRoll === false) {
+            const bankingDir = -(this.currentRollDeg / this.maxRollDeg);
+            finalDir = Math.max(-1, Math.min(1, keyDir + bankingDir));
+        }
+
+        const yawChange = finalDir * this.rotationSpeed * deltaSec;
+        this.currentYawDeg = (this.currentYawDeg + yawChange) % 360;
     },
 
     // AUTO FORWARD FIXED DIRECTION
