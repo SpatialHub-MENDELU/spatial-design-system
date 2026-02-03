@@ -37,7 +37,7 @@ AFRAME.registerComponent("gameview", {
         this.targetAngle = 0;
 
         this.bindKeyEvents();
-        this.updateCamera();
+        this.updateOffsetPosition();
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,20 +46,23 @@ AFRAME.registerComponent("gameview", {
     tick() {
         if (this.isTargetNeeded && !this.target) return;
 
-        if (this.thirdPersonFollow) this.updateThirdPersonFollow();
-        if (this.quarterTurn) this.updateQuarterTurn();
+        if (this.thirdPersonFollow) this.trackTargetRotation();
+        if (this.quarterTurn) this.animateRotationStep();
         if (this.thirdPersonFixed) this.followTargetIfMoved();
     },
 
 
     bindKeyEvents() {
         document.addEventListener("keydown", (e) => {
-            if (!this.quarterTurn) return;
-            if (e.key === "e") this.targetAngle += 90;
-            if (e.key === "q") this.targetAngle -= 90;
-            this.targetAngle = (this.targetAngle + 360) % 360;
-            this.updateCamera();
+            if (this.quarterTurn) this.handleQuarterTurnInput(e)
         })
+    },
+
+    handleQuarterTurnInput(e) {
+        if (e.key === "e") this.targetAngle += 90;
+        if (e.key === "q") this.targetAngle -= 90;
+        this.targetAngle = (this.targetAngle + 360) % 360;
+        this.updateOffsetPosition();
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +91,7 @@ AFRAME.registerComponent("gameview", {
             this.setType()
             this.type = this.data.type;
             this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
-            this.updateCamera();
+            this.updateOffsetPosition();
         }
 
         if (oldData.target !== this.data.target) {
@@ -103,8 +106,11 @@ AFRAME.registerComponent("gameview", {
 
     isValidCameraType(type) {
         const validTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
-        console.error(`Invalid camera type: ${type}. Valid types are: ${validTypes.join(', ')}.`);
-        return validTypes.includes(type);
+        const isValid = validTypes.includes(type);
+        if (!isValid) {
+            console.error(`Invalid camera type: ${type}. Valid types are: ${validTypes.join(', ')}.`);
+        }
+        return isValid;
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,56 +137,50 @@ AFRAME.registerComponent("gameview", {
         }
     },
 
+    applyTransform(x, y, z, rotX, rotY, rotZ) {
+        this.el.object3D.position.set(x, y, z);
+        this.el.object3D.rotation.set(rotX, rotY, rotZ);
+    },
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CAMERA TYPES METHODS
 
-    updateCamera() {
+    updateOffsetPosition() {
         if(this.thirdPersonFollow) return;
 
         const { x, y, z } = this.target.position;
         const { height, distance, tilt } = this.data;
 
-        if (this.thirdPersonFixed) {
-            this.el.object3D.position.set(x, y + height, z + distance);
-            this.el.object3D.rotation.set(
-                THREE.MathUtils.degToRad(tilt),
-                0,
-                0
-            );
-        }
+        if (this.thirdPersonFixed) this.updateCameraThirdPersonFixed(x, y, z, height, distance, tilt);
 
-        if (this.quarterTurn) {
-            const radiansY = THREE.MathUtils.degToRad(this.angle);
-            const radiansTilt = THREE.MathUtils.degToRad(tilt);
-
-            const offsetX = Math.sin(radiansY) * distance;
-            const offsetZ = Math.cos(radiansY) * distance;
-
-            this.el.object3D.position.set(
-                x + offsetX,
-                y + height,
-                z + offsetZ
-            );
-
-            this.el.object3D.rotation.set(
-                radiansTilt,
-                radiansY,
-                0
-            );
-        }
+        if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
     },
+
 
     followTargetIfMoved() {
         const currentPosition = this.target.position;
         if (!this.previousTargetPosition.equals(currentPosition)) {
-            this.updateCamera();
+            this.updateOffsetPosition();
             this.previousTargetPosition.copy(currentPosition);
         }
     },
 
+    // third-person-fixed
+
+    updateCameraThirdPersonFixed(x, y, z, height, distance, tilt) {
+        this.applyTransform(
+            x,
+            y + height,
+            z + distance,
+            THREE.MathUtils.degToRad(tilt),
+            0,
+            0
+        )
+    },
+
     // third-person-follow
 
-    updateThirdPersonFollow() {
+    trackTargetRotation() {
         const { x, y, z } = this.target.position;
         const targetRotationY = this.target.rotation.y;
 
@@ -189,35 +189,49 @@ AFRAME.registerComponent("gameview", {
         const offsetX = Math.sin(rotationFlippedY) * this.data.distance;
         const offsetZ = Math.cos(rotationFlippedY) * this.data.distance;
 
-        this.el.object3D.position.set(
-            x + offsetX,
-            y + this.data.height,
-            z + offsetZ
-        );
-
         const tiltRad = THREE.MathUtils.degToRad(this.data.tilt);
 
-        this.el.object3D.rotation.set(
+        this.applyTransform(
+            x + offsetX,
+            y + this.data.height,
+            z + offsetZ,
             tiltRad,
             rotationFlippedY,
             0
-        );
+        )
+
     },
 
     // quarter turn
-    updateQuarterTurn() {
+    animateRotationStep() {
         let diff = this.targetAngle - this.angle;
-        if (this.quarterTurn) {
-            diff = ((diff + 540) % 360) - 180;
-        }
+
+        diff = ((diff + 540) % 360) - 180;
 
         if (Math.abs(diff) > 0.1) {
             const step = Math.sign(diff) * Math.min(Math.abs(diff), this.rotationSpeed);
             this.angle = (this.angle + step + 360) % 360;
-            this.updateCamera();
+            this.updateOffsetPosition();
         }
 
         this.followTargetIfMoved();
+    },
+
+    updateCameraQuarterTurn(x, y, z, height, distance, tilt) {
+        const radiansY = THREE.MathUtils.degToRad(this.angle);
+        const radiansTilt = THREE.MathUtils.degToRad(tilt);
+
+        const offsetX = Math.sin(radiansY) * distance;
+        const offsetZ = Math.cos(radiansY) * distance;
+
+        this.applyTransform(
+            x + offsetX,
+            y + height,
+            z + offsetZ,
+            radiansTilt,
+            radiansY,
+            0
+        )
     },
 
 });
