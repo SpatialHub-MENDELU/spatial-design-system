@@ -12,6 +12,9 @@ AFRAME.registerComponent("gameview", {
     },
 
     init() {
+        this.targetNeededTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
+        this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
+
         // types of cameras
         this.thirdPersonFixed = false
         this.thirdPersonFollow = false
@@ -26,13 +29,12 @@ AFRAME.registerComponent("gameview", {
 
         if(this.thirdPersonFixed || this.quarterTurn || this.thirdPersonFollow) this.target = this.data.target?.object3D;
 
-        // thirdPersonFollow
         this.previousTargetPosition = new THREE.Vector3();
-        this.angle = 0;
-        this.targetAngle = 0;
 
         // quarter turn
         this.rotationSpeed = this.data.rotationSpeed;
+        this.angle = 0;
+        this.targetAngle = 0;
 
         this.bindKeyEvents();
         this.updateCamera();
@@ -42,34 +44,13 @@ AFRAME.registerComponent("gameview", {
     // GENERAL METHODS
 
     tick() {
-        if (!this.target) return;
+        if (this.isTargetNeeded && !this.target) return;
 
-        if (this.thirdPersonFollow) {
-            this.updateFirstPerson();
-            return;
-        }
-
-        let diff = this.targetAngle - this.angle;
-        if (this.quarterTurn) {
-            diff = ((diff + 540) % 360) - 180;
-        }
-
-        if (Math.abs(diff) > 0.1) {
-            const step = Math.sign(diff) * Math.min(Math.abs(diff), this.rotationSpeed);
-            this.angle = (this.angle + step + 360) % 360;
-            this.updateCamera();
-        }
-
-        this.followTargetIfMoved();
+        if (this.thirdPersonFollow) this.updateThirdPersonFollow();
+        if (this.quarterTurn) this.updateQuarterTurn();
+        if (this.thirdPersonFixed) this.followTargetIfMoved();
     },
 
-    followTargetIfMoved() {
-        const currentPosition = this.target.position;
-        if (!this.previousTargetPosition.equals(currentPosition)) {
-            this.updateCamera();
-            this.previousTargetPosition.copy(currentPosition);
-        }
-    },
 
     bindKeyEvents() {
         document.addEventListener("keydown", (e) => {
@@ -106,6 +87,7 @@ AFRAME.registerComponent("gameview", {
         if (oldData.type !== this.data.type) {
             this.setType()
             this.type = this.data.type;
+            this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
             this.updateCamera();
         }
 
@@ -188,9 +170,17 @@ AFRAME.registerComponent("gameview", {
         }
     },
 
+    followTargetIfMoved() {
+        const currentPosition = this.target.position;
+        if (!this.previousTargetPosition.equals(currentPosition)) {
+            this.updateCamera();
+            this.previousTargetPosition.copy(currentPosition);
+        }
+    },
+
     // third-person-follow
 
-    updateFirstPerson() {
+    updateThirdPersonFollow() {
         const { x, y, z } = this.target.position;
         const targetRotationY = this.target.rotation.y;
 
@@ -212,6 +202,22 @@ AFRAME.registerComponent("gameview", {
             rotationFlippedY,
             0
         );
+    },
+
+    // quarter turn
+    updateQuarterTurn() {
+        let diff = this.targetAngle - this.angle;
+        if (this.quarterTurn) {
+            diff = ((diff + 540) % 360) - 180;
+        }
+
+        if (Math.abs(diff) > 0.1) {
+            const step = Math.sign(diff) * Math.min(Math.abs(diff), this.rotationSpeed);
+            this.angle = (this.angle + step + 360) % 360;
+            this.updateCamera();
+        }
+
+        this.followTargetIfMoved();
     },
 
 });
