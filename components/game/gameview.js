@@ -1,4 +1,4 @@
-import { isPositiveNumber } from "../../utils/gameUtils";
+import { isPositiveNumber, isValidGameKey } from "../../utils/gameUtils";
 
 
 AFRAME.registerComponent("gameview", {
@@ -8,7 +8,11 @@ AFRAME.registerComponent("gameview", {
         distance: {type: "number", default: 1},
         tilt: {type: "number", default: -15},
         type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow"
-        rotationSpeed : {type: "number", default: 5} // only for quarter-turn
+
+        // only for quarter-turn
+        rotationSpeed : {type: "number", default: 5},
+        keyTurnLeft: {type: "string", default: "q"},
+        keyTurnRight: {type: "string", default: "e"},
     },
 
     init() {
@@ -35,6 +39,8 @@ AFRAME.registerComponent("gameview", {
         this.rotationSpeed = this.data.rotationSpeed;
         this.angle = 0;
         this.targetAngle = 0;
+        this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase()
+        this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
         this.bindKeyEvents();
         this.updateOffsetPosition();
@@ -59,8 +65,8 @@ AFRAME.registerComponent("gameview", {
     },
 
     handleQuarterTurnInput(e) {
-        if (e.key === "e") this.targetAngle += 90;
-        if (e.key === "q") this.targetAngle -= 90;
+        if (e.key.toLowerCase() === this.keyTurnLeft) this.targetAngle += 90;
+        if (e.key.toLowerCase() === this.keyTurnRight) this.targetAngle -= 90;
         this.targetAngle = (this.targetAngle + 360) % 360;
         this.updateOffsetPosition();
     },
@@ -72,6 +78,8 @@ AFRAME.registerComponent("gameview", {
         if (!isPositiveNumber(this.data.height, 'height')) this.wrongInput = true
         if (!isPositiveNumber(this.data.rotationSpeed, 'rotationSpeed')) this.wrongInput = true
         if (!this.isValidCameraType(this.data.type)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyTurnLeft)) this.wrongInput = true
+        if (!isValidGameKey(this.data.keyTurnRight)) this.wrongInput = true
 
         if (!this.wrongInput) {
             const needsTarget = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'].includes(this.data.type);
@@ -101,6 +109,8 @@ AFRAME.registerComponent("gameview", {
         if (oldData.distance !== this.data.distance) this.distance = this.data.distance
         if (oldData.tilt !== this.data.tilt) this.tilt = this.data.tilt
         if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
+        if (oldData.keyTurnLeft !== this.data.keyTurnLeft) this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase()
+        if (oldData.keyTurnRight !== this.data.keyTurnRight) this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
     },
 
