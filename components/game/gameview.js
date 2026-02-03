@@ -82,8 +82,7 @@ AFRAME.registerComponent("gameview", {
         if (!isValidGameKey(this.data.keyTurnRight)) this.wrongInput = true
 
         if (!this.wrongInput) {
-            const needsTarget = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'].includes(this.data.type);
-            if (needsTarget && !this.data.target?.object3D) {
+            if (this.isTargetNeeded && !this.data.target?.object3D) {
                 console.error("Target is missing or invalid.");
                 this.wrongInput = true;
             }
