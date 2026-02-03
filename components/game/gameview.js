@@ -7,7 +7,7 @@ AFRAME.registerComponent("gameview", {
         height: {type: "number", default: 5},
         distance: {type: "number", default: 5},
         tilt: {type: "number", default: -20},
-        type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow"
+        type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow", "fixed"
 
         // only for quarter-turn
         rotationSpeed : {type: "number", default: 5},
@@ -23,6 +23,7 @@ AFRAME.registerComponent("gameview", {
         this.thirdPersonFixed = false
         this.thirdPersonFollow = false
         this.quarterTurn = false
+        this.target = false
 
         this.wrongInput = false
         this.checkInputs()
@@ -114,7 +115,7 @@ AFRAME.registerComponent("gameview", {
     },
 
     isValidCameraType(type) {
-        const validTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
+        const validTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'];
         const isValid = validTypes.includes(type);
         if (!isValid) {
             console.error(`Invalid camera type: ${type}. Valid types are: ${validTypes.join(', ')}.`);
@@ -139,6 +140,9 @@ AFRAME.registerComponent("gameview", {
                 break;
             case 'thirdPersonFollow':
                 this.thirdPersonFollow = true
+                break;
+            case 'fixed':
+                this.fixed = true
                 break;
             default:
                 this.thirdPersonFixed = true
