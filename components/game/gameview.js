@@ -4,9 +4,9 @@ import { isPositiveNumber, isValidGameKey } from "../../utils/gameUtils";
 AFRAME.registerComponent("gameview", {
     schema: {
         target: {type: "selector"},
-        height: {type: "number", default: 1},
-        distance: {type: "number", default: 1},
-        tilt: {type: "number", default: -15},
+        height: {type: "number", default: 5},
+        distance: {type: "number", default: 5},
+        tilt: {type: "number", default: -20},
         type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow"
 
         // only for quarter-turn
