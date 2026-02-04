@@ -1,6 +1,5 @@
 import { isPositiveNumber, isValidGameKey } from "../../utils/gameUtils";
 
-
 AFRAME.registerComponent("gameview", {
     schema: {
         target: {type: "selector"},
@@ -8,6 +7,11 @@ AFRAME.registerComponent("gameview", {
         distance: {type: "number", default: 5},
         tilt: {type: "number", default: -20},
         type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow", "fixed"
+
+        zoom: {type: "boolean", default: true},
+        zoomSpeed: {type: "number", default: 0.3},
+        minDistance: {type: "number", default: 2},
+        maxDistance: {type: "number", default: 15},
 
         // only for quarter-turn
         rotationSpeed : {type: "number", default: 5},
@@ -22,6 +26,10 @@ AFRAME.registerComponent("gameview", {
     init() {
         this.targetNeededTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
         this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
+
+        this.zoom = this.data.zoom
+        this.minDistance = this.data.minDistance
+        this.maxDistance = this.data.maxDistance
 
         // types of cameras
         this.thirdPersonFixed = false
@@ -74,6 +82,10 @@ AFRAME.registerComponent("gameview", {
         document.addEventListener("keydown", (e) => {
             if (this.quarterTurn) this.handleQuarterTurnInput(e)
         })
+
+        document.addEventListener("wheel", (e) => {
+            if (this.zoom) this.handleZoom(e);
+        });
     },
 
     handleQuarterTurnInput(e) {
@@ -81,6 +93,44 @@ AFRAME.registerComponent("gameview", {
         if (e.key.toLowerCase() === this.keyTurnRight) this.targetAngle -= 90;
         this.targetAngle = (this.targetAngle + 360) % 360;
         this.updateOffsetPosition();
+    },
+
+    handleZoom(e) {
+        const delta = Math.sign(e.deltaY) * this.data.zoomSpeed;
+
+        if (this.isTargetNeeded) {
+            this.handleTargetZoom(delta);
+        } else {
+            this.handleFixedZoom(delta);
+        }
+    },
+
+    handleTargetZoom(delta) {
+        const currentRatio = this.data.distance !== 0 ? this.data.height / this.data.distance : 0;
+        let newDistance = this.data.distance + delta;
+
+        newDistance = Math.min(Math.max(newDistance, this.minDistance), this.maxDistance);
+
+        if (newDistance === this.data.distance) return;
+
+        this.data.distance = newDistance;
+
+        if (currentRatio !== 0) {
+            this.data.height = newDistance * currentRatio;
+        }
+
+        if (!this.thirdPersonFollow) {
+            this.updateOffsetPosition();
+        }
+    },
+
+    handleFixedZoom(delta) {
+        const direction = new THREE.Vector3(0, 0, 1);
+        direction.applyQuaternion(this.el.object3D.quaternion);
+
+        this.el.object3D.position.addScaledVector(direction, delta);
+
+        this.cameraPosition.copy(this.el.object3D.position);
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,6 +180,9 @@ AFRAME.registerComponent("gameview", {
             this.cameraRotation = this.parseRotation();
             this.setCameraPositionAndRotation()
         }
+        if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom
+        if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance
+        if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance
     },
 
     isValidCameraType(type) {
