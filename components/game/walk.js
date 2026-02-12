@@ -92,6 +92,8 @@ AFRAME.registerComponent("walk", {
 
         if (this.wrongInput) return;
 
+        this.validateAnimations();
+
         if (this.el.body) {
             this.instantSyncRotation();
         } else {
@@ -111,9 +113,23 @@ AFRAME.registerComponent("walk", {
         if (this.wrongInput) return
 
         // animations
-        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
-        if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
-        if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
+        let animationChanged = false;
+        if (oldData.walkClipName !== this.data.walkClipName) {
+            this.animations.walk = this.data.walkClipName;
+            animationChanged = true;
+        }
+        if (oldData.idleClipName !== this.data.idleClipName) {
+            this.animations.idle = this.data.idleClipName;
+            animationChanged = true;
+        }
+        if (oldData.sprintClipName !== this.data.sprintClipName) {
+            this.animations.sprint = this.data.sprintClipName;
+            animationChanged = true;
+        }
+
+        if (animationChanged) {
+            this.validateAnimations();
+        }
 
         // keys
         if (oldData.keyUp !== this.data.keyUp.toLowerCase()) this.keys.up = this.data.keyUp.toLowerCase()
@@ -146,13 +162,6 @@ AFRAME.registerComponent("walk", {
     },
 
     checkInputs() {
-        this.el.addEventListener('model-loaded', (e) => {
-            const model = e.detail.model;
-            if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
-            if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
-            if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.data.sprintClipName)) this.wrongInput = true
-        })
-
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
         if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
@@ -279,7 +288,7 @@ AFRAME.registerComponent("walk", {
         quaternion.setRotation(new Ammo.btVector3(0, 1, 0), finalRotationRad);
 
         const transform = this.el.body.getWorldTransform();
-        const origin = transform.getOrigin(); // zachováme pozici
+        const origin = transform.getOrigin();
 
         const newTransform = new Ammo.btTransform();
         newTransform.setIdentity();
@@ -317,6 +326,34 @@ AFRAME.registerComponent("walk", {
             if (this.reachTarget) this.stopMovement()
         }
 
+    },
+
+    getModel() {
+        return new Promise((resolve) => {
+            const mesh = this.el.getObject3D('mesh');
+            if (mesh) {
+                resolve(mesh);
+                return;
+            }
+
+            this.el.addEventListener('model-loaded', (e) => {
+                resolve(e.detail.model);
+            }, { once: true });
+        });
+    },
+
+    async validateAnimations() {
+        try {
+            const model = await this.getModel();
+
+            if (!model) return;
+            doesGLTFAnimationExist(model, this.data.walkClipName, "[Walk Component]:")
+            doesGLTFAnimationExist(model, this.data.idleClipName, "[Walk Component]:")
+            if (this.sprintEnabled) doesGLTFAnimationExist(model, this.data.sprintClipName, "[Walk Component]:")
+
+        } catch (err) {
+            console.error("[Walk Component]: Error validating animations:", err);
+        }
     },
 
     stopMovement() {
