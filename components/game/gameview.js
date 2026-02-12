@@ -12,6 +12,8 @@ AFRAME.registerComponent("gameview", {
         zoomSpeed: {type: "number", default: 0.3},
         minDistance: {type: "number", default: 2},
         maxDistance: {type: "number", default: 15},
+        minHeight: {type: "number", default: 2},
+        maxHeight: {type: "number", default: 10},
 
         // only for quarter-turn
         rotationSpeed : {type: "number", default: 5},
@@ -30,6 +32,8 @@ AFRAME.registerComponent("gameview", {
         this.zoom = this.data.zoom
         this.minDistance = this.data.minDistance
         this.maxDistance = this.data.maxDistance
+        this.minHeight = this.data.minHeight
+        this.maxHeight = this.data.maxHeight
 
         // types of cameras
         this.thirdPersonFixed = false
@@ -62,6 +66,9 @@ AFRAME.registerComponent("gameview", {
         this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
         this.bindKeyEvents();
+        if (this.isTargetNeeded && this.zoom) {
+            this.enforceZoomConstraints();
+        }
         if (this.fixed) this.setCameraPositionAndRotation();
         this.updateOffsetPosition();
     },
@@ -106,22 +113,30 @@ AFRAME.registerComponent("gameview", {
     },
 
     handleTargetZoom(delta) {
-        const currentRatio = this.data.distance !== 0 ? this.data.height / this.data.distance : 0;
         let newDistance = this.data.distance + delta;
 
-        newDistance = Math.min(Math.max(newDistance, this.minDistance), this.maxDistance);
-
+        newDistance = Math.min(Math.max(newDistance, this.data.minDistance), this.data.maxDistance);
         if (newDistance === this.data.distance) return;
-
         this.data.distance = newDistance;
 
-        if (currentRatio !== 0) {
-            this.data.height = newDistance * currentRatio;
+        const rangeDistance = this.data.maxDistance - this.data.minDistance;
+
+        if (rangeDistance !== 0) {
+            const progress = (newDistance - this.data.minDistance) / rangeDistance;
+
+            const rangeHeight = this.data.maxHeight - this.data.minHeight;
+            this.data.height = this.data.minHeight + (progress * rangeHeight);
+        } else {
+            this.data.height = this.data.minHeight;
         }
 
         if (!this.thirdPersonFollow) {
             this.updateOffsetPosition();
         }
+    },
+
+    enforceZoomConstraints() {
+        this.handleTargetZoom(0);
     },
 
     handleFixedZoom(delta) {
@@ -181,8 +196,20 @@ AFRAME.registerComponent("gameview", {
             this.setCameraPositionAndRotation()
         }
         if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom
-        if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance
-        if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance
+        if (this.isTargetNeeded && (
+            oldData.minDistance !== this.data.minDistance ||
+            oldData.maxDistance !== this.data.maxDistance ||
+            oldData.minHeight !== this.data.minHeight ||
+            oldData.maxHeight !== this.data.maxHeight
+        )) {
+            if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance
+            if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance
+            if (oldData.minHeight !== this.data.minHeight) this.minHeight = this.data.minHeight
+            if (oldData.maxHeight !== this.data.maxHeight) this.maxHeight = this.data.maxHeight
+
+            this.enforceZoomConstraints();
+            this.updateOffsetPosition();
+        }
     },
 
     isValidCameraType(type) {
