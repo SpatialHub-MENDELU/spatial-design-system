@@ -66,10 +66,9 @@ AFRAME.registerComponent("gameview", {
         this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
         this.bindKeyEvents();
-        if (this.isTargetNeeded && this.zoom) {
+        if (this.zoom) {
             this.enforceZoomConstraints();
         }
-        if (this.fixed) this.setCameraPositionAndRotation();
         this.updateOffsetPosition();
     },
 
@@ -105,11 +104,7 @@ AFRAME.registerComponent("gameview", {
     handleZoom(e) {
         const delta = Math.sign(e.deltaY) * this.data.zoomSpeed;
 
-        if (this.isTargetNeeded) {
-            this.handleTargetZoom(delta);
-        } else {
-            this.handleFixedZoom(delta);
-        }
+        this.handleTargetZoom(delta);
     },
 
     handleTargetZoom(delta) {
@@ -137,15 +132,6 @@ AFRAME.registerComponent("gameview", {
 
     enforceZoomConstraints() {
         this.handleTargetZoom(0);
-    },
-
-    handleFixedZoom(delta) {
-        const direction = new THREE.Vector3(0, 0, 1);
-        direction.applyQuaternion(this.el.object3D.quaternion);
-
-        this.el.object3D.position.addScaledVector(direction, delta);
-
-        this.cameraPosition.copy(this.el.object3D.position);
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -294,14 +280,20 @@ AFRAME.registerComponent("gameview", {
     // CAMERA TYPES METHODS
 
     updateOffsetPosition() {
-        if(this.thirdPersonFollow || this.fixed) return;
+        if(this.thirdPersonFollow) return;
 
-        const { x, y, z } = this.target.position;
-        const { height, distance, tilt } = this.data;
+        if (this.fixed) {
+            this.updateCameraFixed();
+            return;
+        }
 
-        if (this.thirdPersonFixed) this.updateCameraThirdPersonFixed(x, y, z, height, distance, tilt);
+        if (this.target) {
+            const { x, y, z } = this.target.position;
+            const { height, distance, tilt } = this.data;
 
-        if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
+            if (this.thirdPersonFixed) this.updateCameraThirdPersonFixed(x, y, z, height, distance, tilt);
+            if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
+        }
     },
 
 
@@ -311,6 +303,27 @@ AFRAME.registerComponent("gameview", {
             this.updateOffsetPosition();
             this.previousTargetPosition.copy(currentPosition);
         }
+    },
+
+    // fixed
+    updateCameraFixed() {
+        const pivot = this.cameraPosition;
+        const { height, distance } = this.data;
+
+        const rotY = this.cameraRotation.y;
+        const rotX = this.cameraRotation.x;
+
+        const offsetX = Math.sin(rotY) * distance;
+        const offsetZ = Math.cos(rotY) * distance;
+
+        this.applyTransform(
+            pivot.x + offsetX,
+            pivot.y + height,
+            pivot.z + offsetZ,
+            rotX,
+            rotY,
+            this.cameraRotation.z
+        );
     },
 
     // third-person-fixed
