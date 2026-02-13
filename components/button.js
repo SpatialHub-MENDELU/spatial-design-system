@@ -31,6 +31,7 @@ AFRAME.registerComponent("button", {
     outlined: { type: "boolean", default: false },
     elevated: { type: "boolean", default: true }, // Button has shadow by default
     tile: { type: "boolean", default: false },
+    animate: { type: "boolean", default: true },
   },
 
   init() {
@@ -302,9 +303,8 @@ AFRAME.registerComponent("button", {
   _appendIcon(src, size) {
       const iconEl = document.createElement("a-image");
       iconEl.setAttribute("src", src);
-      iconEl.setAttribute("height", size);
-      iconEl.setAttribute("width", size);
-      iconEl.setAttribute("position", "0 0 0.02");
+      iconEl.setAttribute("geometry", { width: size, height: size });
+      iconEl.setAttribute("position", { x: 0, y: 0, z: 0.02 });   
       this.el.appendChild(iconEl);
       return iconEl;
   },
@@ -334,7 +334,11 @@ AFRAME.registerComponent("button", {
 
     let width = 0;
     if (icon !== "") {
-        width = innerPadding + iconWidth + innerPadding + textWidth + outerPadding;
+        if (text !== "") {
+          width = innerPadding + iconWidth + innerPadding + textWidth + outerPadding;
+        } else {
+          width = innerPadding + iconWidth + innerPadding;
+        }
     } else {
         width = outerPadding + textWidth + outerPadding;
     }
@@ -369,7 +373,7 @@ AFRAME.registerComponent("button", {
     this.el.setAttribute("class", "clickable");
     this.el.addEventListener("click", () => {
       console.log("button clicked");
-      this.animateButtonOnClick();
+      if (this.data.animate) this.animateButtonOnClick();
       this.el.emit("button-clicked", { button: this.el });
     });
   },

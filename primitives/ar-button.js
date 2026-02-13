@@ -23,6 +23,7 @@ AFRAME.registerPrimitive('a-ar-button', {
         outlined: 'button.outlined',
         elevated: 'button.elevated',
         tile: 'button.tile',
+        animate: 'button.animate',
 
     }
 })
