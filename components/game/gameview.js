@@ -1,6 +1,6 @@
 import { isPositiveNumber, isValidGameKey } from "../../utils/gameUtils";
 
-AFRAME.registerComponent("gameview", {
+AFRAME.registerComponent("game-view", {
     schema: {
         target: {type: "selector"},
         height: {type: "number", default: 5},
