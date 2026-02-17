@@ -1,4 +1,4 @@
-import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGameKey} from "../../utils/gameUtils";
+import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGameKey, isValidValue} from "../../utils/gameUtils";
 
 
 AFRAME.registerComponent("fly", {
@@ -204,7 +204,7 @@ AFRAME.registerComponent("fly", {
         })
 
         // flight type
-        if (!this.isValidFlightType(this.data.type)) this.wrongInput = true
+        if (!isValidValue(this.data.type, "type", ['freeDirectionalFlight', 'autoForward', 'autoForwardFixedDirection'])) this.wrongInput = true
 
         // speeds
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
@@ -223,15 +223,6 @@ AFRAME.registerComponent("fly", {
         if (this.sprintEnabled && !isValidGameKey(this.data.keySprint)) this.wrongInput = true
         if (!isValidGameKey(this.data.keyAscend)) this.wrongInput = true
         if (!isValidGameKey(this.data.keyDescend)) this.wrongInput = true
-    },
-
-    isValidFlightType(type) {
-        const validTypes = ['freeDirectionalFlight', 'autoForward', 'autoForwardFixedDirection'];
-        if (!validTypes.includes(type)) {
-            console.error(`Invalid flight type: "${type}". Valid types are: ${validTypes.join(', ')}`);
-            return false;
-        }
-        return true;
     },
 
     update(oldData) {
