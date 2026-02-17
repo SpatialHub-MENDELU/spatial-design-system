@@ -4,7 +4,7 @@ import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGame
 AFRAME.registerComponent("fly", {
     schema: {
         idleClipName: {type: "string", default: "*Yes*"}, // Name of the animation clip used when the character is idle.
-        walkClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is flying.
+        flyClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is flying.
         sprintClipName: {type: "string", default: "*Fast_Flying*"}, // Name of the animation clip used when the character is sprinting.
 
         keyUp: {type: "string", default: "w"}, // Key used to move the character forward/up.
@@ -47,7 +47,7 @@ AFRAME.registerComponent("fly", {
         // GENERAL
         this.characterModel = this.el.children[0]
         this.animations = {
-            walk: this.data.walkClipName,
+            walk: this.data.flyClipName,
             idle: this.data.idleClipName,
             sprint: this.data.sprintClipName
         }
@@ -197,7 +197,7 @@ AFRAME.registerComponent("fly", {
             const hasModelAnimations = hasGLTFAnimations(model)
             this.hasModelAnimations = hasModelAnimations
             if (hasModelAnimations === true) {
-                if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
+                if (!doesGLTFAnimationExist(model, this.data.flyClipName)) this.wrongInput = true
                 if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
                 if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.data.sprintClipName)) this.wrongInput = true
             }
@@ -231,7 +231,7 @@ AFRAME.registerComponent("fly", {
         if (this.wrongInput) return
 
         // animations
-        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
+        if (oldData.flyClipName !== this.data.flyClipName) this.animations.walk = this.data.flyClipName
         if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
         if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
 
@@ -507,7 +507,14 @@ AFRAME.registerComponent("fly", {
 
     // AUTO FORWARD
 
+    handleAutoForwardAnimations() {
+        const animation = this.sprintEnabled && this.isSprinting ? this.animations.sprint : this.animations.walk;
+        this.setAnimation(animation);
+    },
+
     autoForwardMove(deltaSec) {
+        this.handleAutoForwardAnimations()
+
         // yaw - turn left/right
         if (this.allowRoll) this.setYawDeg(deltaSec);
         else {
@@ -624,6 +631,8 @@ AFRAME.registerComponent("fly", {
         if (this.sprintEnabled) {
             this.isSprinting ? this.startSprinting() : this.stopSprinting();
         }
+
+        this.handleAutoForwardAnimations()
 
         const speed = this.speed;
         const currentVelocity = this.el.body.getLinearVelocity();
