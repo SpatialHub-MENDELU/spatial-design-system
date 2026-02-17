@@ -8,12 +8,12 @@ AFRAME.registerComponent("gameview", {
         tilt: {type: "number", default: -20},
         type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow", "fixed"
 
-        zoom: {type: "boolean", default: true},
+        zoom: {type: "boolean", default: false},
         zoomSpeed: {type: "number", default: 0.3},
         minDistance: {type: "number", default: 2},
         maxDistance: {type: "number", default: 15},
         minHeight: {type: "number", default: 2},
-        maxHeight: {type: "number", default: 10},
+        maxHeight: {type: "number", default: 15},
 
         // only for quarter-turn
         rotationSpeed : {type: "number", default: 5},
@@ -22,7 +22,7 @@ AFRAME.registerComponent("gameview", {
 
         // fixed
         position: {type: "string", default: "0 10 0"},
-        rotation: {type: "string", default: "-30 0 0"},
+        rotation: {type: "string", default: "-20 0 0"},
     },
 
     init() {
@@ -39,6 +39,7 @@ AFRAME.registerComponent("gameview", {
         this.thirdPersonFixed = false
         this.thirdPersonFollow = false
         this.quarterTurn = false
+        this.fixed = false
         this.target = false
 
         this.cameraPosition = new THREE.Vector3();
@@ -54,7 +55,7 @@ AFRAME.registerComponent("gameview", {
         this.cameraPosition = this.parsePosition()
         this.cameraRotation = this.parseRotation()
 
-        if(this.thirdPersonFixed || this.quarterTurn || this.thirdPersonFollow) this.target = this.data.target?.object3D;
+        if(this.isTargetNeeded) this.target = this.data.target?.object3D;
 
         this.previousTargetPosition = new THREE.Vector3();
 
@@ -66,7 +67,8 @@ AFRAME.registerComponent("gameview", {
         this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
         this.bindKeyEvents();
-        if (this.zoom) {
+
+        if (this.zoom && this.isTargetNeeded) {
             this.enforceZoomConstraints();
         }
         this.updateOffsetPosition();
@@ -90,7 +92,7 @@ AFRAME.registerComponent("gameview", {
         })
 
         document.addEventListener("wheel", (e) => {
-            if (this.zoom) this.handleZoom(e);
+            if (this.zoom && this.isTargetNeeded) this.handleZoom(e);
         });
     },
 
@@ -103,7 +105,6 @@ AFRAME.registerComponent("gameview", {
 
     handleZoom(e) {
         const delta = Math.sign(e.deltaY) * this.data.zoomSpeed;
-
         this.handleTargetZoom(delta);
     },
 
@@ -182,6 +183,7 @@ AFRAME.registerComponent("gameview", {
             this.setCameraPositionAndRotation()
         }
         if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom
+
         if (this.isTargetNeeded && (
             oldData.minDistance !== this.data.minDistance ||
             oldData.maxDistance !== this.data.maxDistance ||
@@ -214,6 +216,7 @@ AFRAME.registerComponent("gameview", {
         this.thirdPersonFixed = false;
         this.quarterTurn = false;
         this.thirdPersonFollow = false;
+        this.fixed = false;
 
         switch(this.data.type) {
             case 'thirdPersonFixed':
