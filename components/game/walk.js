@@ -1,4 +1,4 @@
-import {doesGLTFAnimationExist, isPositiveNumber, isValidGameKey} from "../../utils/gameUtils";
+import {doesGLTFAnimationExist, isPositiveNumber, isValidGameKey, isValidValue} from "../../utils/gameUtils";
 
 AFRAME.registerComponent("walk", {
     schema: {
@@ -12,7 +12,7 @@ AFRAME.registerComponent("walk", {
         keyRight: {type: "string", default: "d"}, // Key used to move the character right.
 
         speed: {type: "number", default: 5}, // Defines the player's base walking speed.
-        rotationSpeed: {type: "number", default: 90}, // Defines the turning speed for smoothTurn mode.
+        rotationSpeed: {type: "number", default: 90}, // Defines the turning speed. NOTE: For stepTurnCardinal and stepTurnDiagonal, set a higher value (p.e. 600). For target walk as well (p.e. 450)
 
         sprint: {type: "boolean", default: false}, // If true, the player can sprint when holding the sprintKey, increasing their speed to sprintSpeed.
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
@@ -23,6 +23,7 @@ AFRAME.registerComponent("walk", {
         targetWalk: {type: "boolean", default: false}, // If true, enables point-and-click movement: the character walks toward the location where the player clicks.
 
         startMovingDirection: {type: "string", default: "down"}, // down, up, left, right,
+        forwardOffsetAngle: {type: "number", default: 0}, // The angular offset (in degrees) that defines how much the model’s logical forward direction differs from its visual or model-space forward axis.
     },
 
     init() {
@@ -54,6 +55,8 @@ AFRAME.registerComponent("walk", {
         this.currentAnimation = null
         this.currentTimeScale = null
 
+        this.forwardOffsetAngle = this.data.forwardOffsetAngle
+
         this.autoWalk = this.data.autoWalk;
         this.targetWalk = this.data.targetWalk
 
@@ -66,7 +69,8 @@ AFRAME.registerComponent("walk", {
         this.movingForward = false;
         this.movingBackward = false;
         this.rotationSpeed = this.data.rotationSpeed;
-        this.currentRotation = 0;
+        const initialRotationY = this.el.getAttribute('rotation').y
+        this.currentRotation = initialRotationY
 
         // STEP TURN DIAGONAL && STEP TURN HORIZONTAL
         this.rotationY = 0;
@@ -74,8 +78,7 @@ AFRAME.registerComponent("walk", {
         this.newDirection = this.data.startMovingDirection
         this.movingLeft = false;
         this.movingRight = false;
-        // this.movingForward
-        // this.movingBackward
+        this.targetRotation = initialRotationY;
 
         // TARGET WALK
         this.reachTarget = true;
@@ -89,6 +92,16 @@ AFRAME.registerComponent("walk", {
 
         if (this.wrongInput) return;
 
+        this.validateAnimations();
+
+        if (this.el.body) {
+            this.instantSyncRotation();
+        } else {
+            this.el.addEventListener('body-loaded', () => {
+                setTimeout(() => this.instantSyncRotation(), 0);
+            }, { once: true });
+        }
+
         this.setAnimation(this.animations.idle);
         this.bindEvents();
         this.setTurnType()
@@ -100,9 +113,23 @@ AFRAME.registerComponent("walk", {
         if (this.wrongInput) return
 
         // animations
-        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
-        if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
-        if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
+        let animationChanged = false;
+        if (oldData.walkClipName !== this.data.walkClipName) {
+            this.animations.walk = this.data.walkClipName;
+            animationChanged = true;
+        }
+        if (oldData.idleClipName !== this.data.idleClipName) {
+            this.animations.idle = this.data.idleClipName;
+            animationChanged = true;
+        }
+        if (oldData.sprintClipName !== this.data.sprintClipName) {
+            this.animations.sprint = this.data.sprintClipName;
+            animationChanged = true;
+        }
+
+        if (animationChanged) {
+            this.validateAnimations();
+        }
 
         // keys
         if (oldData.keyUp !== this.data.keyUp.toLowerCase()) this.keys.up = this.data.keyUp.toLowerCase()
@@ -124,21 +151,22 @@ AFRAME.registerComponent("walk", {
             this.targetWalk = this.data.targetWalk
             if (this.targetWalk) this.rotationSpeed = 460
         }
+
+        // rotation offset
+        if (oldData.forwardOffsetAngle !== this.data.forwardOffsetAngle) {
+            this.forwardOffsetAngle = this.data.forwardOffsetAngle;
+            if (this.el.body) {
+                this.instantSyncRotation();
+            }
+        }
     },
 
     checkInputs() {
-        this.el.addEventListener('model-loaded', (e) => {
-            const model = e.detail.model;
-            if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
-            if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
-            if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.data.sprintClipName)) this.wrongInput = true
-        })
-
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
         if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
 
-        if (!this.isValidTurnType(this.data.turnType)) this.wrongInput = true
+        if (!isValidValue(this.data.turnType, "turnType", ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal'])) this.wrongInput = true
 
         if (!isValidGameKey(this.data.keyUp)) this.wrongInput = true
         if (!isValidGameKey(this.data.keyDown)) this.wrongInput = true
@@ -146,16 +174,6 @@ AFRAME.registerComponent("walk", {
         if (!isValidGameKey(this.data.keyRight)) this.wrongInput = true
         if (this.sprintEnabled && !isValidGameKey(this.data.keySprint)) this.wrongInput = true
     },
-
-    isValidTurnType(value) {
-        const validTypes = ['smoothTurn', 'stepTurnDiagonal', 'stepTurnCardinal'];
-        if (!validTypes.includes(value)) {
-            console.warn(`Invalid turnType: "${value}". Valid options are: ${validTypes.join(', ')}.`);
-            return false
-        }
-        return true
-    },
-
 
     setTurnType() {
         if (this.targetWalk) return
@@ -249,27 +267,82 @@ AFRAME.registerComponent("walk", {
             timeScale: this.currentTimeScale,
         });
     },
+    instantSyncRotation() {
+        if (!this.el.body) return;
+
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        const offsetRad = THREE.MathUtils.degToRad(this.data.forwardOffsetAngle);
+        const finalRotationRad = angleRad + offsetRad;
+
+        const quaternion = new Ammo.btQuaternion();
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), finalRotationRad);
+
+        const transform = this.el.body.getWorldTransform();
+        const origin = transform.getOrigin();
+
+        const newTransform = new Ammo.btTransform();
+        newTransform.setIdentity();
+        newTransform.setOrigin(origin);
+        newTransform.setRotation(quaternion);
+
+        this.el.body.setWorldTransform(newTransform);
+
+        this.el.body.activate();
+
+        if (this.characterModel) {
+            this.characterModel.setAttribute('rotation', {x: 0, y: 0, z: 0});
+        }
+    },
 
     tick(time, deltaTime) {
+        if (!this.el.body) return;
         const deltaSec = deltaTime / 1000;
 
-        if (this.el.body) {
-            if (this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
-            if (this.stepTurnDiagonal || this.stepTurnCardinal) {
-                this.updateDirection();
-                this.setSmoothStepTurn();
+        if (this.smoothTurn) this.setSmoothTurnMoving(deltaSec)
+        if (this.stepTurnDiagonal || this.stepTurnCardinal) {
+            this.updateDirection();
+            this.applyStepRotation(deltaSec);
+            this.setSmoothStepTurn();
+        }
+        if (this.autoWalk) {
+            this.move()
+        }
+        if (this.targetWalk) {
+            this.checkReachedTarget()
+            if (!this.reachTarget) {
+                this.rotateToTarget(deltaSec)
+                this.moveToTarget()
             }
-            if (this.autoWalk) {
-                this.move()
+            if (this.reachTarget) this.stopMovement()
+        }
+
+    },
+
+    getModel() {
+        return new Promise((resolve) => {
+            const mesh = this.el.getObject3D('mesh');
+            if (mesh) {
+                resolve(mesh);
+                return;
             }
-            if (this.targetWalk) {
-                this.checkReachedTarget()
-                if (!this.reachTarget) {
-                    this.rotateToTarget(deltaSec)
-                    this.moveToTarget()
-                }
-                if (this.reachTarget) this.stopMovement()
-            }
+
+            this.el.addEventListener('model-loaded', (e) => {
+                resolve(e.detail.model);
+            }, { once: true });
+        });
+    },
+
+    async validateAnimations() {
+        try {
+            const model = await this.getModel();
+
+            if (!model) return;
+            doesGLTFAnimationExist(model, this.data.walkClipName, "[Walk Component]:")
+            doesGLTFAnimationExist(model, this.data.idleClipName, "[Walk Component]:")
+            if (this.sprintEnabled) doesGLTFAnimationExist(model, this.data.sprintClipName, "[Walk Component]:")
+
+        } catch (err) {
+            console.error("[Walk Component]: Error validating animations:", err);
         }
     },
 
@@ -282,52 +355,24 @@ AFRAME.registerComponent("walk", {
 
     move(forward = true) {
         const currentVelocity = this.el.body.getLinearVelocity();
-        let velocity = new Ammo.btVector3(0, currentVelocity.y(), 0);
-        const speed = this.speed;
+        const speed = this.isSprinting ? this.sprintSpeed : this.speed;
 
-        if (this.smoothTurn) {
-            const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
-            const factor = forward ? 1 : -1;
-            const x = Math.sin(angleRad) * speed * factor;
-            const z = Math.cos(angleRad) * speed * factor;
-            velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
-        }
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        const factor = forward ? 1 : -1;
 
-        if (this.stepTurnDiagonal || this.stepTurnCardinal) {
-            switch (this.movingDirection) {
-                case 'up':
-                    velocity.setValue(0, currentVelocity.y(), -speed);
-                    break;
-                case 'down':
-                    velocity.setValue(0, currentVelocity.y(), speed);
-                    break;
-                case 'left':
-                    velocity.setValue(-speed, currentVelocity.y(), 0);
-                    break;
-                case 'right':
-                    velocity.setValue(speed, currentVelocity.y(), 0);
-                    break;
-                case 'upLeft':
-                    velocity.setValue(-speed, currentVelocity.y(), -speed);
-                    break;
-                case 'upRight':
-                    velocity.setValue(speed, currentVelocity.y(), -speed);
-                    break;
-                case 'downLeft':
-                    velocity.setValue(-speed, currentVelocity.y(), speed);
-                    break;
-                case 'downRight':
-                    velocity.setValue(speed, currentVelocity.y(), speed);
-                    break;
-            }
-        }
+        const x = Math.sin(angleRad) * speed * factor;
+        const z = Math.cos(angleRad) * speed * factor;
 
+        const velocity = new Ammo.btVector3(x, currentVelocity.y(), z);
         this.el.body.setLinearVelocity(velocity);
     },
 
     rotateCharacterSmoothly(angleRad) {
+        const offsetRad = THREE.MathUtils.degToRad(this.data.forwardOffsetAngle);
+        const finalRotationRad = angleRad + offsetRad;
+
         const quaternion = new Ammo.btQuaternion();
-        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
+        quaternion.setRotation(new Ammo.btVector3(0, 1, 0), finalRotationRad);
 
         const transform = this.el.body.getWorldTransform();
         const origin = transform.getOrigin();
@@ -339,6 +384,10 @@ AFRAME.registerComponent("walk", {
 
         this.el.body.setWorldTransform(newTransform);
         this.el.body.activate();
+
+        if (this.characterModel) {
+            this.characterModel.object3D.rotation.set(0, 0, 0);
+        }
     },
 
     // SPRINT
@@ -408,53 +457,34 @@ AFRAME.registerComponent("walk", {
 
         if (newDir && newDir !== this.movingDirection) {
             this.newDirection = newDir;
-            this.rotateStepTurn();
+            this.movingDirection = newDir;
+
+            const angles = {
+                'down': 0, 'downRight': 45, 'right': 90, 'upRight': 135,
+                'up': 180, 'upLeft': 225, 'left': 270, 'downLeft': 315
+            };
+
+            this.targetRotation = angles[newDir];
         }
     },
 
-    rotateStepTurn() {
-        if (this.newDirection === this.movingDirection) return;
-        const angle = this.stepTurnDiagonal ? 45 : 90;
+    applyStepRotation(deltaSec) {
+        if (this.currentRotation === this.targetRotation) return;
 
-        const directions = this.stepTurnDiagonal ? ['down', 'downRight', 'right', 'upRight', 'up', 'upLeft', 'left', 'downLeft'] : ['down', 'right', 'up', 'left'];
-        let diff = directions.indexOf(this.newDirection) - directions.indexOf(this.movingDirection);
-        if (this.stepTurnDiagonal) {
-            if (diff > 4) diff -= 8;
-            if (diff < -4) diff += 8;
-        }
-        if (this.stepTurnCardinal) {
-            diff = diff >= 3 ? diff - 4 : diff;
-            diff = diff <= -3 ? diff + 4 : diff;
+        let diff = (this.targetRotation - this.currentRotation + 540) % 360 - 180;
+
+        const step = this.rotationSpeed * deltaSec;
+
+        if (Math.abs(diff) <= step) {
+            this.currentRotation = this.targetRotation;
+        } else {
+            this.currentRotation += Math.sign(diff) * step;
         }
 
-        this.rotationY += diff * angle;
-        this.movingDirection = this.newDirection;
+        this.currentRotation = (this.currentRotation + 360) % 360;
 
-        if (diff === 0) return;
-
-        this.characterModel.setAttribute('animation', {
-            property: 'rotation',
-            to: {x: 0, y: this.rotationY, z: 0},
-            dur: 200,
-            easing: 'easeOutQuad'
-        });
-
-        // todo: move also the physics body
-
-        // const angleRad = THREE.MathUtils.degToRad(this.rotationY);
-        // const quaternion = new Ammo.btQuaternion();
-        // quaternion.setRotation(new Ammo.btVector3(0, 1, 0), angleRad);
-        //
-        // const transform = this.el.body.getWorldTransform();
-        // const origin = transform.getOrigin();
-        //
-        // const newTransform = new Ammo.btTransform();
-        // newTransform.setIdentity();
-        // newTransform.setOrigin(new Ammo.btVector3(origin.x(), origin.y(), origin.z()));
-        // newTransform.setRotation(quaternion);
-        //
-        // this.el.body.setWorldTransform(newTransform);
-        // this.el.body.activate();
+        const angleRad = THREE.MathUtils.degToRad(this.currentRotation);
+        this.rotateCharacterSmoothly(angleRad);
 
     },
 
