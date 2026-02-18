@@ -1,8 +1,8 @@
-export function doesGLTFAnimationExist(model, animationName) {
+export function doesGLTFAnimationExist(model, animationName, component) {
     const animations = model.animations || model.scene?.animations;
 
     if (!animations || animations.length === 0) {
-        console.error('The model does not contain any animations.');
+        console.warn(`${component} The model does not contain any animations.`);
         return false;
     }
 
@@ -17,7 +17,7 @@ export function doesGLTFAnimationExist(model, animationName) {
 
 
     if (!exists) {
-        console.error(`The animation "${animationName}" was not found in the model. Available animations: ${animations.map((clip) => clip.name).join(', ')}`);
+        console.warn(`${component} The animation "${animationName}" was not found in the model. Available animations: ${animations.map((clip) => clip.name).join(', ')}`);
         return false;
     }
 
@@ -57,4 +57,12 @@ export function isValidGameKey(key) {
         return false;
     }
     return true
+}
+
+export function isValidValue(value, propertyName, validValuesArray) {
+    if (!validValuesArray.includes(value)) {
+        console.error(`Property "${propertyName}" has invalid value: "${value}". Valid values are: ${validValuesArray.join(', ')}`);
+        return false;
+    }
+    return true;
 }

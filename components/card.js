@@ -4,16 +4,17 @@ import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR } from "../
 import { createRoundedRectShape, getContrast, setContrastColor} from "../utils/utils.js"
 import "../primitives/ar-button.js" 
 
-AFRAME.registerComponent("dialog", {
+AFRAME.registerComponent("card", {
     schema: {
         opacity: { type: "number", default: 1},
-        color: { type: "string", default: PRIMARY_COLOR_DARK},
         mode: { type: "string", default: ""},
+        color: { type: "string", default: PRIMARY_COLOR_DARK},
         textcolor: { type: "string", default: "black"},
+        title: { type: "string", default: "Card Title" },
+        subtitle: { type: "string", default: "Subitle" },
+        content: { type: "string", default: "This is an example of the basic card component." },
         prependicon: { type: "string", default: ""},
-        closingicon: { type: "boolean", default: false},
-        title: { type: "string", default: "Dialog Title" },
-        content: { type: "string", default: "This is an example of the basic dialog component." },
+        appendicon: { type: "string", default: ""},
         buttons: { 
             default: [{ label: "Close", action: "close" }],
             parse: function (value) {
@@ -30,50 +31,47 @@ AFRAME.registerComponent("dialog", {
             },
             stringify: JSON.stringify
         },
-        transition: { type: 'string', default: "" },
+        outlined: { type: "boolean", default: false },
+        image: { type: "string", default: "" },
     },
 
     init() {
-        // Initialize state variables
         this.finalColor = this.data.color;
-        this.basePosition = null;
-        this.closeTimer = null;
 
-        this.createDialog();
+        this.createCard();
         this.setContent();
         this.setMode();
-        this.updateDialogColor();
-
-        this.el.addEventListener("open-dialog", this.openDialog.bind(this));
-        this.el.addEventListener("close-dialog", this.closeDialog.bind(this));
+        this.updateCardColor();
+        this.updateCardImage();
     },
 
     update(oldData) {
         // Skip the first update loop as init() handles initial setup
         if (!oldData.color) return;
-    
+
         // Checking which properties have changed and executing the appropriate functions
         const changedProperties = Object.keys(this.data).filter(property => this.data[property] !== oldData[property]);
         changedProperties.forEach(property => {
             switch (property) {
                 case 'opacity':
-                    this.updateDialogOpacity();
+                    this.updateCardOpacity();
                     break;
                 case 'color':
-                    this.updateDialogColor();
+                    this.updateCardColor();
                     this.updateTextColor();
                     this.setButtons();
                     break;
                 case 'mode':
                     this.setMode();
-                    this.updateDialogColor();
+                    this.updateCardColor();
                     this.setButtons();
                     break;
                 case 'textcolor':
                     this.updateTextColor(); 
                     break;
                 case 'prependicon':
-                case 'closingicon':
+                case 'appendicon':
+                case 'subtitle':
                 case 'title':
                 case 'content':
                     this.setContent();
@@ -81,46 +79,74 @@ AFRAME.registerComponent("dialog", {
                 case 'buttons':
                     this.setButtons();
                     break;
+                case 'outlined':
+                    this.setContent();
+                    this.updateCardColor();
+                    break;
+                case 'image':
+                    this.updateCardImage();
+                    break;
                 default:
                     break;
             }
         });
     },
 
-    createDialog(widthArg = 3, heightArg = 2) {
-        if (this.dialogMesh) return;
-
+    createCard(widthArg = 3, heightArg = 2) {
         const group = new AFRAME.THREE.Group();
 
-        const width = widthArg
-        const height = heightArg
-        let  borderRadius = 0.12
-        this.width = width
-        this.height = height
+        const width = widthArg;
+        const height = heightArg;
+        let  borderRadius = 0.12;
+        this.width = width;
+        this.height = height;
 
-        // Create the main dialog background mesh
-        const dialogShape = createRoundedRectShape(this.width, this.height, borderRadius);
-        const dialogGeometry  = new AFRAME.THREE.ExtrudeGeometry(
-            dialogShape,
+        let opacityValue;
+        if (this.data.outlined) {
+            opacityValue = this.data.opacity * 0.6; // Outlined opacity
+        } else {
+            opacityValue = this.data.opacity; // Default user-defined opacity
+        }
+
+        // Create the main card background mesh
+        const cardShape = createRoundedRectShape(this.width, this.height, borderRadius);
+        const cardGeometry  = new AFRAME.THREE.ExtrudeGeometry(
+            cardShape,
             { depth: 0.01, bevelEnabled: false }
         );
 
-        const dialogMaterial = new AFRAME.THREE.MeshBasicMaterial({ 
+        const cardMaterial = new AFRAME.THREE.MeshBasicMaterial({ 
             color: this.data.color, 
-            opacity: this.data.opacity, 
+            opacity: opacityValue, 
             transparent: true
         })
 
-        this.dialogMesh = new AFRAME.THREE.Mesh(dialogGeometry, dialogMaterial);
-        group.add(this.dialogMesh);
-        
+        this.cardMesh = new AFRAME.THREE.Mesh(cardGeometry, cardMaterial);
+        group.add(this.cardMesh);
+
+        // Create an outline if outlined is true
+        if (this.data.outlined) {
+            const borderSize = 0.06;
+            const outlineShape = createRoundedRectShape(this.width + borderSize, this.height + borderSize, borderRadius + 0.024);
+            const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
+            const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
+                color: this.data.color,
+                opacity: this.data.opacity,
+                transparent: true
+            });
+            const outlineMesh = new AFRAME.THREE.Mesh(outlineGeometry, outlineMaterial);
+
+            this.outlineMesh = outlineMesh;
+            this.outlineMesh.position.set(0, 0, -0.005); // Slightly behind the card
+            group.add(outlineMesh);
+        }
+
         this.el.setObject3D('mesh', group);
-        this.el.setAttribute("visible", false);
     },
 
     _clearContent() {
         // Helper to remove existing content elements
-        const selectors = ["#title", "#content", "#prependIcon", "#closingIcon"];
+        const selectors = ["#title", "#content", "#subtitle","#prependIcon", "#appendicon"];
         selectors.forEach(sel => {
             const el = this.el.querySelector(sel);
             if (el) el.remove();
@@ -136,12 +162,13 @@ AFRAME.registerComponent("dialog", {
         el.setAttribute("anchor", config.anchor || "left");
         el.setAttribute("baseline", config.baseline || "center");
         el.setAttribute("font-size", config.fontSize || 0.1);
-        
+
         if (config.clipRect) el.setAttribute("clip-rect", config.clipRect);
         if (config.position) el.setAttribute("position", config.position);
         if (config.maxWidth) el.setAttribute("max-width", config.maxWidth);
         if (config.lineHeight) el.setAttribute("line-height", config.lineHeight);
-        
+        if (config.opacity !== undefined) el.setAttribute("fill-opacity", config.opacity);
+
         this.el.appendChild(el);
         return el;
     },
@@ -156,16 +183,14 @@ AFRAME.registerComponent("dialog", {
         buttonEl.setAttribute("size", "medium");
         buttonEl.setAttribute("textonly", true);
         buttonEl.setAttribute("uppercase", true);
-        
-        buttonEl.addEventListener("click", () => {
-            this.el.emit('dialogAction', { action: action, label: label });
-            this.closeDialog();
-        });
 
+        buttonEl.addEventListener("click", () => {
+            this.el.emit('cardAction', { action: action, label: label });
+        });
 
         // Button positioning logic
         const interButtonSpacing = 0.4; // Space between the buttons
-        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attribe
+        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attrib
 
         const distanceBetweenCenters = assumedButtonWidth + interButtonSpacing;
         const xPos = (index - (totalButtons - 1) / 2) * distanceBetweenCenters;
@@ -177,15 +202,17 @@ AFRAME.registerComponent("dialog", {
 
     setContent() {
         this._clearContent();
-        if (!this.width) this.createDialog();
+        this.createCard();
 
         const { width, height } = this;
         const padding = 0.2;
+        const lineHeight = 1.2;
         const contentWidth = width - (padding * 2);
         let titleXOffset = 0;
 
         const iconSize = 0.15;
         const titleRowYCenter = height / 2 - padding - (iconSize / 2);
+        const subtitleRowYCenter = titleRowYCenter - 0.2;
 
         // 1. Add Prepend Icon
         if (this.data.prependicon) {
@@ -198,34 +225,33 @@ AFRAME.registerComponent("dialog", {
                 prependIcon.setAttribute("src", iconSrc);
                 prependIcon.setAttribute("width", iconSize);
                 prependIcon.setAttribute("height", iconSize);
-                
+
                 const iconX = -width / 2 + padding + (iconSize / 2);
                 prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
-                
+
                 this.el.appendChild(prependIcon);
                 this.updateTextColor(); // Ensure color is correct after load
             };
             titleXOffset = iconSize + 0.1; // Shift title to the right
         }
 
-        // 2. Add Closing Icon
-        if (this.data.closingicon === true) {
-            const iconSrc = "/close.png";
+        // 2. Add Append Icon
+        if (this.data.appendicon) {
+            const iconSrc = this.data.appendicon;
             const myImg = new Image();
             myImg.src = iconSrc;
             myImg.onload = () => {
-                const closeIcon = document.createElement("a-image");
-                closeIcon.setAttribute("id", "closingIcon");
-                closeIcon.setAttribute("src", iconSrc);
-                closeIcon.setAttribute("width", 0.15);
-                closeIcon.setAttribute("height", 0.15);
-                
+                const appendIcon = document.createElement("a-image");
+                appendIcon.setAttribute("id", "appendicon");
+                appendIcon.setAttribute("src", iconSrc);
+                appendIcon.setAttribute("width", 0.15);
+                appendIcon.setAttribute("height", 0.15);
+
                 const iconX = width / 2 - padding - 0.075;
-                closeIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
-                closeIcon.classList.add("clickable");
-                
-                closeIcon.addEventListener("click", () => this.closeDialog());
-                this.el.appendChild(closeIcon);
+                appendIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
+                appendIcon.classList.add("clickable");
+
+                this.el.appendChild(appendIcon);
                 this.updateTextColor();
             };
         }
@@ -237,13 +263,20 @@ AFRAME.registerComponent("dialog", {
             position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
         });
 
-        // 4. Add Content Text
-        // Calculate layout to fit text within the dialog body
+        // 4. Add Subtitle
+        this._appendText("subtitle", this.data.subtitle, {
+            fontSize: 0.12,
+            clipRect: `0 -1 ${contentWidth} 1`,
+            position: {x: -width / 2 + padding, y: subtitleRowYCenter, z: 0.05},
+            opacity: this.data.opacity * 0.8
+        });
+
+        // 5. Add Content Text
+        // Calculate layout to fit text within the card body
         const contentFontSize = 0.1;
-        const lineHeight = 1.2;
-        const contentStartY = titleRowYCenter - (iconSize / 2) - 0.1;      
+        const contentStartY = subtitleRowYCenter - (iconSize / 2) - 0.1;      
         const maxContentHeight = contentStartY - (-height / 2 + 0.5); // Space until buttons area
-        
+
         // Calculate clipping to avoid cutting lines in half
         const lineHeightUnits = contentFontSize * lineHeight;
         const maxLines = Math.floor(maxContentHeight / lineHeightUnits);
@@ -287,11 +320,13 @@ AFRAME.registerComponent("dialog", {
         // Update text elements if they exist
         const title = this.el.querySelector("#title");
         const content = this.el.querySelector("#content");
+        const subtitle = this.el.querySelector("#subtitle");
         if (title) title.setAttribute("color", this.data.mode === "light" ? "black" : "white");
         if (content) content.setAttribute("color", this.data.mode === "light" ? "black" : "white");
+        if (subtitle) subtitle.setAttribute("color", this.data.mode === "light" ? "black" : "white");
     },
 
-    updateDialogColor() {
+    updateCardColor() {
         // Determine final color based on props
         if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
             this.finalColor = this.data.color;
@@ -301,9 +336,12 @@ AFRAME.registerComponent("dialog", {
             this.finalColor = PRIMARY_COLOR_DARK;
             this.updateTextColor();
         }
-        
-        if (this.dialogMesh) {
-            this.dialogMesh.material.color.set(this.finalColor);
+
+        if (this.cardMesh) {
+            this.cardMesh.material.color.set(this.finalColor);
+        }
+        if (this.outlineMesh) {
+            this.outlineMesh.material.color.set(this.finalColor);
         }
     },
 
@@ -311,15 +349,15 @@ AFRAME.registerComponent("dialog", {
         // Skip auto-contrast if mode is explicitly set
         if ((this.data.mode === 'light' || this.data.mode === 'dark') 
             && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) return;
-    
-        if (!this.dialogMesh) return;
 
-        const dialogColorHex = `#${this.dialogMesh.material.color.getHexString()}`;
+        if (!this.cardMesh) return;
+
+        const cardColorHex = `#${this.cardMesh.material.color.getHexString()}`;
         let textcolor = this.data.textcolor;
 
         // Check contrast and adjust if necessary
-        if (getContrast(textcolor, dialogColorHex) <= 60){
-            const newTextColor = setContrastColor(dialogColorHex);
+        if (getContrast(textcolor, cardColorHex) <= 60){
+            const newTextColor = setContrastColor(cardColorHex);
             if (newTextColor !== textcolor) {
                 textcolor = newTextColor;
                 console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
@@ -327,7 +365,7 @@ AFRAME.registerComponent("dialog", {
         }
 
         // Apply color to all text/icon elements
-        const elements = ["#title", "#content", "#prependIcon", "#closingIcon"];
+        const elements = ["#title", "#content", "#subtitle","#prependIcon", "#appendicon"];
         elements.forEach(sel => {
             const el = this.el.querySelector(sel);
             if (el) el.setAttribute("color", textcolor);
@@ -343,9 +381,16 @@ AFRAME.registerComponent("dialog", {
         });
     },
 
-    updateDialogOpacity() {
-        if (this.dialogMesh) {
-            this.dialogMesh.material.opacity = this.data.opacity;
+    updateCardOpacity() {
+        if (this.cardMesh) {
+            this.cardMesh.material.opacity = this.data.outlined ? this.data.opacity * 0.6 : this.data.opacity;
+        }
+        if (this.outlineMesh) {
+            this.outlineMesh.material.opacity = this.data.opacity;
+        }
+        const subtitle = this.el.querySelector("#subtitle");
+        if (subtitle) {
+            subtitle.setAttribute("fill-opacity", this.data.opacity * 0.9);
         }
     },
 
@@ -358,10 +403,10 @@ AFRAME.registerComponent("dialog", {
 
         // Enforce max 2 buttons limit
         if (buttons.length > 2) {
-            console.warn(`Dialog: Maximum of 2 buttons allowed. Truncating extra buttons.`);
+            console.warn(`Card: Maximum of 2 buttons allowed. Truncating extra buttons.`);
             buttons = buttons.slice(0, 2); // Keep only the first two buttons
         }
-    
+
         buttons.forEach((button, index) => {
             this._appendButton(button, index, buttons.length);
         });
@@ -378,107 +423,26 @@ AFRAME.registerComponent("dialog", {
         this._updateButtonTextColor(finalTextColor);
     },
 
-    openDialog() {
-        const dialog = this.el;
-        const transition = this.data.transition;
-        const duration = 300;
-        
-        // Clear any pending close actions
-        if (this.closeTimer) {
-            clearTimeout(this.closeTimer);
-            this.closeTimer = null;
-            dialog.removeAttribute("animation__scale");
-            dialog.removeAttribute("animation__pos");
-        }
+    updateCardImage() {
+        if (!this.cardMesh) return;
 
-        // Capture base position for animations
-        if (!dialog.getAttribute("visible") || !this.basePosition) {
-            const pos = dialog.getAttribute("position");
-            this.basePosition = {x: pos.x, y: pos.y, z: pos.z};
-        }
-        const targetPos = this.basePosition;
-
-        dialog.setAttribute("visible", true);
-        dialog.removeAttribute("animation__scale");
-        dialog.removeAttribute("animation__pos");
-
-        // Apply transition animation
-        if (transition === "bottom-top") {
-            dialog.setAttribute("scale", "1 1 1");
-            dialog.setAttribute("position", {x: targetPos.x, y: targetPos.y - 0.5, z: targetPos.z});
-            dialog.setAttribute("animation__pos", {
-                property: "position",
-                to: targetPos,
-                dur: duration,
-                easing: "easeOutQuad"
-            });
-        } else if (transition === "top-bottom") {
-            dialog.setAttribute("scale", "1 1 1");
-            dialog.setAttribute("position", {x: targetPos.x, y: targetPos.y + 0.5, z: targetPos.z});
-            dialog.setAttribute("animation__pos", {
-                property: "position",
-                to: targetPos,
-                dur: duration,
-                easing: "easeOutQuad"
+        if (this.data.image) {
+            new AFRAME.THREE.TextureLoader().load(this.data.image, (texture) => {
+                if (this.data.image) {
+                    texture.wrapS = AFRAME.THREE.ClampToEdgeWrapping;
+                    texture.wrapT = AFRAME.THREE.ClampToEdgeWrapping;
+                    texture.repeat.set(1 / this.width, 1 / this.height);
+                    texture.offset.set(0.5, 0.5);
+                    this.cardMesh.material.map = texture;
+                    // this.cardMesh.material.color.set('#ffffff');
+                    this.cardMesh.material.needsUpdate = true;
+                }
             });
         } else {
-            // Default scale animation
-            dialog.setAttribute("position", targetPos);
-            dialog.setAttribute("scale", "0.1 0.1 0.1");
-            dialog.setAttribute("animation__scale", {
-                property: "scale",
-                to: "1 1 1",
-                dur: duration,
-                easing: "easeOutQuad"
-            });
+            this.cardMesh.material.map = null;
+            this.cardMesh.material.needsUpdate = true;
+            this.updateCardColor();
         }
     },
-
-    closeDialog() {
-        const dialog = this.el;
-        const transition = this.data.transition;
-        const duration = 200;
-        const currentPos = this.basePosition || dialog.getAttribute("position");
-
-        dialog.removeAttribute("animation__scale");
-        dialog.removeAttribute("animation__pos");
-
-        // Apply closing animation
-        if (transition === "bottom-top") {
-            dialog.setAttribute("animation__pos", {
-                property: "position",
-                to: {x: currentPos.x, y: currentPos.y - 0.5, z: currentPos.z},
-                dur: duration,
-                easing: "easeInQuad"
-            });
-        } else if (transition === "top-bottom") {
-            dialog.setAttribute("animation__pos", {
-                property: "position",
-                to: {x: currentPos.x, y: currentPos.y + 0.5, z: currentPos.z},
-                dur: duration,
-                easing: "easeInQuad"
-            });
-        } else {
-            dialog.setAttribute("animation__scale", {
-                property: "scale",
-                to: "0.1 0.1 0.1",
-                dur: duration,
-                easing: "easeInQuad"
-            });
-        }
-
-        // Hide dialog after animation completes
-        this.closeTimer = setTimeout(() => {
-            dialog.removeAttribute("animation__scale");
-            dialog.removeAttribute("animation__pos");
-            dialog.setAttribute("visible", false);
-            
-            // Reset position and scale for next open
-            dialog.setAttribute("position", {x: currentPos.x, y: currentPos.y, z: currentPos.z});
-            dialog.setAttribute("scale", "1 1 1"); 
-            dialog.emit("dialogClosed");
-            this.closeTimer = null;
-        }, duration);
-    }
 
 })

@@ -1,10 +1,10 @@
-import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGameKey} from "../../utils/gameUtils";
+import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGameKey, isValidValue} from "../../utils/gameUtils";
 
 
 AFRAME.registerComponent("fly", {
     schema: {
         idleClipName: {type: "string", default: "*Yes*"}, // Name of the animation clip used when the character is idle.
-        walkClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is flying.
+        flyClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is flying.
         sprintClipName: {type: "string", default: "*Fast_Flying*"}, // Name of the animation clip used when the character is sprinting.
 
         keyUp: {type: "string", default: "w"}, // Key used to move the character forward/up.
@@ -47,7 +47,7 @@ AFRAME.registerComponent("fly", {
         // GENERAL
         this.characterModel = this.el.children[0]
         this.animations = {
-            walk: this.data.walkClipName,
+            walk: this.data.flyClipName,
             idle: this.data.idleClipName,
             sprint: this.data.sprintClipName
         }
@@ -128,7 +128,10 @@ AFRAME.registerComponent("fly", {
 
         // autoForwardFixedDirection
         this.canMoveVertically = this.data.canMoveVertically
+        if (this.canMoveVertically === false) this.allowPitch = false
+
         this.canMoveHorizontally = this.data.canMoveHorizontally
+        if (this.canMoveHorizontally === false) this.allowRoll = false
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -197,14 +200,14 @@ AFRAME.registerComponent("fly", {
             const hasModelAnimations = hasGLTFAnimations(model)
             this.hasModelAnimations = hasModelAnimations
             if (hasModelAnimations === true) {
-                if (!doesGLTFAnimationExist(model, this.data.walkClipName)) this.wrongInput = true
+                if (!doesGLTFAnimationExist(model, this.data.flyClipName)) this.wrongInput = true
                 if (!doesGLTFAnimationExist(model, this.data.idleClipName)) this.wrongInput = true
                 if (this.sprintEnabled && !doesGLTFAnimationExist(model, this.data.sprintClipName)) this.wrongInput = true
             }
         })
 
         // flight type
-        if (!this.isValidFlightType(this.data.type)) this.wrongInput = true
+        if (!isValidValue(this.data.type, "type", ['freeDirectionalFlight', 'autoForward', 'autoForwardFixedDirection'])) this.wrongInput = true
 
         // speeds
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
@@ -225,22 +228,13 @@ AFRAME.registerComponent("fly", {
         if (!isValidGameKey(this.data.keyDescend)) this.wrongInput = true
     },
 
-    isValidFlightType(type) {
-        const validTypes = ['freeDirectionalFlight', 'autoForward', 'autoForwardFixedDirection'];
-        if (!validTypes.includes(type)) {
-            console.error(`Invalid flight type: "${type}". Valid types are: ${validTypes.join(', ')}`);
-            return false;
-        }
-        return true;
-    },
-
     update(oldData) {
         this.wrongInput = false
         this.checkInputs()
         if (this.wrongInput) return
 
         // animations
-        if (oldData.walkClipName !== this.data.walkClipName) this.animations.walk = this.data.walkClipName
+        if (oldData.flyClipName !== this.data.flyClipName) this.animations.walk = this.data.flyClipName
         if (oldData.idleClipName !== this.data.idleClipName) this.animations.idle = this.data.idleClipName
         if (oldData.sprintClipName !== this.data.sprintClipName) this.animations.sprint = this.data.sprintClipName
 
@@ -276,7 +270,10 @@ AFRAME.registerComponent("fly", {
         if (oldData.forwardOffsetAngle !== this.data.forwardOffsetAngle) this.forwardOffsetAngle = this.data.forwardOffsetAngle
 
         if (oldData.canMoveVertically !== this.data.canMoveVertically) this.canMoveVertically = this.data.canMoveVertically
+        if (this.canMoveVertically === false) this.allowPitch = false
+
         if (oldData.canMoveHorizontally !== this.data.canMoveHorizontally) this.canMoveHorizontally = this.data.canMoveHorizontally
+        if (this.canMoveHorizontally === false) this.allowRoll = false
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -321,10 +318,10 @@ AFRAME.registerComponent("fly", {
     setIsSprinting(value) {
         if (value === true) {
             if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = true
-            if (this.autoForward) this.isSprinting = true
+            if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = true
         } else {
             if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = false
-            if (this.autoForward) this.isSprinting = false
+            if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = false
         }
     },
 
@@ -516,7 +513,14 @@ AFRAME.registerComponent("fly", {
 
     // AUTO FORWARD
 
+    handleAutoForwardAnimations() {
+        const animation = this.sprintEnabled && this.isSprinting ? this.animations.sprint : this.animations.walk;
+        this.setAnimation(animation);
+    },
+
     autoForwardMove(deltaSec) {
+        this.handleAutoForwardAnimations()
+
         // yaw - turn left/right
         if (this.allowRoll) this.setYawDeg(deltaSec);
         else {
@@ -622,14 +626,27 @@ AFRAME.registerComponent("fly", {
     },
 
     setYawDeg(deltaSec) {
-        // yaw - turn left/right
-        const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
-        this.currentYawDeg = (this.currentYawDeg + dir * this.rotationSpeed * deltaSec) % 360;
+        const keyDir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+        let finalDir = keyDir;
+
+        if (this.autoLevelRoll === false) {
+            const bankingDir = -(this.currentRollDeg / this.maxRollDeg);
+            finalDir = Math.max(-1, Math.min(1, keyDir + bankingDir));
+        }
+
+        const yawChange = finalDir * this.rotationSpeed * deltaSec;
+        this.currentYawDeg = (this.currentYawDeg + yawChange) % 360;
     },
 
     // AUTO FORWARD FIXED DIRECTION
 
     autoForwardFixedDirectionMove(deltaSec) {
+        if (this.sprintEnabled) {
+            this.isSprinting ? this.startSprinting() : this.stopSprinting();
+        }
+
+        this.handleAutoForwardAnimations()
+
         const speed = this.speed;
         const currentVelocity = this.el.body.getLinearVelocity();
         const rotationY = this.elementRotationYToDeg;

@@ -10,7 +10,6 @@ AFRAME.registerComponent("avatar", {
         color: { type: "string", default: PRIMARY_COLOR_DARK},
         textcolor: { type: "string", default: "white"},
         initial: { type: "string", default: "" },
-        icon: { type: "string", default: ""},
         image: { type: "string", default: ""},
         tile: { type: "boolean", default: false },
         rounded: { type: "string", default: "" },
@@ -44,7 +43,6 @@ AFRAME.registerComponent("avatar", {
                     this.updateTextColor(); 
                     break;
                 case 'initial':
-                case 'icon':
                 case 'image':
                     this.setContent();
                     break;
@@ -77,7 +75,7 @@ AFRAME.registerComponent("avatar", {
 
         // Calculate contrast and adjust if needed
         const contrast = getContrast(textcolor, avatarColorHex);
-        if (contrast <= 60) {
+        if (contrast <= 120) {
             const newTextColor = setContrastColor(avatarColorHex);
             if (newTextColor && newTextColor !== textcolor) {
                 textcolor = newTextColor;
@@ -85,8 +83,12 @@ AFRAME.registerComponent("avatar", {
             }
         }
 
-        const textEl = this.el.querySelector("a-troika-text");
-        if (textEl) textEl.setAttribute("color", textcolor);
+        // Update the text color of text and image elements
+        const elements = ["a-troika-text", "a-image"];
+        elements.forEach(sel => {
+            const el = this.el.querySelector(sel);
+            if (el) el.setAttribute("color", textcolor);
+        });
     },
 
     setSize() {
@@ -149,7 +151,7 @@ AFRAME.registerComponent("avatar", {
         el.setAttribute("src", src);
         el.setAttribute("height", size);
         el.setAttribute("width", size);
-        el.setAttribute("position", "0 0 0.02");
+        el.setAttribute("position", "0 0 0.05");
         el.setAttribute("material", { alphaTest: 0.5 });
         this.el.appendChild(el);
     },
@@ -163,7 +165,7 @@ AFRAME.registerComponent("avatar", {
         el.setAttribute("anchor", "center");
         el.setAttribute("color", color);
         el.setAttribute("font-size", fontSize);
-        el.setAttribute("position", "0 0 0.02");
+        el.setAttribute("position", "0 0 0.05");
         el.setAttribute("letter-spacing", "0");
         el.setAttribute("max-width", fontSize * 4);
         this.el.appendChild(el);
@@ -172,7 +174,6 @@ AFRAME.registerComponent("avatar", {
     setContent() {
         const sizeCoef = this.sizeCoef;
         const image = this.data.image || "";
-        const icon = this.data.icon || "";
 
         // Ensure initial is a string and limit to max 2 characters
         let text = (this.data.initial || "").toString();
@@ -186,13 +187,11 @@ AFRAME.registerComponent("avatar", {
             }
         }
 
-        // Clear previous content and append new one based on priority: image > icon > initial text
+        // Clear previous content and append new one based on priority: image > initial text
         this._clearContent();
         if (image) {
             this._appendImage(image, sizeCoef);
-        } else if (icon) {
-            this._appendImage(icon, sizeCoef);
-        } else if (text) {
+        }  else if (text) {
             this._appendText(text, sizeCoef, this.data.textcolor);
         }
 
