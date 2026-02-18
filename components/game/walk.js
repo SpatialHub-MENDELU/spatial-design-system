@@ -84,7 +84,6 @@ AFRAME.registerComponent("walk", {
         this.reachTarget = true;
         this.targetPosition = this.el.object3D.position
         this.rotationToTarget = null
-        if (this.targetWalk) this.rotationSpeed = 450
 
         // Check inputs
         this.wrongInput = false;
@@ -149,7 +148,6 @@ AFRAME.registerComponent("walk", {
         if (oldData.autoWalk !== this.data.autoWalk) this.autoWalk = this.data.autoWalk
         if (oldData.targetWalk !== this.data.targetWalk) {
             this.targetWalk = this.data.targetWalk
-            if (this.targetWalk) this.rotationSpeed = 460
         }
 
         // rotation offset
