@@ -128,7 +128,10 @@ AFRAME.registerComponent("fly", {
 
         // autoForwardFixedDirection
         this.canMoveVertically = this.data.canMoveVertically
+        if (this.canMoveVertically === false) this.allowPitch = false
+
         this.canMoveHorizontally = this.data.canMoveHorizontally
+        if (this.canMoveHorizontally === false) this.allowRoll = false
 
         // CHECK INPUTS
         this.wrongInput = false
@@ -267,7 +270,10 @@ AFRAME.registerComponent("fly", {
         if (oldData.forwardOffsetAngle !== this.data.forwardOffsetAngle) this.forwardOffsetAngle = this.data.forwardOffsetAngle
 
         if (oldData.canMoveVertically !== this.data.canMoveVertically) this.canMoveVertically = this.data.canMoveVertically
+        if (this.canMoveVertically === false) this.allowPitch = false
+
         if (oldData.canMoveHorizontally !== this.data.canMoveHorizontally) this.canMoveHorizontally = this.data.canMoveHorizontally
+        if (this.canMoveHorizontally === false) this.allowRoll = false
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -620,9 +626,16 @@ AFRAME.registerComponent("fly", {
     },
 
     setYawDeg(deltaSec) {
-        // yaw - turn left/right
-        const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
-        this.currentYawDeg = (this.currentYawDeg + dir * this.rotationSpeed * deltaSec) % 360;
+        const keyDir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+        let finalDir = keyDir;
+
+        if (this.autoLevelRoll === false) {
+            const bankingDir = -(this.currentRollDeg / this.maxRollDeg);
+            finalDir = Math.max(-1, Math.min(1, keyDir + bankingDir));
+        }
+
+        const yawChange = finalDir * this.rotationSpeed * deltaSec;
+        this.currentYawDeg = (this.currentYawDeg + yawChange) % 360;
     },
 
     // AUTO FORWARD FIXED DIRECTION
