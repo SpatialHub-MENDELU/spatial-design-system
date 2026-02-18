@@ -1,4 +1,5 @@
 import * as AFRAME from "aframe";
+import "aframe-troika-text";
 import * as TWEEN from "@tweenjs/tween.js";
 import {
   PRIMARY_COLOR_DARK,
@@ -6,7 +7,7 @@ import {
   VARIANT_LIGHT_COLOR,
 } from "../utils/colors.js";
 import {
-  createRoundedRectShape,
+  createPartiallyRoundedRectShape,
   getContrast,
   setContrastColor,
 } from "../utils/utils.js";
@@ -14,30 +15,37 @@ import { determineHighlightedColor } from "../utils/colors.js";
 
 AFRAME.registerComponent("button", {
   schema: {
-    text: { type: "string", default: "" },
+    size: { type: "string", default: "medium" },
     opacity: { type: "number", default: 1 },
+    color: { type: "string", default: PRIMARY_COLOR_DARK },
+    mode: { type: "string", default: "" },
+    text: { type: "string", default: "" },
+    textcolor: { type: "string", default: "black" },
     icon: { type: "string", default: "" },
     iconpos: { type: "string", default: "left" },
-    size: { type: "string", default: "medium" },
     contentsize: { type: "number", default: 1 },
-    textcolor: { type: "string", default: "black" },
-    variant: { type: "string", default: "" },
-    primary: { type: "string", default: PRIMARY_COLOR_DARK },
     uppercase: { type: "boolean", default: false },
     rounded: { type: "boolean", default: false },
+    roundedsides: { type: "string", default: "full" },
     textonly: { type: "boolean", default: false },
     outlined: { type: "boolean", default: false },
+    elevated: { type: "boolean", default: true }, // Button has shadow by default
+    tile: { type: "boolean", default: false },
+    animate: { type: "boolean", default: true },
   },
 
   init() {
+    this.finalColor = this.data.color;
+
     this.setSize();
     this.setContent();
-    this.setVariant();
+    this.setMode();
+    this.updateButtonColor();
   },
 
   update(oldData) {
     // Skip the update for the first time since init() handles the initial setup
-    if (!oldData.primary) return;
+    if (!oldData.color) return;
 
     // Checking which properties have changed and executing the appropriate functions
     const changedProperties = Object.keys(this.data).filter(
@@ -49,30 +57,34 @@ AFRAME.registerComponent("button", {
           this.setSize();
           this.setContent();
           break;
-        case "text":
         case "icon":
+        case "iconpos":
         case "uppercase":
-        case "textonly":
-        case "outlined":
         case "rounded":
+        case "roundedsides":
+        case "tile":
           this.setContent();
+          break;
+        case "text":
+        case "elevated":
+        case "outlined":
+        case "textonly":
+          this.setContent();
+          this.updateButtonColor();
           break;
         case "textcolor":
           this.updateTextColor();
           break;
-        case "variant":
-          this.setVariant();
+        case "mode":
+          this.setMode();
+          this.updateButtonColor();
           break;
-        case "primary":
-          if (this.data.variant === "") {
-            this.updateButtonColor();
-          }
+        case "color":
+          this.updateButtonColor();
+          this.updateTextColor();
           break;
         case "opacity":
           this.updateButtonOpacity();
-          break;
-        case "iconpos":
-          this.updateIconPosition(this.data.iconpos);
           break;
         default:
           break;
@@ -85,157 +97,137 @@ AFRAME.registerComponent("button", {
   },
 
   updateButtonColor() {
-    this.buttonMesh.material.color.set(this.data.primary);
-    if (this.shadowMesh) this.shadowMesh.material.color.set(this.data.primary);
-    if (this.outlineMesh)
-      this.outlineMesh.material.color.set(this.data.primary);
+      if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
+          this.finalColor = this.data.color;
+      } else if (this.data.mode !== "") {
+          this.setMode();
+      } else {
+          this.finalColor = PRIMARY_COLOR_DARK;
+          this.updateTextColor();
+      }
+      this.buttonMesh.material.color.set(this.finalColor);
+      if (this.shadowMesh) this.shadowMesh.material.color.set(this.finalColor);
+      if (this.outlineMesh) this.outlineMesh.material.color.set(this.finalColor);   
   },
 
   updateButtonOpacity() {
-    const opacityValue = this.data.textonly ? 0.1 : this.data.opacity;
-    this.buttonMesh.material.opacity = opacityValue;
-    if (this.shadowMesh) this.shadowMesh.material.opacity = opacityValue * 0.6;
+      if (this.buttonMesh) {
+          this.buttonMesh.material.opacity = this.data.outlined && !this.data.textonly ? this.data.opacity * 0.6 : this.data.opacity;
+      }
+      if (this.outlineMesh) this.outlineMesh.material.opacity = this.data.opacity;
+      if (this.shadowMesh) this.shadowMesh.material.opacity = this.data.opacity * 0.65;
   },
 
   updateTextColor() {
-      // If button is textonly, set the text color directly
-      if (this.data.textonly) {
-          this.el.querySelector("a-text").setAttribute("color", this.data.textcolor);
-          return;
+      // If mode will be used, ignore the textcolor
+      if ((this.data.mode === 'light' || this.data.mode === 'dark') 
+          && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "") 
+          && !this.data.textonly) return;
+
+      let buttonColorHex;
+      // If the button is outlined, calculate the lighter color inside color using opacity
+      if (this.data.outlined && !this.data.textonly) {
+          const borderColor = new AFRAME.THREE.Color(this.data.color);
+          const backgroundColor = new AFRAME.THREE.Color('#808080'); // Assuming gray background
+          const opacity = this.buttonMesh ? this.buttonMesh.material.opacity : this.data.opacity * 0.6;
+          const blendedColor = borderColor.clone().lerp(backgroundColor, 1 - opacity);
+          buttonColorHex = `#${blendedColor.getHexString()}`;
+      } else {
+          buttonColorHex = `#${this.buttonMesh.material.color.getHexString()}`;
       }
 
-      // If variant will be used, ignore the textcolor
-    if (
-      (this.data.variant === "light" || this.data.variant === "dark") &&
-      this.data.primary === PRIMARY_COLOR_DARK
-    )
-      return;
+      let textcolor = this.data.textcolor;
 
-    const buttonColorHex = `#${this.buttonMesh.material.color.getHexString()}`;
-    let textcolor = this.data.textcolor;
+      // Calculate contrast
+      const contrast = getContrast(textcolor, buttonColorHex);
+      
+      console.log(`Contrast between ${textcolor} and ${buttonColorHex} is: ${contrast}`);
 
-    // If the contrast is not high enough, set the textcolor to white/black
-    if (getContrast(textcolor, buttonColorHex) <= 60) {
-      textcolor = setContrastColor(buttonColorHex);
-      this.data.textcolor = textcolor;
-      console.log(
-        `The text color you set does not have enough contrast. It has been set to ${textcolor} color for better visibility.`
-      );
-    }
-    const textEl = this.el.querySelector("a-text");
-    if (textEl) {
-      textEl.setAttribute("color", textcolor);
-    }
-  },
+      // If the contrast is not high enough, adjust the text color
+      if (contrast <= 120 && !this.data.textonly) {
+          const newTextColor = setContrastColor(buttonColorHex);
 
-  updateIconPosition(iconpos) {
-    const sizeCoef = this.el.getAttribute("sizeCoef");
+          // Only update and alert if the color actually changes
+          if (newTextColor !== textcolor) {
+              textcolor = newTextColor;
+              console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
+          }
+      }
 
-    let textEl = this.el.querySelector("a-text");
-    let iconEl = this.el.querySelector("a-image");
-    if (iconEl) {
-      iconEl.remove();
-    }
-
-    const icon = this.data.icon === "" ? "" : this.data.icon;
-    const iconWidth =
-      icon !== "" && !this.data.textonly
-        ? 0.2 * this.el.getAttribute("sizeCoef")
-        : 0;
-
-    if (icon !== "" && !this.data.textonly) {
-      iconEl = document.createElement("a-image");
-
-      // Have to be loaded like this, otherwise the icon shows error
-      // First I have to make sure the image exists before I can use it
-      var myImg = new Image();
-      myImg.src = icon;
-      myImg.onload = () => {
-        let textXPosition;
-        let iconXPosition;
-        if (iconpos === "right") {
-          textXPosition = -iconWidth * 0.5;
-          iconXPosition = this.width * 0.5 - 0.17 * sizeCoef;
-        } else {
-          textXPosition = iconWidth * 0.5;
-          iconXPosition = -this.width * 0.5 + 0.18 * sizeCoef;
-        }
-
-        // If no text is passed, display the icon in the middle
-        if (this.data.text === "") iconXPosition = 0;
-
-        // moving the text to the right, so it doesnt hide the icon
-        textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.05 });
-
-        iconEl.setAttribute("geometry", {
-          width: iconWidth,
-          height: 0.2 * this.el.getAttribute("sizeCoef"),
-        });
-        iconEl.setAttribute("position", { x: iconXPosition, y: 0, z: 0.02 });
-        iconEl.setAttribute("material", { src: icon });
-        this.el.appendChild(iconEl);
-      };
-    }
+      // Update the text element's color
+      const textEl = this.el.querySelector("a-troika-text");
+      if (textEl) {
+          textEl.setAttribute("color", textcolor);
+      }
+      const iconEl = this.el.querySelector("a-image");
+      if (iconEl) {
+          iconEl.setAttribute("color", textcolor);
+      }
   },
 
   setSize() {
-    let sizeCoef = 1;
     switch (this.data.size) {
       case "small":
-        sizeCoef = 0.7;
-        break;
-
-      case "medium":
+        this.sizeCoef = 0.06;
         break;
 
       case "large":
-        sizeCoef = 2;
+        this.sizeCoef = 0.09;
         break;
 
       case "extra-large":
-        sizeCoef = 3;
+        this.sizeCoef = 0.12;
         break;
 
+      case "medium":
       default:
+        this.sizeCoef = 0.075;
         break;
     }
-    this.el.setAttribute("sizeCoef", sizeCoef);
   },
 
-  createButton(widthArg = 1, heightArg = 0.4) {
-    const sizeCoef = this.el.getAttribute("sizeCoef");
+  createButton(width, height) {
     const group = new AFRAME.THREE.Group();
 
-    const width = widthArg * sizeCoef;
-    const height = heightArg * sizeCoef;
-    let borderRadius = 0.08 * sizeCoef;
+    let borderRadius = 0.02;
+    let roundedsides = "full";
 
     if (this.data.rounded) {
-      borderRadius = 0.2 * sizeCoef;
+        borderRadius = 0.08;
+    } else if (this.data.tile) {
+        borderRadius = 0;
+    }
+
+    if (this.data.roundedsides === "left") {
+        roundedsides = "left";
+    } else if (this.data.roundedsides === "right") {
+        roundedsides = "right";
     }
 
     this.width = width;
 
     let opacityValue;
     if (this.data.textonly) {
-      opacityValue = 0.0;
+        opacityValue = 0;
     } else if (this.data.outlined) {
-      opacityValue = 0.05;
+        opacityValue = 0.4; // Outlined opacity
+    } else if (this.data.elevated) {
+        opacityValue = this.data.opacity; // Has less priority because it was set by default, if user then sets outlined it is clear that outlined is wanted
     } else {
-      opacityValue = this.data.opacity;
+        opacityValue = this.data.opacity; // Default user-defined opacity
     }
 
     // Create a main button mesh
-    const buttonShape = createRoundedRectShape(width, height, borderRadius);
+    const buttonShape = createPartiallyRoundedRectShape(width, height, borderRadius, roundedsides);
     // Using ExtrudeGeometry to properly display border when using outlined prop is true
     const buttonGeometry = new AFRAME.THREE.ExtrudeGeometry(buttonShape, {
       depth: 0.01,
       bevelEnabled: false,
     });
-    if (this.data.outlined) buttonGeometry.translate(0, 0, -0.005);
+    if (this.data.outlined && !this.data.textonly) buttonGeometry.translate(0, 0, -0.005);
 
     const buttonMaterial = new AFRAME.THREE.MeshBasicMaterial({
-      color: this.data.primary,
+      color: this.data.color, 
       opacity: opacityValue,
       transparent: true,
     });
@@ -247,34 +239,35 @@ AFRAME.registerComponent("button", {
 
     // Create an outline if outlined is true
     if (this.data.outlined && !this.data.textonly) {
-      const borderSize = 0.04 * sizeCoef;
-      const outlineShape = createRoundedRectShape(
-        width + borderSize,
+      const borderSize = 0.02;
+      const outlineShape = createPartiallyRoundedRectShape(
+        width + borderSize * 2,
         height + borderSize,
-        borderRadius + 0.024
+        borderRadius,
+        roundedsides
       );
       const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
       const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
-        color: this.data.primary,
-        opacity: 0.5,
+        color: this.data.color,
+        opacity: this.data.opacity,
         transparent: true,
       });
       const outlineMesh = new AFRAME.THREE.Mesh(
         outlineGeometry,
         outlineMaterial
       );
-      outlineMesh.position.z -= 0.05;
+      outlineMesh.position.z = -0.05;
 
       this.outlineMesh = outlineMesh;
       group.add(outlineMesh);
     }
 
-    // Create a shadow if textonly is false and outlined is false
-    if (!this.data.textonly && !this.data.outlined) {
+    // Create a shadow if elevated is true and textonly and outlined are false
+    if (this.data.elevated && !this.data.textonly && !this.data.outlined) {
       const shadowGeometry = new AFRAME.THREE.ShapeGeometry(buttonShape);
       const shadowMaterial = new AFRAME.THREE.MeshBasicMaterial({
-        color: this.data.primary,
-        opacity: 0.6 * opacityValue,
+        color: this.data.color,
+        opacity: 0.65 * opacityValue,
         transparent: true,
       });
       const shadowMesh = new AFRAME.THREE.Mesh(shadowGeometry, shadowMaterial);
@@ -286,103 +279,144 @@ AFRAME.registerComponent("button", {
     this.el.setObject3D("mesh", group);
   },
 
+  _clearContent() {
+      const textEl = this.el.querySelector("a-troika-text");
+      if (textEl) textEl.remove();
+      const iconEl = this.el.querySelector("a-image");
+      if (iconEl) iconEl.remove();
+  },
+
+  _appendText(value, sizeCoef) {
+      const textEl = document.createElement("a-troika-text");
+      textEl.setAttribute("value", value === undefined ? "" : value);
+      textEl.setAttribute("align", "center");
+      textEl.setAttribute("baseline", "center");
+      textEl.setAttribute("anchor", "center");
+      textEl.setAttribute("font-size", sizeCoef);
+      textEl.setAttribute("position", "0 0 0.02");
+      textEl.setAttribute("letter-spacing", "0");
+      textEl.setAttribute("fill-opacity", this.data.opacity);
+      this.el.appendChild(textEl);
+      return textEl;
+  },
+
+  _appendIcon(src, size) {
+      const iconEl = document.createElement("a-image");
+      iconEl.setAttribute("src", src);
+      iconEl.setAttribute("geometry", { width: size, height: size });
+      iconEl.setAttribute("position", { x: 0, y: 0, z: 0.02 });   
+      this.el.appendChild(iconEl);
+      return iconEl;
+  },
+
   setContent() {
-    const icon = this.data.icon === "" ? "" : this.data.icon;
+    this._clearContent();
+
+    const icon = this.data.icon || "";
     const iconpos = this.data.iconpos;
     let text = this.data.text;
-    const sizeCoef = this.el.getAttribute("sizeCoef");
-    let capsCoef = 1;
+    const sizeCoef = this.sizeCoef;
 
     if (this.data.uppercase) {
       text = text.toUpperCase();
-      capsCoef = 0.9;
     }
 
-    let textEl = this.el.querySelector("a-text");
-    if (textEl) textEl.remove();
+    // Ensure the text does not exceed 15 characters
+    if (text.length > 15) {
+        text = text.substring(0, 12) + "...";
+    }
 
-    textEl = document.createElement("a-text");
-    textEl.setAttribute("value", text === undefined ? "" : text);
-    textEl.setAttribute("align", "center");
-    textEl.setAttribute("scale", {
-      x: 0.7 * sizeCoef * capsCoef,
-      y: 0.7 * sizeCoef * capsCoef,
-      z: 0.7 * sizeCoef * capsCoef,
-    });
-    textEl.setAttribute("position", "0 0 0.05");
+    const letterWidthRatio = 0.55;
+    const textWidth = text.length * letterWidthRatio * sizeCoef;
+    const iconWidth = 1.0 * sizeCoef;
+    const innerPadding = 0.05;
+    const outerPadding = 0.1;
 
-    // If there is an icon, the button has to be wider
-    const iconWidth =
-      icon !== "" && !this.data.textonly
-        ? 0.2 * this.el.getAttribute("sizeCoef")
-        : 0;
+    let width = 0;
+    if (icon !== "") {
+        if (text !== "") {
+          width = innerPadding + iconWidth + innerPadding + textWidth + outerPadding;
+        } else {
+          width = innerPadding + iconWidth + innerPadding;
+        }
+    } else {
+        width = outerPadding + textWidth + outerPadding;
+    }
 
-    // If the text is longer than 8 chars, the button has to be wider
-    // Have to create a new button, if using button.scale.set(), the border radius will not scale
-    const defaultLetterWidth = 0.08;
-    this.createButton(
-      0.9 + defaultLetterWidth * (text.length - 8) + iconWidth * 0.7
-    );
+    const height = sizeCoef + 2 * innerPadding;
 
-    this.el.appendChild(textEl);
+    this.createButton(width, height);
 
-    this.updateIconPosition(iconpos);
+    const textEl = this._appendText(text, sizeCoef);
+    let iconEl = null;
+
+    if (icon !== "") {
+        iconEl = this._appendIcon(icon, iconWidth);
+        
+        let textXPosition;
+        let iconXPosition;
+        
+        if (iconpos === "right") {
+            textXPosition = -this.width/2 + outerPadding + textWidth/2;
+            iconXPosition = -this.width/2 + outerPadding + textWidth + innerPadding + iconWidth/2;
+        } else {
+            iconXPosition = -this.width/2 + innerPadding + iconWidth/2;
+            textXPosition = -this.width/2 + innerPadding + iconWidth + innerPadding + textWidth/2;
+        }
+        
+        textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.05 });
+        iconEl.setAttribute("position", { x: iconXPosition, y: 0, z: 0.02 });
+    }
+
     this.updateTextColor();
 
     this.el.setAttribute("class", "clickable");
     this.el.addEventListener("click", () => {
       console.log("button clicked");
-      this.animateButtonOnClick();
+      if (this.data.animate) this.animateButtonOnClick();
       this.el.emit("button-clicked", { button: this.el });
     });
   },
 
-  setVariant() {
-    const shadowMesh = this.shadowMesh;
-    //If primary is set ignore the variant
-    if (this.data.primary !== PRIMARY_COLOR_DARK) {
-      return;
-    }
-    switch (this.data.variant) {
-      case "light":
-        this.el.setAttribute("material", {
-          color: VARIANT_LIGHT_COLOR,
-          opacity: 1,
-        });
-        this.el.querySelector("a-text").setAttribute("color", "black");
-        // Adjust primary color to match the variant
-        this.data.primary = VARIANT_LIGHT_COLOR;
-        if (shadowMesh) {
-          shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
-          shadowMesh.material.opacity = 1 * 0.66;
-          // Make sure material is transparent to display opacity
-          shadowMesh.material.transparent = true;
-        }
-        break;
-      case "dark":
-        this.el.setAttribute("material", {
-          color: VARIANT_DARK_COLOR,
-          opacity: 1,
-        });
-        this.el.querySelector("a-text").setAttribute("color", "white");
-        // Adjust primary color to match the variant
-        this.data.primary = VARIANT_DARK_COLOR;
-        if (shadowMesh) {
-          shadowMesh.material.color.set(VARIANT_DARK_COLOR);
-          shadowMesh.material.opacity = 1 * 0.66;
-          // Make sure material is transparent to display opacity
-          shadowMesh.material.transparent = true;
-        }
-        break;
-      default:
-        break;
-    }
-    // Update button color after the variant color has been set
-    this.updateButtonColor();
+  setMode() {
+      const shadowMesh = this.shadowMesh;
+      // If color is set, or textonly is true, skip applying the mode
+      if ((this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") || this.data.textonly) {
+          return;
+      }
+
+      switch (this.data.mode) {
+          case "light":
+              this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 });
+              this.el.querySelector("a-troika-text").setAttribute("color", "black");
+              this.finalColor = VARIANT_LIGHT_COLOR;
+              if (shadowMesh) {
+                  shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
+                  shadowMesh.material.opacity = 0.65;
+                  shadowMesh.material.transparent = true;
+              }
+              break;
+          case "dark":
+              this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
+              this.el.querySelector("a-troika-text").setAttribute("color", "white");
+              this.finalColor = VARIANT_DARK_COLOR;
+              if (shadowMesh) {
+                  shadowMesh.material.color.set(VARIANT_DARK_COLOR);
+                  shadowMesh.material.opacity = 0.65;
+                  shadowMesh.material.transparent = true;
+              }
+              if (this.data.outlined && !this.data.textonly) {
+                  this.el.querySelector("a-troika-text").setAttribute("color", VARIANT_DARK_COLOR);
+              }
+              break;
+          default:
+              break;
+      }
   },
+
   animateButtonOnClick() {
-    const originalColor = this.data.primary;
-    const highlightedColor = determineHighlightedColor(this.data.primary);
+    const originalColor = this.finalColor;
+    const highlightedColor = determineHighlightedColor(this.finalColor);
 
     const buttonMesh = this.buttonMesh;
     const shadowMesh = this.shadowMesh;

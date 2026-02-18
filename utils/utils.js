@@ -83,6 +83,53 @@ export function createRoundedRectShape(width, height, radius) {
   return shape;
 }
 
+export function createPartiallyRoundedRectShape(width, height, radius, sides) {
+    const shape = new THREE.Shape();
+    const x = -width / 2;
+    const y = -height / 2;
+
+    const tl = sides === "left" || sides === "full" || sides === "true";
+    const tr = sides === "right" || sides === "full" || sides === "true";
+    const bl = sides === "left" || sides === "full" || sides === "true";
+    const br = sides === "right" || sides === "full" || sides === "true";
+
+    if (bl) {
+        shape.moveTo(x + radius, y);
+    } else {
+        shape.moveTo(x, y);
+    }
+
+    if (br) {
+        shape.lineTo(x + width - radius, y);
+        shape.quadraticCurveTo(x + width, y, x + width, y + radius);
+    } else {
+        shape.lineTo(x + width, y);
+    }
+
+    if (tr) {
+        shape.lineTo(x + width, y + height - radius);
+        shape.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    } else {
+        shape.lineTo(x + width, y + height);
+    }
+
+    if (tl) {
+        shape.lineTo(x + radius, y + height);
+        shape.quadraticCurveTo(x, y + height, x, y + height - radius);
+    } else {
+        shape.lineTo(x, y + height);
+    }
+
+    if (bl) {
+        shape.lineTo(x, y + radius);
+        shape.quadraticCurveTo(x, y, x + radius, y);
+    } else {
+        shape.lineTo(x, y);
+    }
+
+    return shape;
+}
+
 function rgbToGrayscale(r, g, b) {
   // The most commonly used conversion formula
   return 0.299 * r + 0.587 * g + 0.114 * b;
