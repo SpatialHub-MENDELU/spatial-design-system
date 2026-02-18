@@ -1,4 +1,4 @@
-import { isPositiveNumber, isValidGameKey } from "../../utils/gameUtils";
+import { isPositiveNumber, isValidGameKey, isValidValue } from "../../utils/gameUtils";
 
 AFRAME.registerComponent("game-view", {
     schema: {
@@ -141,7 +141,7 @@ AFRAME.registerComponent("game-view", {
     checkInputs() {
         if (!isPositiveNumber(this.data.height, 'height')) this.wrongInput = true
         if (!isPositiveNumber(this.data.rotationSpeed, 'rotationSpeed')) this.wrongInput = true
-        if (!this.isValidCameraType(this.data.type)) this.wrongInput = true
+        if (!isValidValue(this.data.type, "type", ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'])) this.wrongInput = true
         if (!isValidGameKey(this.data.keyTurnLeft)) this.wrongInput = true
         if (!isValidGameKey(this.data.keyTurnRight)) this.wrongInput = true
 
@@ -198,15 +198,6 @@ AFRAME.registerComponent("game-view", {
             this.enforceZoomConstraints();
             this.updateOffsetPosition();
         }
-    },
-
-    isValidCameraType(type) {
-        const validTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'];
-        const isValid = validTypes.includes(type);
-        if (!isValid) {
-            console.error(`Invalid camera type: ${type}. Valid types are: ${validTypes.join(', ')}.`);
-        }
-        return isValid;
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
