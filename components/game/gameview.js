@@ -1,13 +1,19 @@
 import { isPositiveNumber, isValidGameKey } from "../../utils/gameUtils";
 
-
-AFRAME.registerComponent("gameview", {
+AFRAME.registerComponent("game-view", {
     schema: {
         target: {type: "selector"},
         height: {type: "number", default: 5},
         distance: {type: "number", default: 5},
         tilt: {type: "number", default: -20},
         type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow", "fixed"
+
+        zoom: {type: "boolean", default: false},
+        zoomSpeed: {type: "number", default: 0.3},
+        minDistance: {type: "number", default: 2},
+        maxDistance: {type: "number", default: 15},
+        minHeight: {type: "number", default: 2},
+        maxHeight: {type: "number", default: 15},
 
         // only for quarter-turn
         rotationSpeed : {type: "number", default: 5},
@@ -16,17 +22,24 @@ AFRAME.registerComponent("gameview", {
 
         // fixed
         position: {type: "string", default: "0 10 0"},
-        rotation: {type: "string", default: "-30 0 0"},
+        rotation: {type: "string", default: "-20 0 0"},
     },
 
     init() {
         this.targetNeededTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
         this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
 
+        this.zoom = this.data.zoom
+        this.minDistance = this.data.minDistance
+        this.maxDistance = this.data.maxDistance
+        this.minHeight = this.data.minHeight
+        this.maxHeight = this.data.maxHeight
+
         // types of cameras
         this.thirdPersonFixed = false
         this.thirdPersonFollow = false
         this.quarterTurn = false
+        this.fixed = false
         this.target = false
 
         this.cameraPosition = new THREE.Vector3();
@@ -42,7 +55,7 @@ AFRAME.registerComponent("gameview", {
         this.cameraPosition = this.parsePosition()
         this.cameraRotation = this.parseRotation()
 
-        if(this.thirdPersonFixed || this.quarterTurn || this.thirdPersonFollow) this.target = this.data.target?.object3D;
+        if(this.isTargetNeeded) this.target = this.data.target?.object3D;
 
         this.previousTargetPosition = new THREE.Vector3();
 
@@ -54,7 +67,10 @@ AFRAME.registerComponent("gameview", {
         this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
         this.bindKeyEvents();
-        if (this.fixed) this.setCameraPositionAndRotation();
+
+        if (this.zoom && this.isTargetNeeded) {
+            this.enforceZoomConstraints();
+        }
         this.updateOffsetPosition();
     },
 
@@ -74,6 +90,10 @@ AFRAME.registerComponent("gameview", {
         document.addEventListener("keydown", (e) => {
             if (this.quarterTurn) this.handleQuarterTurnInput(e)
         })
+
+        document.addEventListener("wheel", (e) => {
+            if (this.zoom && this.isTargetNeeded) this.handleZoom(e);
+        });
     },
 
     handleQuarterTurnInput(e) {
@@ -81,6 +101,38 @@ AFRAME.registerComponent("gameview", {
         if (e.key.toLowerCase() === this.keyTurnRight) this.targetAngle -= 90;
         this.targetAngle = (this.targetAngle + 360) % 360;
         this.updateOffsetPosition();
+    },
+
+    handleZoom(e) {
+        const delta = Math.sign(e.deltaY) * this.data.zoomSpeed;
+        this.handleTargetZoom(delta);
+    },
+
+    handleTargetZoom(delta) {
+        let newDistance = this.data.distance + delta;
+
+        newDistance = Math.min(Math.max(newDistance, this.data.minDistance), this.data.maxDistance);
+        if (newDistance === this.data.distance) return;
+        this.data.distance = newDistance;
+
+        const rangeDistance = this.data.maxDistance - this.data.minDistance;
+
+        if (rangeDistance !== 0) {
+            const progress = (newDistance - this.data.minDistance) / rangeDistance;
+
+            const rangeHeight = this.data.maxHeight - this.data.minHeight;
+            this.data.height = this.data.minHeight + (progress * rangeHeight);
+        } else {
+            this.data.height = this.data.minHeight;
+        }
+
+        if (!this.thirdPersonFollow) {
+            this.updateOffsetPosition();
+        }
+    },
+
+    enforceZoomConstraints() {
+        this.handleTargetZoom(0);
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,6 +182,22 @@ AFRAME.registerComponent("gameview", {
             this.cameraRotation = this.parseRotation();
             this.setCameraPositionAndRotation()
         }
+        if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom
+
+        if (this.isTargetNeeded && (
+            oldData.minDistance !== this.data.minDistance ||
+            oldData.maxDistance !== this.data.maxDistance ||
+            oldData.minHeight !== this.data.minHeight ||
+            oldData.maxHeight !== this.data.maxHeight
+        )) {
+            if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance
+            if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance
+            if (oldData.minHeight !== this.data.minHeight) this.minHeight = this.data.minHeight
+            if (oldData.maxHeight !== this.data.maxHeight) this.maxHeight = this.data.maxHeight
+
+            this.enforceZoomConstraints();
+            this.updateOffsetPosition();
+        }
     },
 
     isValidCameraType(type) {
@@ -148,6 +216,7 @@ AFRAME.registerComponent("gameview", {
         this.thirdPersonFixed = false;
         this.quarterTurn = false;
         this.thirdPersonFollow = false;
+        this.fixed = false;
 
         switch(this.data.type) {
             case 'thirdPersonFixed':
@@ -214,14 +283,20 @@ AFRAME.registerComponent("gameview", {
     // CAMERA TYPES METHODS
 
     updateOffsetPosition() {
-        if(this.thirdPersonFollow || this.fixed) return;
+        if(this.thirdPersonFollow) return;
 
-        const { x, y, z } = this.target.position;
-        const { height, distance, tilt } = this.data;
+        if (this.fixed) {
+            this.updateCameraFixed();
+            return;
+        }
 
-        if (this.thirdPersonFixed) this.updateCameraThirdPersonFixed(x, y, z, height, distance, tilt);
+        if (this.target) {
+            const { x, y, z } = this.target.position;
+            const { height, distance, tilt } = this.data;
 
-        if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
+            if (this.thirdPersonFixed) this.updateCameraThirdPersonFixed(x, y, z, height, distance, tilt);
+            if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
+        }
     },
 
 
@@ -231,6 +306,27 @@ AFRAME.registerComponent("gameview", {
             this.updateOffsetPosition();
             this.previousTargetPosition.copy(currentPosition);
         }
+    },
+
+    // fixed
+    updateCameraFixed() {
+        const pivot = this.cameraPosition;
+        const { height, distance } = this.data;
+
+        const rotY = this.cameraRotation.y;
+        const rotX = this.cameraRotation.x;
+
+        const offsetX = Math.sin(rotY) * distance;
+        const offsetZ = Math.cos(rotY) * distance;
+
+        this.applyTransform(
+            pivot.x + offsetX,
+            pivot.y + height,
+            pivot.z + offsetZ,
+            rotX,
+            rotY,
+            this.cameraRotation.z
+        );
     },
 
     // third-person-fixed
