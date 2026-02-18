@@ -7,12 +7,16 @@ AFRAME.registerComponent("gameview", {
         height: {type: "number", default: 5},
         distance: {type: "number", default: 5},
         tilt: {type: "number", default: -20},
-        type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow"
+        type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow", "fixed"
 
         // only for quarter-turn
         rotationSpeed : {type: "number", default: 5},
         keyTurnLeft: {type: "string", default: "q"},
         keyTurnRight: {type: "string", default: "e"},
+
+        // fixed
+        position: {type: "string", default: "0 10 0"},
+        rotation: {type: "string", default: "-30 0 0"},
     },
 
     init() {
@@ -23,6 +27,10 @@ AFRAME.registerComponent("gameview", {
         this.thirdPersonFixed = false
         this.thirdPersonFollow = false
         this.quarterTurn = false
+        this.target = false
+
+        this.cameraPosition = new THREE.Vector3();
+        this.cameraRotation = new THREE.Euler();
 
         this.wrongInput = false
         this.checkInputs()
@@ -30,6 +38,9 @@ AFRAME.registerComponent("gameview", {
 
         this.type = this.data.type
         this.setType()
+
+        this.cameraPosition = this.parsePosition()
+        this.cameraRotation = this.parseRotation()
 
         if(this.thirdPersonFixed || this.quarterTurn || this.thirdPersonFollow) this.target = this.data.target?.object3D;
 
@@ -43,6 +54,7 @@ AFRAME.registerComponent("gameview", {
         this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
 
         this.bindKeyEvents();
+        if (this.fixed) this.setCameraPositionAndRotation();
         this.updateOffsetPosition();
     },
 
@@ -110,11 +122,18 @@ AFRAME.registerComponent("gameview", {
         if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
         if (oldData.keyTurnLeft !== this.data.keyTurnLeft) this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase()
         if (oldData.keyTurnRight !== this.data.keyTurnRight) this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
-
+        if (oldData.position !== this.data.position) {
+            this.cameraPosition = this.parsePosition();
+            this.setCameraPositionAndRotation()
+        }
+        if (oldData.rotation !== this.data.rotation) {
+            this.cameraRotation = this.parseRotation();
+            this.setCameraPositionAndRotation()
+        }
     },
 
     isValidCameraType(type) {
-        const validTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
+        const validTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'];
         const isValid = validTypes.includes(type);
         if (!isValid) {
             console.error(`Invalid camera type: ${type}. Valid types are: ${validTypes.join(', ')}.`);
@@ -140,6 +159,9 @@ AFRAME.registerComponent("gameview", {
             case 'thirdPersonFollow':
                 this.thirdPersonFollow = true
                 break;
+            case 'fixed':
+                this.fixed = true
+                break;
             default:
                 this.thirdPersonFixed = true
                 break
@@ -151,11 +173,48 @@ AFRAME.registerComponent("gameview", {
         this.el.object3D.rotation.set(rotX, rotY, rotZ);
     },
 
+    parsePosition() {
+        const posArray = this.data.position.split(" ").map(parseFloat);
+        if (posArray.length !== 3 || posArray.some(isNaN)) {
+            console.error(`Invalid position format: "${this.data.position}". Expected format: "x y z" with numeric values. Setting default position (0, 10, 0).`);
+            return new THREE.Vector3(0, 10, 0);
+        }
+        return new THREE.Vector3(posArray[0], posArray[1], posArray[2]);
+    },
+
+    parseRotation() {
+        const rotArray = this.data.rotation.split(" ").map(parseFloat);
+        if (rotArray.length !== 3 || rotArray.some(isNaN)) {
+            console.error(`Invalid rotation format: "${this.data.rotation}". Expected format: "x y z" with numeric values. Setting default rotation (-30, 0, 0).`);
+            return new THREE.Euler(
+                THREE.MathUtils.degToRad(0),
+                THREE.MathUtils.degToRad(-30),
+                THREE.MathUtils.degToRad(0)
+            );
+        }
+        return new THREE.Euler(
+            THREE.MathUtils.degToRad(rotArray[0]),
+            THREE.MathUtils.degToRad(rotArray[1]),
+            THREE.MathUtils.degToRad(rotArray[2])
+        );
+    },
+
+    setCameraPositionAndRotation() {
+        this.applyTransform(
+            this.cameraPosition.x,
+            this.cameraPosition.y,
+            this.cameraPosition.z,
+            this.cameraRotation.x,
+            this.cameraRotation.y,
+            this.cameraRotation.z
+        )
+    },
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CAMERA TYPES METHODS
 
     updateOffsetPosition() {
-        if(this.thirdPersonFollow) return;
+        if(this.thirdPersonFollow || this.fixed) return;
 
         const { x, y, z } = this.target.position;
         const { height, distance, tilt } = this.data;
