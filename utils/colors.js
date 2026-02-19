@@ -8,6 +8,7 @@ export const SUCCESS_COLOR = "#4CAF50"
 export const ERROR_COLOR = "#B00020"
 export const WARNING_COLOR = "#FB8C00"
 export const DISABLED_COLOR = "#D5D5D5"
+export const INFO_COLOR = "#2196F3"
 
 // Lighten color in order to create suitable highlilighted color
 export function lightenColor(color, percent) {

@@ -10,9 +10,9 @@ AFRAME.registerComponent("card", {
         mode: { type: "string", default: ""},
         color: { type: "string", default: PRIMARY_COLOR_DARK},
         textcolor: { type: "string", default: "black"},
-        title: { type: "string", default: "Card Title" },
-        subtitle: { type: "string", default: "Subitle" },
-        content: { type: "string", default: "This is an example of the basic card component." },
+        title: { type: "string", default: "" },
+        subtitle: { type: "string", default: "" },
+        content: { type: "string", default: "" },
         prependicon: { type: "string", default: ""},
         appendicon: { type: "string", default: ""},
         buttons: { 
@@ -92,12 +92,12 @@ AFRAME.registerComponent("card", {
         });
     },
 
-    createCard(widthArg = 3, heightArg = 2) {
+    createCard(widthArg = 1.5, heightArg = 1) {
         const group = new AFRAME.THREE.Group();
 
         const width = widthArg;
         const height = heightArg;
-        let  borderRadius = 0.12;
+        let  borderRadius = 0.06;
         this.width = width;
         this.height = height;
 
@@ -126,8 +126,8 @@ AFRAME.registerComponent("card", {
 
         // Create an outline if outlined is true
         if (this.data.outlined) {
-            const borderSize = 0.06;
-            const outlineShape = createRoundedRectShape(this.width + borderSize, this.height + borderSize, borderRadius + 0.024);
+            const borderSize = 0.02;
+            const outlineShape = createRoundedRectShape(this.width + borderSize, this.height + borderSize, borderRadius + 0.01);
             const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
             const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
                 color: this.data.color,
@@ -161,7 +161,7 @@ AFRAME.registerComponent("card", {
         el.setAttribute("align", config.align || "left");
         el.setAttribute("anchor", config.anchor || "left");
         el.setAttribute("baseline", config.baseline || "center");
-        el.setAttribute("font-size", config.fontSize || 0.1);
+        el.setAttribute("font-size", config.fontSize || 0.06);
 
         if (config.clipRect) el.setAttribute("clip-rect", config.clipRect);
         if (config.position) el.setAttribute("position", config.position);
@@ -180,7 +180,7 @@ AFRAME.registerComponent("card", {
 
         const buttonEl = document.createElement("a-ar-button");
         buttonEl.setAttribute("content", label);
-        buttonEl.setAttribute("size", "medium");
+        buttonEl.setAttribute("size", "small");
         buttonEl.setAttribute("textonly", true);
         buttonEl.setAttribute("uppercase", true);
 
@@ -189,93 +189,103 @@ AFRAME.registerComponent("card", {
         });
 
         // Button positioning logic
-        const interButtonSpacing = 0.4; // Space between the buttons
-        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attrib
+        const innerButtonSpacing = 0.2; // Space between the buttons
+        const assumedButtonWidth = 0.35; // Cannot work with actual width because a-ar-button doesn't have this attrib
 
-        const distanceBetweenCenters = assumedButtonWidth + interButtonSpacing;
+        const distanceBetweenCenters = assumedButtonWidth + innerButtonSpacing;
         const xPos = (index - (totalButtons - 1) / 2) * distanceBetweenCenters;
 
-        buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
+        buttonEl.setAttribute("position", { x: xPos, y: -this.height / 2 + 0.15, z: 0.07 });
 
         this.el.appendChild(buttonEl);
     },
+
+      _appendIcon(src, size, id) {
+      const iconEl = document.createElement("a-image");
+      if (id) iconEl.setAttribute("id", id);
+      iconEl.setAttribute("src", src);
+      iconEl.setAttribute("geometry", { width: size, height: size });
+      this.el.appendChild(iconEl);
+      return iconEl;
+  },
 
     setContent() {
         this._clearContent();
         this.createCard();
 
         const { width, height } = this;
-        const padding = 0.2;
+        const padding = 0.1;
         const lineHeight = 1.2;
         const contentWidth = width - (padding * 2);
         let titleXOffset = 0;
 
-        const iconSize = 0.15;
+        const iconSize = 0.075;
         const titleRowYCenter = height / 2 - padding - (iconSize / 2);
-        const subtitleRowYCenter = titleRowYCenter - 0.2;
+        const subtitleRowYCenter = titleRowYCenter - 0.12;
 
         // 1. Add Prepend Icon
-        if (this.data.prependicon) {
-            const iconSrc = this.data.prependicon;
-            const myImg = new Image();
-            myImg.src = iconSrc;
-            myImg.onload = () => {
-                const prependIcon = document.createElement("a-image");
-                prependIcon.setAttribute("id", "prependIcon");
-                prependIcon.setAttribute("src", iconSrc);
-                prependIcon.setAttribute("width", iconSize);
-                prependIcon.setAttribute("height", iconSize);
+        if (this.data.prependicon && this.data.title) {
+            const iconEl = this._appendIcon(this.data.prependicon, iconSize, "prependIcon");
 
-                const iconX = -width / 2 + padding + (iconSize / 2);
-                prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
+            const iconX = -width / 2 + padding + (iconSize / 2);
+            iconEl.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
 
-                this.el.appendChild(prependIcon);
-                this.updateTextColor(); // Ensure color is correct after load
-            };
-            titleXOffset = iconSize + 0.1; // Shift title to the right
+            this.updateTextColor(); // Ensure color is correct after load            
+            titleXOffset = iconSize + 0.05; // Shift title to the right
         }
 
         // 2. Add Append Icon
         if (this.data.appendicon) {
-            const iconSrc = this.data.appendicon;
-            const myImg = new Image();
-            myImg.src = iconSrc;
-            myImg.onload = () => {
-                const appendIcon = document.createElement("a-image");
-                appendIcon.setAttribute("id", "appendicon");
-                appendIcon.setAttribute("src", iconSrc);
-                appendIcon.setAttribute("width", 0.15);
-                appendIcon.setAttribute("height", 0.15);
+            const iconEl = this._appendIcon(this.data.appendicon, iconSize, "appendicon");
 
-                const iconX = width / 2 - padding - 0.075;
-                appendIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
-                appendIcon.classList.add("clickable");
+            const iconX = width / 2 - padding - (iconSize / 2);
+            iconEl.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
 
-                this.el.appendChild(appendIcon);
-                this.updateTextColor();
-            };
-        }
+            iconEl.addEventListener('click', () => {
+                this.el.emit('appendIconClicked');
+            });
+
+            this.updateTextColor();
+        };
+    
 
         // 3. Add Title
-        this._appendText("title", this.data.title, {
-            fontSize: 0.15,
-            clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
-            position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
-        });
+        if (this.data.title) {
+            this._appendText("title", this.data.title, {
+                fontSize: 0.09,
+                clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
+                position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
+            });
+        }
 
         // 4. Add Subtitle
-        this._appendText("subtitle", this.data.subtitle, {
-            fontSize: 0.12,
-            clipRect: `0 -1 ${contentWidth} 1`,
-            position: {x: -width / 2 + padding, y: subtitleRowYCenter, z: 0.05},
-            opacity: this.data.opacity * 0.8
-        });
+        // If there is no subtitle, don't append text because it will just render vertical space
+        // Subtitle can only exist if title exists
+        if (this.data.title && this.data.subtitle) {
+            this._appendText("subtitle", this.data.subtitle, {
+                fontSize: 0.075,
+                clipRect: `0 -1 ${contentWidth} 1`,
+                position: {x: -width / 2 + padding, y: subtitleRowYCenter, z: 0.05},
+                opacity: this.data.opacity * 0.8
+            });
+        }
 
         // 5. Add Content Text
         // Calculate layout to fit text within the card body
-        const contentFontSize = 0.1;
-        const contentStartY = subtitleRowYCenter - (iconSize / 2) - 0.1;      
-        const maxContentHeight = contentStartY - (-height / 2 + 0.5); // Space until buttons area
+        const contentFontSize = 0.06;
+        let contentStartY = 0;
+        if (this.data.title) {
+            contentStartY = this.data.subtitle ? subtitleRowYCenter - (iconSize / 2) - 0.05 : titleRowYCenter - (iconSize / 2) - 0.05 ;
+        } else {
+            contentStartY = this.data.appendIcon ? subtitleRowYCenter : titleRowYCenter;
+        }   
+
+        // Determine the bottom "cutoff" point
+        // If there are no buttons, we only need to respect the bottom padding (0.2)
+        const hasButtons = this.data.buttons && this.data.buttons.length > 0;
+        const bottomBoundary = hasButtons ? 0.3 : padding; 
+
+        const maxContentHeight = contentStartY - (-height / 2 + bottomBoundary);
 
         // Calculate clipping to avoid cutting lines in half
         const lineHeightUnits = contentFontSize * lineHeight;
@@ -365,10 +375,14 @@ AFRAME.registerComponent("card", {
         }
 
         // Apply color to all text/icon elements
-        const elements = ["#title", "#content", "#subtitle","#prependIcon", "#appendicon"];
+        const elements = ["#title", "#content", "#subtitle"];
         elements.forEach(sel => {
             const el = this.el.querySelector(sel);
             if (el) el.setAttribute("color", textcolor);
+        });
+        const iconElements = this.el.querySelectorAll("a-image");
+        iconElements.forEach(iconEl => {
+            iconEl.setAttribute("color", textcolor);
         });
 
         return textcolor;
