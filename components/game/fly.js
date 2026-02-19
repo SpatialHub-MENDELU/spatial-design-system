@@ -3,8 +3,8 @@ import {doesGLTFAnimationExist, hasGLTFAnimations, isPositiveNumber, isValidGame
 
 AFRAME.registerComponent("fly", {
     schema: {
-        idleClipName: {type: "string", default: "*Yes*"}, // Name of the animation clip used when the character is idle.
-        flyClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is flying.
+        idleClipName: {type: "string", default: "*Flying_Idle*"}, // Name of the animation clip used when the character is idle.
+        flyClipName: {type: "string", default: "*Flying*"}, // Name of the animation clip used when the character is flying.
         sprintClipName: {type: "string", default: "*Fast_Flying*"}, // Name of the animation clip used when the character is sprinting.
 
         keyUp: {type: "string", default: "w"}, // Key used to move the character forward/up.
@@ -317,10 +317,10 @@ AFRAME.registerComponent("fly", {
 
     setIsSprinting(value) {
         if (value === true) {
-            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = true
+            if (this.freeDirectionalFlight) if (this.movingForward) this.isSprinting = true
             if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = true
         } else {
-            if (this.freeDirectionalFlightMove) if (this.movingForward) this.isSprinting = false
+            if (this.freeDirectionalFlight) if (this.movingForward) this.isSprinting = false
             if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = false
         }
     },
