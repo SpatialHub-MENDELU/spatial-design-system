@@ -317,10 +317,10 @@ AFRAME.registerComponent("fly", {
 
     setIsSprinting(value) {
         if (value === true) {
-            if (this.freeDirectionalFlight) if (this.movingForward) this.isSprinting = true
+            if (this.freeDirectionalFlight && this.movingForward) this.isSprinting = true
             if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = true
         } else {
-            if (this.freeDirectionalFlight) if (this.movingForward) this.isSprinting = false
+            if (this.freeDirectionalFlight && this.movingForward) this.isSprinting = false
             if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = false
         }
     },
