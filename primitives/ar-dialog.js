@@ -17,7 +17,6 @@ AFRAME.registerPrimitive('a-ar-dialog', {
         title: 'dialog.title',
         content: 'dialog.content',
         buttons: 'dialog.buttons',
-        persistent: 'dialog.persistent',
         transition: 'dialog.transition',
     }
 })
