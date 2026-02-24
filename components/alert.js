@@ -81,14 +81,19 @@ AFRAME.registerComponent("alert", {
             } else {
                 this.finalColor = PRIMARY_COLOR_DARK;
             }
+            this.updateTextColor();
         }
         
         this.card.setAttribute("color", this.finalColor);
     },
 
     updateTextColor() {
-        if (this.card) {
-            this.card.setAttribute("textcolor", this.data.textcolor);
+        if (this.card && this.data.state === "") {
+            if ((this.data.mode === 'light' || this.data.mode === 'dark') && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) {
+                this.card.setAttribute("textcolor", this.data.mode === 'light' ? "black" : "white");
+            } else {
+                this.card.setAttribute("textcolor", this.data.textcolor);
+            }
         }
     },
 
@@ -117,7 +122,7 @@ AFRAME.registerComponent("alert", {
         
         if (cardData.closable) {
             cardEl.setAttribute("appendicon", "/close.png");
-        }
+        } else cardEl.setAttribute("appendicon", "");
 
         if (this.data.state !== "") {
             this.setState();
