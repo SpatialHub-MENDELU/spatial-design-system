@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "demo": "vite demo",
+    "game-demo": "vite game-components-demo",
     "demo-follow-entity": "vite follow-entity-demo",
     "hands-demo": "vite demos/hands-components-demo",
     "flexbox-demo": "vite demos/flexbox-demo",
