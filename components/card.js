@@ -10,9 +10,9 @@ AFRAME.registerComponent("card", {
         mode: { type: "string", default: ""},
         color: { type: "string", default: PRIMARY_COLOR_DARK},
         textcolor: { type: "string", default: "black"},
-        title: { type: "string", default: "Card Title" },
-        subtitle: { type: "string", default: "Subitle" },
-        content: { type: "string", default: "This is an example of the basic card component." },
+        title: { type: "string", default: "" },
+        subtitle: { type: "string", default: "" },
+        content: { type: "string", default: "" },
         prependicon: { type: "string", default: ""},
         appendicon: { type: "string", default: ""},
         buttons: { 
@@ -40,7 +40,6 @@ AFRAME.registerComponent("card", {
 
         this.createCard();
         this.setContent();
-        this.setMode();
         this.updateCardColor();
         this.updateCardImage();
     },
@@ -57,12 +56,7 @@ AFRAME.registerComponent("card", {
                     this.updateCardOpacity();
                     break;
                 case 'color':
-                    this.updateCardColor();
-                    this.updateTextColor();
-                    this.setButtons();
-                    break;
                 case 'mode':
-                    this.setMode();
                     this.updateCardColor();
                     this.setButtons();
                     break;
@@ -77,7 +71,7 @@ AFRAME.registerComponent("card", {
                     this.setContent();
                     break;
                 case 'buttons':
-                    this.setButtons();
+                    this.setContent();
                     break;
                 case 'outlined':
                     this.setContent();
@@ -92,12 +86,12 @@ AFRAME.registerComponent("card", {
         });
     },
 
-    createCard(widthArg = 3, heightArg = 2) {
+    createCard(widthArg = 1.5, heightArg = 1) {
         const group = new AFRAME.THREE.Group();
 
         const width = widthArg;
         const height = heightArg;
-        let  borderRadius = 0.12;
+        let  borderRadius = 0.06;
         this.width = width;
         this.height = height;
 
@@ -116,7 +110,7 @@ AFRAME.registerComponent("card", {
         );
 
         const cardMaterial = new AFRAME.THREE.MeshBasicMaterial({ 
-            color: this.data.color, 
+            color: this.finalColor, 
             opacity: opacityValue, 
             transparent: true
         })
@@ -126,11 +120,11 @@ AFRAME.registerComponent("card", {
 
         // Create an outline if outlined is true
         if (this.data.outlined) {
-            const borderSize = 0.06;
-            const outlineShape = createRoundedRectShape(this.width + borderSize, this.height + borderSize, borderRadius + 0.024);
+            const borderSize = 0.02;
+            const outlineShape = createRoundedRectShape(this.width + borderSize, this.height + borderSize, borderRadius + 0.01);
             const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
             const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
-                color: this.data.color,
+                color: this.finalColor,
                 opacity: this.data.opacity,
                 transparent: true
             });
@@ -161,7 +155,7 @@ AFRAME.registerComponent("card", {
         el.setAttribute("align", config.align || "left");
         el.setAttribute("anchor", config.anchor || "left");
         el.setAttribute("baseline", config.baseline || "center");
-        el.setAttribute("font-size", config.fontSize || 0.1);
+        el.setAttribute("font-size", config.fontSize || 0.06);
 
         if (config.clipRect) el.setAttribute("clip-rect", config.clipRect);
         if (config.position) el.setAttribute("position", config.position);
@@ -180,7 +174,7 @@ AFRAME.registerComponent("card", {
 
         const buttonEl = document.createElement("a-ar-button");
         buttonEl.setAttribute("content", label);
-        buttonEl.setAttribute("size", "medium");
+        buttonEl.setAttribute("size", "small");
         buttonEl.setAttribute("textonly", true);
         buttonEl.setAttribute("uppercase", true);
 
@@ -189,93 +183,137 @@ AFRAME.registerComponent("card", {
         });
 
         // Button positioning logic
-        const interButtonSpacing = 0.4; // Space between the buttons
-        const assumedButtonWidth = 0.4; // Cannot work with actual width because a-ar-button doesn't have this attrib
+        const innerButtonSpacing = 0.2; // Space between the buttons
+        const assumedButtonWidth = 0.35; // Cannot work with actual width because a-ar-button doesn't have this attrib
 
-        const distanceBetweenCenters = assumedButtonWidth + interButtonSpacing;
+        const distanceBetweenCenters = assumedButtonWidth + innerButtonSpacing;
         const xPos = (index - (totalButtons - 1) / 2) * distanceBetweenCenters;
 
-        buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
+        buttonEl.setAttribute("position", { x: xPos, y: -this.height / 2 + 0.15, z: 0.07 });
 
         this.el.appendChild(buttonEl);
     },
 
+      _appendIcon(src, size, id) {
+      const iconEl = document.createElement("a-image");
+      if (id) iconEl.setAttribute("id", id);
+      iconEl.setAttribute("src", src);
+      iconEl.setAttribute("geometry", { width: size, height: size });
+      this.el.appendChild(iconEl);
+      return iconEl;
+  },
+
     setContent() {
         this._clearContent();
-        this.createCard();
+        
+        // Default dimensions
+        let width = 1.5;
+        let height = 1;
 
-        const { width, height } = this;
-        const padding = 0.2;
+        const padding = 0.1;
+        const iconSize = 0.075;
         const lineHeight = 1.2;
-        const contentWidth = width - (padding * 2);
+        const contentFontSize = 0.06;
+        
+        // Calculate content start offset from top
+        const offset_titleRow = padding + (iconSize / 2);
+        const offset_subtitleRow = offset_titleRow + 0.12;
+        
+        let offset_contentStart = 0;
+        if (this.data.title) {
+            offset_contentStart = this.data.subtitle ? offset_subtitleRow + (iconSize / 2) + 0.05 : offset_titleRow + (iconSize / 2) + 0.05;
+        } else {
+            offset_contentStart = offset_titleRow;
+        }
+
+        const hasButtons = this.data.buttons && this.data.buttons.length > 0;
+
+        if (!hasButtons) {
+            const contentWidth = this.data.appendicon ? width - (padding * 2) - iconSize - 0.05 : width - (padding * 2);
+            // Estimate text height
+            const charWidth = contentFontSize * 0.55; // Approx width factor
+            const charsPerLine = Math.floor(contentWidth / charWidth);
+            const lines = Math.ceil(this.data.content.length / charsPerLine);
+            const textHeight = lines * (contentFontSize * lineHeight);
+            
+            // Calculate new height
+            // height = top_space + text + bottom_padding
+            // top_space is offset_contentStart
+            height = offset_contentStart + textHeight + padding;
+            
+            // Enforce a minimum height if needed, or just use calculated
+            height = Math.max(height, 0.4); // Minimum height
+        }
+
+        this.createCard(width, height);
+
+        const contentWidth = this.data.appendicon ? width - (padding * 2) - iconSize - 0.05 : width - (padding * 2);
         let titleXOffset = 0;
 
-        const iconSize = 0.15;
         const titleRowYCenter = height / 2 - padding - (iconSize / 2);
-        const subtitleRowYCenter = titleRowYCenter - 0.2;
+        const subtitleRowYCenter = titleRowYCenter - 0.12;
 
         // 1. Add Prepend Icon
-        if (this.data.prependicon) {
-            const iconSrc = this.data.prependicon;
-            const myImg = new Image();
-            myImg.src = iconSrc;
-            myImg.onload = () => {
-                const prependIcon = document.createElement("a-image");
-                prependIcon.setAttribute("id", "prependIcon");
-                prependIcon.setAttribute("src", iconSrc);
-                prependIcon.setAttribute("width", iconSize);
-                prependIcon.setAttribute("height", iconSize);
+        if (this.data.prependicon && this.data.title) {
+            const iconEl = this._appendIcon(this.data.prependicon, iconSize, "prependIcon");
 
-                const iconX = -width / 2 + padding + (iconSize / 2);
-                prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
+            const iconX = -width / 2 + padding + (iconSize / 2);
+            iconEl.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
 
-                this.el.appendChild(prependIcon);
-                this.updateTextColor(); // Ensure color is correct after load
-            };
-            titleXOffset = iconSize + 0.1; // Shift title to the right
+            this.updateTextColor(); // Ensure color is correct after load            
+            titleXOffset = iconSize + 0.05; // Shift title to the right
         }
 
         // 2. Add Append Icon
         if (this.data.appendicon) {
-            const iconSrc = this.data.appendicon;
-            const myImg = new Image();
-            myImg.src = iconSrc;
-            myImg.onload = () => {
-                const appendIcon = document.createElement("a-image");
-                appendIcon.setAttribute("id", "appendicon");
-                appendIcon.setAttribute("src", iconSrc);
-                appendIcon.setAttribute("width", 0.15);
-                appendIcon.setAttribute("height", 0.15);
+            const iconEl = this._appendIcon(this.data.appendicon, iconSize, "appendicon");
 
-                const iconX = width / 2 - padding - 0.075;
-                appendIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
-                appendIcon.classList.add("clickable");
+            const iconX = width / 2 - padding - (iconSize / 2);
+            iconEl.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
 
-                this.el.appendChild(appendIcon);
-                this.updateTextColor();
-            };
-        }
+            iconEl.addEventListener('click', () => {
+                this.el.emit('appendIconClicked');
+            });
+
+            this.updateTextColor();
+        };
+    
 
         // 3. Add Title
-        this._appendText("title", this.data.title, {
-            fontSize: 0.15,
-            clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
-            position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
-        });
+        if (this.data.title) {
+            this._appendText("title", this.data.title, {
+                fontSize: 0.09,
+                clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
+                position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
+            });
+        }
 
         // 4. Add Subtitle
-        this._appendText("subtitle", this.data.subtitle, {
-            fontSize: 0.12,
-            clipRect: `0 -1 ${contentWidth} 1`,
-            position: {x: -width / 2 + padding, y: subtitleRowYCenter, z: 0.05},
-            opacity: this.data.opacity * 0.8
-        });
+        // If there is no subtitle, don't append text because it will just render vertical space
+        // Subtitle can only exist if title exists
+        if (this.data.title && this.data.subtitle) {
+            this._appendText("subtitle", this.data.subtitle, {
+                fontSize: 0.075,
+                clipRect: `0 -1 ${contentWidth} 1`,
+                position: {x: -width / 2 + padding, y: subtitleRowYCenter, z: 0.05},
+                opacity: this.data.opacity * 0.8
+            });
+        }
 
         // 5. Add Content Text
         // Calculate layout to fit text within the card body
-        const contentFontSize = 0.1;
-        const contentStartY = subtitleRowYCenter - (iconSize / 2) - 0.1;      
-        const maxContentHeight = contentStartY - (-height / 2 + 0.5); // Space until buttons area
+        let contentStartY = 0;
+        if (this.data.title) {
+            contentStartY = this.data.subtitle ? subtitleRowYCenter - (iconSize / 2) - 0.05 : titleRowYCenter - (iconSize / 2) - 0.05 ;
+        } else {
+            contentStartY = titleRowYCenter;
+        }   
+
+        // Determine the bottom "cutoff" point
+        // If there are no buttons, we only need to respect the bottom padding (0.2)
+        const bottomBoundary = hasButtons ? 0.3 : padding; 
+
+        const maxContentHeight = contentStartY - (-height / 2 + bottomBoundary);
 
         // Calculate clipping to avoid cutting lines in half
         const lineHeightUnits = contentFontSize * lineHeight;
@@ -296,34 +334,12 @@ AFRAME.registerComponent("card", {
     },
 
     setMode() {
-        // Mode is ignored if a specific color is set (and it's not the default)
-        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
-            return;
+        // Map modes to their specific colors
+        if (this.data.mode === "light") {
+            this.finalColor = VARIANT_LIGHT_COLOR;
+        } else if (this.data.mode === "dark") {
+            this.finalColor = VARIANT_DARK_COLOR;
         }
-        switch (this.data.mode) {
-            case "light":
-                this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 });
-                this.el.querySelector("#title").setAttribute("color", "black");
-                this.el.querySelector("#content").setAttribute("color", "black");
-                this.finalColor = VARIANT_LIGHT_COLOR;
-                break;
-            case "dark":
-                this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
-                this.el.querySelector("#title").setAttribute("color", "white");
-                this.el.querySelector("#content").setAttribute("color", "white");
-                this.finalColor = VARIANT_DARK_COLOR;
-                break;
-            default:
-                break;
-        }
-
-        // Update text elements if they exist
-        const title = this.el.querySelector("#title");
-        const content = this.el.querySelector("#content");
-        const subtitle = this.el.querySelector("#subtitle");
-        if (title) title.setAttribute("color", this.data.mode === "light" ? "black" : "white");
-        if (content) content.setAttribute("color", this.data.mode === "light" ? "black" : "white");
-        if (subtitle) subtitle.setAttribute("color", this.data.mode === "light" ? "black" : "white");
     },
 
     updateCardColor() {
@@ -334,7 +350,6 @@ AFRAME.registerComponent("card", {
             this.setMode();
         } else {
             this.finalColor = PRIMARY_COLOR_DARK;
-            this.updateTextColor();
         }
 
         if (this.cardMesh) {
@@ -343,35 +358,44 @@ AFRAME.registerComponent("card", {
         if (this.outlineMesh) {
             this.outlineMesh.material.color.set(this.finalColor);
         }
+
+        this.updateTextColor();
     },
 
     updateTextColor() {
-        // Skip auto-contrast if mode is explicitly set
-        if ((this.data.mode === 'light' || this.data.mode === 'dark') 
-            && (this.data.color === PRIMARY_COLOR_DARK || this.data.color === "")) return;
-
         if (!this.cardMesh) return;
 
-        const cardColorHex = `#${this.cardMesh.material.color.getHexString()}`;
-        let textcolor = this.data.textcolor;
+        // Determine if we should use automatic contrast or mode-based color
+        let targetTextColor;
+        const isCustomColor = this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "";
 
-        // Check contrast and adjust if necessary
-        if (getContrast(textcolor, cardColorHex) <= 60){
-            const newTextColor = setContrastColor(cardColorHex);
-            if (newTextColor !== textcolor) {
-                textcolor = newTextColor;
-                console.log(`The text color you set does not have enough contrast. It has been set to ${textcolor} for better visibility.`);
+        if (!isCustomColor && this.data.mode === "light") {
+            targetTextColor = "black";
+        } else if (!isCustomColor && this.data.mode === "dark") {
+            targetTextColor = "white";
+        } else {
+            // Logic for custom colors or no mode: Use contrast check
+            const cardColorHex = `#${this.cardMesh.material.color.getHexString()}`;
+            targetTextColor = this.data.textcolor;
+
+            if (getContrast(targetTextColor, cardColorHex) <= 60) {
+                targetTextColor = setContrastColor(cardColorHex);
             }
         }
 
-        // Apply color to all text/icon elements
-        const elements = ["#title", "#content", "#subtitle","#prependIcon", "#appendicon"];
+        // Apply to elements
+        const elements = ["#title", "#content", "#subtitle"];
         elements.forEach(sel => {
             const el = this.el.querySelector(sel);
-            if (el) el.setAttribute("color", textcolor);
+            if (el) el.setAttribute("color", targetTextColor);
         });
 
-        return textcolor;
+        const iconElements = this.el.querySelectorAll("a-image");
+        iconElements.forEach(iconEl => {
+            iconEl.setAttribute("color", targetTextColor);
+        });
+
+        return targetTextColor;
     },
 
     _updateButtonTextColor(textcolor) {
@@ -427,7 +451,15 @@ AFRAME.registerComponent("card", {
         if (!this.cardMesh) return;
 
         if (this.data.image) {
-            new AFRAME.THREE.TextureLoader().load(this.data.image, (texture) => {
+            let imageSrc = this.data.image;
+            if (imageSrc.startsWith('#')) {
+                const imageEl = document.querySelector(imageSrc);
+                if (imageEl) {
+                    imageSrc = imageEl.src || imageEl.getAttribute('src');
+                }
+            }
+
+            new AFRAME.THREE.TextureLoader().load(imageSrc, (texture) => {
                 if (this.data.image) {
                     texture.wrapS = AFRAME.THREE.ClampToEdgeWrapping;
                     texture.wrapT = AFRAME.THREE.ClampToEdgeWrapping;
