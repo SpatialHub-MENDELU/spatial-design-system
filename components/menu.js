@@ -95,7 +95,29 @@ AFRAME.registerComponent("menu", {
     },
 
     prepareItems() {
-        const parsedItems = JSON.parse(this.data.items.replaceAll("'", "\""))
+        let parsedItems = []
+        const rawItems = this.data.items
+
+        if (typeof rawItems === "string") {
+            const normalizedItems = rawItems.replaceAll("'", "\"").trim()
+            if (normalizedItems !== "") {
+                try {
+                    const items = JSON.parse(normalizedItems)
+                    if (Array.isArray(items)) {
+                        parsedItems = items
+                    } else {
+                        console.warn('[menu] "items" must be a JSON array string.', items)
+                    }
+                } catch (error) {
+                    console.warn('[menu] Failed to parse "items" JSON.', rawItems, error)
+                }
+            }
+        } else if (Array.isArray(rawItems)) {
+            parsedItems = [...rawItems]
+        } else if (rawItems !== null && rawItems !== undefined) {
+            console.warn('[menu] "items" must be a JSON array string.', rawItems)
+        }
+
         if(parsedItems.length > 6) {
             alert("Maximum of 6 items allowed")
             parsedItems.splice(6)
