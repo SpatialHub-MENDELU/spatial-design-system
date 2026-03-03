@@ -130,22 +130,48 @@ AFRAME.registerComponent("place-object-manager", {
     },
 
     createObjectGhostCopy(el) {
+        // 1. Sync A-Frame's internal memory state to HTML attributes before cloning
+        // Fixes the problem when using with a reactive framework like Vue.js.
+        if (typeof el.flushToDOM === 'function') {
+            el.flushToDOM(true);
+        }
+
         const entityCopy = el.cloneNode(true);
+
         entityCopy.removeAttribute('visible');
         entityCopy.removeAttribute('id');
         entityCopy.removeAttribute(PLACE_OBJECT_COMPONENT_NAME);
         entityCopy.setAttribute('id', 'place-object-preview');
         entityCopy.setAttribute('visible', true);
 
+        // 2. THE FIX: Explicitly re-apply the gltf-model attribute.
+        // This forces A-Frame's component lifecycle to initialize and load the 3D model.
+        // Fixes the problem when using with a reactive framework like Vue.js.
+        if (el.hasAttribute('gltf-model')) {
+            entityCopy.setAttribute('gltf-model', el.getAttribute('gltf-model'));
+        }
+
         // Make the preview semi-transparent
-        const materials = entityCopy.querySelectorAll('[material]');
-        if (materials.length > 0) {
-            materials.forEach(mat => {
-                const matData = mat.getAttribute('material');
-                mat.setAttribute('material', Object.assign({}, matData, { opacity: 0.5 }));
-            });
-        } else {
-            entityCopy.setAttribute('material', 'opacity: 0.5');
+        // Note: querySelectorAll only checks descendants.
+        // We also need to check the root entityCopy itself if it has a material.
+        const nodesWithMaterial = [entityCopy, ...entityCopy.querySelectorAll('[material]')];
+        let materialFound = false;
+
+        nodesWithMaterial.forEach(node => {
+            if (node.hasAttribute('material')) {
+                materialFound = true;
+                const matData = node.getAttribute('material') || '';
+                // Handle both string and object material formats safely
+                if (typeof matData === 'string') {
+                    node.setAttribute('material', `${matData}; opacity: 0.5; transparent: true`);
+                } else {
+                    node.setAttribute('material', Object.assign({}, matData, { opacity: 0.5, transparent: true }));
+                }
+            }
+        });
+
+        if (!materialFound) {
+            entityCopy.setAttribute('material', 'color: blue; opacity: 0.5; transparent: true');
         }
 
         // Reset any transformations that might have been cloned
@@ -155,6 +181,7 @@ AFRAME.registerComponent("place-object-manager", {
         entityCopy.object3D.scale.set(1, 1, 1);
 
         this.scene.appendChild(entityCopy);
+
         return entityCopy;
     },
 
