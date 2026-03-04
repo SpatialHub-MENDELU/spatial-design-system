@@ -9,6 +9,7 @@
     "provenance": true
   },
   "files": [
+    "/assets",
     "/components",
     "/primitives",
     "/public",

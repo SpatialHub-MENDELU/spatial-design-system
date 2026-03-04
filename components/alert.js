@@ -1,6 +1,11 @@
 import * as AFRAME from "aframe"
 import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR, SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, INFO_COLOR } from "../utils/colors.js"
 import "../primitives/ar-card.js"
+import closeIcon from "../assets/close.png"
+import successIcon from "../assets/success.png"
+import warningIcon from "../assets/warning.png"
+import errorIcon from "../assets/error.png"
+import infoIcon from "../assets/info.png"
 
 AFRAME.registerComponent("alert", {
     schema: {
@@ -121,7 +126,7 @@ AFRAME.registerComponent("alert", {
         cardEl.setAttribute("buttons", "[]");
         
         if (cardData.closable) {
-            cardEl.setAttribute("appendicon", "/close.png");
+            cardEl.setAttribute("appendicon", closeIcon);
         } else cardEl.setAttribute("appendicon", "");
 
         if (this.data.state !== "") {
@@ -151,19 +156,19 @@ AFRAME.registerComponent("alert", {
         switch (this.data.state) {
             case "success":
                 this.finalColor = SUCCESS_COLOR;
-                this.card.setAttribute("prependicon", "/success.png");
+                this.card.setAttribute("prependicon", successIcon);
                 break;
             case "warning":
                 this.finalColor = WARNING_COLOR;
-                this.card.setAttribute("prependicon", "/warning.png");
+                this.card.setAttribute("prependicon", warningIcon);
                 break;
             case "error":
                 this.finalColor = ERROR_COLOR;
-                this.card.setAttribute("prependicon", "/error.png");
+                this.card.setAttribute("prependicon", errorIcon);
                 break;
             case "info":
                 this.finalColor = INFO_COLOR;
-                this.card.setAttribute("prependicon", "/info.png");
+                this.card.setAttribute("prependicon", infoIcon);
                 break;
             default:
                 break;
