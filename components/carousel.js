@@ -142,12 +142,12 @@ AFRAME.registerComponent("carousel", {
 
     createArrows() {
         const padding = 0.05;
-        const arrowAvatarRadius = 0.08; // from avatar component size 'small'
+        const arrowAvatarRadius = 0.08; // avatar sizeCoef (0.06) + 2 * padding (0.01)
         const xOffset = this.data.width / 2 - arrowAvatarRadius - padding;
 
         // Left Arrow
         const leftArrow = document.createElement("a-ar-avatar");
-        leftArrow.setAttribute("image", "/arrow-back.png");
+        leftArrow.setAttribute("image", "/public/arrow-back.png");
         leftArrow.setAttribute("position", `${-xOffset} 0 0.05`);
         leftArrow.setAttribute("size", "small");
         leftArrow.setAttribute("class", "clickable");
@@ -158,7 +158,7 @@ AFRAME.registerComponent("carousel", {
 
         // Right Arrow
         const rightArrow = document.createElement("a-ar-avatar");
-        rightArrow.setAttribute("image", "/arrow-forward.png");
+        rightArrow.setAttribute("image", "/public/arrow-forward.png");
         rightArrow.setAttribute("position", `${xOffset} 0 0.05`);
         rightArrow.setAttribute("size", "small");
         rightArrow.setAttribute("class", "clickable");
@@ -206,6 +206,15 @@ AFRAME.registerComponent("carousel", {
         this.currentIndex += direction;
         this.setImages();
         this.el.emit('change', { index: this.currentIndex, src: this.data.images[this.currentIndex] });
+    },
+
+    remove() {
+        this.buttons.forEach(btn => btn.remove());
+        this.buttons = [];
+        if (this.imageEl) {
+            this.imageEl.remove();
+            this.imageEl = null;
+        }
     },
 
     _calculateButtonWidth(text) {
