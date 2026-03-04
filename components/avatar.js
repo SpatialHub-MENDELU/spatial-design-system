@@ -126,6 +126,10 @@ AFRAME.registerComponent("avatar", {
             : createCircleShape(sizeCoef + 2 * padding);
 
         avatarGeometry = new AFRAME.THREE.ExtrudeGeometry(avatarShape, { depth: 0.01, bevelEnabled: false });
+
+        avatarGeometry.computeBoundingBox();
+        avatarGeometry.center();
+
         const avatarMaterial = new AFRAME.THREE.MeshBasicMaterial({
             color: this.data.color,
             opacity: opacityValue,
@@ -151,7 +155,7 @@ AFRAME.registerComponent("avatar", {
         el.setAttribute("src", src);
         el.setAttribute("height", size);
         el.setAttribute("width", size);
-        el.setAttribute("position", "0 0 0.05");
+        el.setAttribute("position", "0 0 0.01");
         el.setAttribute("material", { alphaTest: 0.5 });
         this.el.appendChild(el);
     },
@@ -165,7 +169,7 @@ AFRAME.registerComponent("avatar", {
         el.setAttribute("anchor", "center");
         el.setAttribute("color", color);
         el.setAttribute("font-size", fontSize);
-        el.setAttribute("position", "0 0 0.05");
+        el.setAttribute("position", "0 0 0.01");
         el.setAttribute("letter-spacing", "0");
         el.setAttribute("max-width", fontSize * 4);
         this.el.appendChild(el);
