@@ -3,6 +3,8 @@ import "aframe-troika-text";
 import { PRIMARY_COLOR_DARK, VARIANT_LIGHT_COLOR } from "../utils/colors.js"
 import "../primitives/ar-button.js" 
 import "../primitives/ar-avatar.js"
+import arrowBackIcon from "../assets/arrow-back.png"
+import arrowForwardIcon from "../assets/arrow-forward.png"
 
 AFRAME.registerComponent("carousel", {
     schema: {
@@ -147,7 +149,7 @@ AFRAME.registerComponent("carousel", {
 
         // Left Arrow
         const leftArrow = document.createElement("a-ar-avatar");
-        leftArrow.setAttribute("image", "/arrow-back.png");
+        leftArrow.setAttribute("image", arrowBackIcon);
         leftArrow.setAttribute("position", `${-xOffset} 0 0.05`);
         leftArrow.setAttribute("size", "small");
         leftArrow.setAttribute("class", "clickable");
@@ -158,7 +160,7 @@ AFRAME.registerComponent("carousel", {
 
         // Right Arrow
         const rightArrow = document.createElement("a-ar-avatar");
-        rightArrow.setAttribute("image", "/arrow-forward.png");
+        rightArrow.setAttribute("image", arrowForwardIcon);
         rightArrow.setAttribute("position", `${xOffset} 0 0.05`);
         rightArrow.setAttribute("size", "small");
         rightArrow.setAttribute("class", "clickable");
