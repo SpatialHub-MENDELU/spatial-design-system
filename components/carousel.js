@@ -125,6 +125,7 @@ AFRAME.registerComponent("carousel", {
             
             this.imageEl.setAttribute("src", images[this.currentIndex]);
             this.imageEl.setAttribute("visible", true);
+            this.imageEl.setAttribute("opacity", this.data.opacity);
         } else {
             this.imageEl.setAttribute("visible", false);
         }
@@ -205,6 +206,11 @@ AFRAME.registerComponent("carousel", {
     },
 
     onButtonClick(direction) {
+        if (direction === -1) {
+            this.el.emit('previous');
+        } else {
+            this.el.emit('next');
+        }
         this.currentIndex += direction;
         this.setImages();
         this.el.emit('change', { index: this.currentIndex, src: this.data.images[this.currentIndex] });
