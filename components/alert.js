@@ -123,6 +123,7 @@ AFRAME.registerComponent("alert", {
         cardEl.setAttribute("content", cardData.content);
         cardEl.setAttribute("prependicon", cardData.prependicon);
         cardEl.setAttribute("outlined", cardData.outlined);
+        cardEl.setAttribute("opacity", cardData.opacity);
         cardEl.setAttribute("buttons", "[]");
         
         if (cardData.closable) {
