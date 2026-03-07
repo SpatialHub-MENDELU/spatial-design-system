@@ -21,39 +21,40 @@ AFRAME.registerComponent("game-view", {
         keyTurnRight: {type: "string", default: "e"},
 
         // fixed
-        position: {type: "string", default: "0 10 0"},
-        rotation: {type: "string", default: "-20 0 0"},
+        position: {type: "vec3", default: {x: 0, y: 10, z: 0}},
+        rotation: {type: "vec3", default: {x: -20, y: 0, z: 0}},
     },
 
     init() {
         this.targetNeededTypes = ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn'];
         this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
 
-        this.zoom = this.data.zoom
-        this.minDistance = this.data.minDistance
-        this.maxDistance = this.data.maxDistance
-        this.minHeight = this.data.minHeight
-        this.maxHeight = this.data.maxHeight
+        this.zoom = this.data.zoom;
+        this.minDistance = this.data.minDistance;
+        this.maxDistance = this.data.maxDistance;
+        this.minHeight = this.data.minHeight;
+        this.maxHeight = this.data.maxHeight;
 
         // types of cameras
-        this.thirdPersonFixed = false
-        this.thirdPersonFollow = false
-        this.quarterTurn = false
-        this.fixed = false
-        this.target = false
+        this.thirdPersonFixed = false;
+        this.thirdPersonFollow = false;
+        this.quarterTurn = false;
+        this.fixed = false;
+        this.target = false;
 
-        this.cameraPosition = new THREE.Vector3();
-        this.cameraRotation = new THREE.Euler();
+        this.wrongInput = false;
+        this.checkInputs();
+        if(this.wrongInput) return;
 
-        this.wrongInput = false
-        this.checkInputs()
-        if(this.wrongInput) return
+        this.type = this.data.type;
+        this.setType();
 
-        this.type = this.data.type
-        this.setType()
-
-        this.cameraPosition = this.parsePosition()
-        this.cameraRotation = this.parseRotation()
+        this.cameraPosition = new THREE.Vector3(this.data.position.x, this.data.position.y, this.data.position.z);
+        this.cameraRotation = new THREE.Euler(
+            THREE.MathUtils.degToRad(this.data.rotation.x),
+            THREE.MathUtils.degToRad(this.data.rotation.y),
+            THREE.MathUtils.degToRad(this.data.rotation.z)
+        );
 
         if(this.isTargetNeeded) this.target = this.data.target?.object3D;
 
@@ -63,8 +64,8 @@ AFRAME.registerComponent("game-view", {
         this.rotationSpeed = this.data.rotationSpeed;
         this.angle = 0;
         this.targetAngle = 0;
-        this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase()
-        this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
+        this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase();
+        this.keyTurnRight = this.data.keyTurnRight.toLowerCase();
 
         this.bindKeyEvents();
 
@@ -85,11 +86,10 @@ AFRAME.registerComponent("game-view", {
         if (this.thirdPersonFixed) this.followTargetIfMoved();
     },
 
-
     bindKeyEvents() {
         document.addEventListener("keydown", (e) => {
-            if (this.quarterTurn) this.handleQuarterTurnInput(e)
-        })
+            if (this.quarterTurn) this.handleQuarterTurnInput(e);
+        });
 
         document.addEventListener("wheel", (e) => {
             if (this.zoom && this.isTargetNeeded) this.handleZoom(e);
@@ -119,7 +119,6 @@ AFRAME.registerComponent("game-view", {
 
         if (rangeDistance !== 0) {
             const progress = (newDistance - this.data.minDistance) / rangeDistance;
-
             const rangeHeight = this.data.maxHeight - this.data.minHeight;
             this.data.height = this.data.minHeight + (progress * rangeHeight);
         } else {
@@ -139,11 +138,11 @@ AFRAME.registerComponent("game-view", {
     // CHECK INPUTS & UPDATE
 
     checkInputs() {
-        if (!isPositiveNumber(this.data.height, 'height')) this.wrongInput = true
-        if (!isPositiveNumber(this.data.rotationSpeed, 'rotationSpeed')) this.wrongInput = true
-        if (!isValidValue(this.data.type, "type", ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'])) this.wrongInput = true
-        if (!isValidGameKey(this.data.keyTurnLeft)) this.wrongInput = true
-        if (!isValidGameKey(this.data.keyTurnRight)) this.wrongInput = true
+        if (!isPositiveNumber(this.data.height, 'height')) this.wrongInput = true;
+        if (!isPositiveNumber(this.data.rotationSpeed, 'rotationSpeed')) this.wrongInput = true;
+        if (!isValidValue(this.data.type, "type", ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'])) this.wrongInput = true;
+        if (!isValidGameKey(this.data.keyTurnLeft)) this.wrongInput = true;
+        if (!isValidGameKey(this.data.keyTurnRight)) this.wrongInput = true;
 
         if (!this.wrongInput) {
             if (this.isTargetNeeded && !this.data.target?.object3D) {
@@ -154,12 +153,12 @@ AFRAME.registerComponent("game-view", {
     },
 
     update(oldData) {
-        this.wrongInput = false
-        this.checkInputs()
-        if(this.wrongInput) return
+        this.wrongInput = false;
+        this.checkInputs();
+        if(this.wrongInput) return;
 
         if (oldData.type !== this.data.type) {
-            this.setType()
+            this.setType();
             this.type = this.data.type;
             this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
             this.updateOffsetPosition();
@@ -168,21 +167,35 @@ AFRAME.registerComponent("game-view", {
         if (oldData.target !== this.data.target) {
             this.target = this.data.target ? this.data.target.object3D : null;
         }
-        if (oldData.height !== this.data.height) this.height = this.data.height
-        if (oldData.distance !== this.data.distance) this.distance = this.data.distance
-        if (oldData.tilt !== this.data.tilt) this.tilt = this.data.tilt
-        if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
-        if (oldData.keyTurnLeft !== this.data.keyTurnLeft) this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase()
-        if (oldData.keyTurnRight !== this.data.keyTurnRight) this.keyTurnRight = this.data.keyTurnRight.toLowerCase()
+        if (oldData.height !== this.data.height) this.height = this.data.height;
+        if (oldData.distance !== this.data.distance) this.distance = this.data.distance;
+        if (oldData.tilt !== this.data.tilt) this.tilt = this.data.tilt;
+        if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed;
+        if (oldData.keyTurnLeft !== this.data.keyTurnLeft) this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase();
+        if (oldData.keyTurnRight !== this.data.keyTurnRight) this.keyTurnRight = this.data.keyTurnRight.toLowerCase();
+        if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom;
+
         if (oldData.position !== this.data.position) {
-            this.cameraPosition = this.parsePosition();
-            this.setCameraPositionAndRotation()
+            this.cameraPosition.set(this.data.position.x, this.data.position.y, this.data.position.z);
+            if (this.fixed) {
+                this.updateOffsetPosition();
+            } else {
+                this.setCameraPositionAndRotation();
+            }
         }
+
         if (oldData.rotation !== this.data.rotation) {
-            this.cameraRotation = this.parseRotation();
-            this.setCameraPositionAndRotation()
+            this.cameraRotation.set(
+                THREE.MathUtils.degToRad(this.data.rotation.x),
+                THREE.MathUtils.degToRad(this.data.rotation.y),
+                THREE.MathUtils.degToRad(this.data.rotation.z)
+            );
+            if (this.fixed) {
+                this.updateOffsetPosition();
+            } else {
+                this.setCameraPositionAndRotation();
+            }
         }
-        if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom
 
         if (this.isTargetNeeded && (
             oldData.minDistance !== this.data.minDistance ||
@@ -190,10 +203,10 @@ AFRAME.registerComponent("game-view", {
             oldData.minHeight !== this.data.minHeight ||
             oldData.maxHeight !== this.data.maxHeight
         )) {
-            if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance
-            if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance
-            if (oldData.minHeight !== this.data.minHeight) this.minHeight = this.data.minHeight
-            if (oldData.maxHeight !== this.data.maxHeight) this.maxHeight = this.data.maxHeight
+            if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance;
+            if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance;
+            if (oldData.minHeight !== this.data.minHeight) this.minHeight = this.data.minHeight;
+            if (oldData.maxHeight !== this.data.maxHeight) this.maxHeight = this.data.maxHeight;
 
             this.enforceZoomConstraints();
             this.updateOffsetPosition();
@@ -211,52 +224,26 @@ AFRAME.registerComponent("game-view", {
 
         switch(this.data.type) {
             case 'thirdPersonFixed':
-                this.thirdPersonFixed = true
+                this.thirdPersonFixed = true;
                 break;
             case 'quarterTurn':
-                this.quarterTurn = true
+                this.quarterTurn = true;
                 break;
             case 'thirdPersonFollow':
-                this.thirdPersonFollow = true
+                this.thirdPersonFollow = true;
                 break;
             case 'fixed':
-                this.fixed = true
+                this.fixed = true;
                 break;
             default:
-                this.thirdPersonFixed = true
-                break
+                this.thirdPersonFixed = true;
+                break;
         }
     },
 
     applyTransform(x, y, z, rotX, rotY, rotZ) {
         this.el.object3D.position.set(x, y, z);
         this.el.object3D.rotation.set(rotX, rotY, rotZ);
-    },
-
-    parsePosition() {
-        const posArray = this.data.position.split(" ").map(parseFloat);
-        if (posArray.length !== 3 || posArray.some(isNaN)) {
-            console.error(`Invalid position format: "${this.data.position}". Expected format: "x y z" with numeric values. Setting default position (0, 10, 0).`);
-            return new THREE.Vector3(0, 10, 0);
-        }
-        return new THREE.Vector3(posArray[0], posArray[1], posArray[2]);
-    },
-
-    parseRotation() {
-        const rotArray = this.data.rotation.split(" ").map(parseFloat);
-        if (rotArray.length !== 3 || rotArray.some(isNaN)) {
-            console.error(`Invalid rotation format: "${this.data.rotation}". Expected format: "x y z" with numeric values. Setting default rotation (-30, 0, 0).`);
-            return new THREE.Euler(
-                THREE.MathUtils.degToRad(0),
-                THREE.MathUtils.degToRad(-30),
-                THREE.MathUtils.degToRad(0)
-            );
-        }
-        return new THREE.Euler(
-            THREE.MathUtils.degToRad(rotArray[0]),
-            THREE.MathUtils.degToRad(rotArray[1]),
-            THREE.MathUtils.degToRad(rotArray[2])
-        );
     },
 
     setCameraPositionAndRotation() {
@@ -267,7 +254,7 @@ AFRAME.registerComponent("game-view", {
             this.cameraRotation.x,
             this.cameraRotation.y,
             this.cameraRotation.z
-        )
+        );
     },
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -289,7 +276,6 @@ AFRAME.registerComponent("game-view", {
             if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
         }
     },
-
 
     followTargetIfMoved() {
         const currentPosition = this.target.position;
@@ -321,7 +307,6 @@ AFRAME.registerComponent("game-view", {
     },
 
     // third-person-fixed
-
     updateCameraThirdPersonFixed(x, y, z, height, distance, tilt) {
         this.applyTransform(
             x,
@@ -330,11 +315,10 @@ AFRAME.registerComponent("game-view", {
             THREE.MathUtils.degToRad(tilt),
             0,
             0
-        )
+        );
     },
 
     // third-person-follow
-
     trackTargetRotation() {
         const { x, y, z } = this.target.position;
         const targetRotationY = this.target.rotation.y;
@@ -353,8 +337,7 @@ AFRAME.registerComponent("game-view", {
             tiltRad,
             rotationFlippedY,
             0
-        )
-
+        );
     },
 
     // quarter turn
@@ -386,7 +369,6 @@ AFRAME.registerComponent("game-view", {
             radiansTilt,
             radiansY,
             0
-        )
-    },
-
+        );
+    }
 });
