@@ -1,4 +1,5 @@
 import { isPositiveNumber, isValidGameKey, isValidValue } from "../../utils/gameUtils";
+import {MOVE_COMPONENTS} from "../../constants/gameConstants";
 
 AFRAME.registerComponent("game-view", {
     schema: {
@@ -7,6 +8,7 @@ AFRAME.registerComponent("game-view", {
         distance: {type: "number", default: 5},
         tilt: {type: "number", default: -20},
         type: {type: "string", default: "thirdPersonFixed"}, // "quarterTurn", "thirdPersonFixed", "thirdPersonFollow", "fixed"
+        cameraOffsetAngle: {type: "string", default: "auto"},
 
         zoom: {type: "boolean", default: false},
         zoomSpeed: {type: "number", default: 0.3},
@@ -34,6 +36,7 @@ AFRAME.registerComponent("game-view", {
         this.maxDistance = this.data.maxDistance;
         this.minHeight = this.data.minHeight;
         this.maxHeight = this.data.maxHeight;
+        this.cameraOffsetAngle = this.data.cameraOffsetAngle;
 
         // types of cameras
         this.thirdPersonFixed = false;
@@ -174,6 +177,7 @@ AFRAME.registerComponent("game-view", {
         if (oldData.keyTurnLeft !== this.data.keyTurnLeft) this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase();
         if (oldData.keyTurnRight !== this.data.keyTurnRight) this.keyTurnRight = this.data.keyTurnRight.toLowerCase();
         if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom;
+        if (oldData.cameraOffsetAngle !== this.data.cameraOffsetAngle) this.cameraOffsetAngle = this.data.cameraOffsetAngle;
 
         if (oldData.position !== this.data.position) {
             this.cameraPosition.set(this.data.position.x, this.data.position.y, this.data.position.z);
@@ -285,6 +289,25 @@ AFRAME.registerComponent("game-view", {
         }
     },
 
+    getAutoOffsetAngle() {
+        if (this.data.cameraOffsetAngle !== "auto") {
+            return parseFloat(this.data.cameraOffsetAngle) || 0;
+        }
+
+        if (this.data.target) {
+            const targetEl = this.data.target;
+            const movementComps = Object.values(MOVE_COMPONENTS);
+
+            for (const compName of movementComps) {
+                if (targetEl.components[compName] && targetEl.components[compName].data.forwardOffsetAngle !== undefined) {
+                    return targetEl.components[compName].data.forwardOffsetAngle;
+                }
+            }
+        }
+
+        return 0;
+    },
+
     // fixed
     updateCameraFixed() {
         const pivot = this.cameraPosition;
@@ -321,7 +344,10 @@ AFRAME.registerComponent("game-view", {
     // third-person-follow
     trackTargetRotation() {
         const { x, y, z } = this.target.position;
-        const targetRotationY = this.target.rotation.y;
+        let targetRotationY = this.target.rotation.y;
+
+        const offsetDeg = this.getAutoOffsetAngle();
+        targetRotationY -= THREE.MathUtils.degToRad(offsetDeg);
 
         const rotationFlippedY = targetRotationY + Math.PI;
 
