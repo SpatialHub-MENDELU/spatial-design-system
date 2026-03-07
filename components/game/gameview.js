@@ -331,12 +331,18 @@ AFRAME.registerComponent("game-view", {
 
     // third-person-fixed
     updateCameraThirdPersonFixed(x, y, z, height, distance, tilt) {
+        const offsetRad = THREE.MathUtils.degToRad(this.getAutoOffsetAngle());
+        const rotationFlippedY = -offsetRad + Math.PI;
+
+        const offsetX = Math.sin(rotationFlippedY) * distance;
+        const offsetZ = Math.cos(rotationFlippedY) * distance;
+
         this.applyTransform(
-            x,
+            x + offsetX,
             y + height,
-            z + distance,
+            z + offsetZ,
             THREE.MathUtils.degToRad(tilt),
-            0,
+            rotationFlippedY,
             0
         );
     },
