@@ -24,6 +24,10 @@ AFRAME.registerComponent('npc-walk', {
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
         stopAtLastPoint: {type: "boolean", default: false}, // If true, the NPC stops moving after reaching the last point in the sequence.
 
+        crossFadeDuration: {type: "number", default: 0.2}, // Duration of the crossfade between  animations when the NPC starts or stops moving, in seconds.
+        slowDownRadius: {type: "number", default: 1.5}, // Distance from the target position at which the NPC starts to slow down to smoothly stop at the point.
+        minSlowdownSpeed: {type: "number", default: 0.5}, // Minimum speed the NPC slows down to when approaching a point, as a fraction of the normal speed.
+
         // RANDOM MOVING TYPE
         xMin: {type: "number", default: -5}, // Minimum allowed position along the-axis(left boundary). Prevents the entity from moving too far left. Only used when type is set to randomMoving.
         xMax: {type: "number", default: 5}, // Maximum allowed position along the X-axis (right boundary). Prevents the entity from moving too far right. Only used when type is set to randomMoving.
@@ -46,6 +50,10 @@ AFRAME.registerComponent('npc-walk', {
 
         this.horizontalPointTolerance = this.data.horizontalPointTolerance
         this.verticalPointTolerance = this.data.verticalPointTolerance
+
+        this.crossFadeDuration = this.data.crossFadeDuration
+        this.slowdownRadius = this.data.slowDownRadius
+        this.minSlowdownSpeed = this.data.minSlowdownSpeed
 
         this.waitBeforeStart = false
         this.waitingBeforeStartsDuration = this.data.waitBeforeStart
@@ -123,6 +131,10 @@ AFRAME.registerComponent('npc-walk', {
 
         if (oldData.horizontalPointTolerance !== this.data.horizontalPointTolerance) this.horizontalPointTolerance = this.data.horizontalPointTolerance
         if (oldData.verticalPointTolerance !== this.data.verticalPointTolerance) this.verticalPointTolerance = this.data.verticalPointTolerance
+
+        if (oldData.crossFadeDuration !== this.data.crossFadeDuration) this.crossFadeDuration = this.data.crossFadeDuration
+        if (oldData.slowDownRadius !== this.data.slowDownRadius) this.slowdownRadius = this.data.slowDownRadius
+        if (oldData.minSlowdownSpeed !== this.data.minSlowdownSpeed) this.minSlowdownSpeed = this.data.minSlowdownSpeed
 
         if (oldData.cyclePath !== this.data.cyclePath) this.cyclePath = this.data.cyclePath
         if (oldData.randomizePointsOrder !== this.data.randomizePointsOrder) this.randomizePointsOrder = this.data.randomizePointsOrder
@@ -221,6 +233,9 @@ AFRAME.registerComponent('npc-walk', {
         if (!isPositiveNumber(this.data.waitBeforeStart, "waitBeforeStart", true)) this.wrongInput = true
         if (!isPositiveNumber(this.data.horizontalPointTolerance, "horizontalPointTolerance")) this.wrongInput = true
         if (!isPositiveNumber(this.data.verticalPointTolerance, "verticalPointTolerance")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.crossFadeDuration, "crossFadeDuration", true)) this.wrongInput = true
+        if (!isPositiveNumber(this.data.slowDownRadius, "slowDownRadius")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.minSlowdownSpeed, "minSlowdownSpeed")) this.wrongInput = true
 
         if (!isValidValue(this.data.type, "type", ["points", "randomMoving"])) this.wrongInput = true
     },
@@ -257,17 +272,42 @@ AFRAME.registerComponent('npc-walk', {
     },
 
     moveToPosition(targetPosition) {
-        const currentVelocity = this.el.body.getLinearVelocity();
-        let direction;
-        if (!this.positionReached) {
+        if (this.positionReached) return;
 
-            if (this.altitude) {
-                direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, this.el.object3D.position).normalize();
-                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, direction.y  * this.speed, direction.z * this.speed));
-            } else {
-                direction = new AFRAME.THREE.Vector3(targetPosition.x - this.el.object3D.position.x, 0, targetPosition.z - this.el.object3D.position.z).normalize();
-                this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, currentVelocity.y(), direction.z * this.speed));
-            }
+        const currentPos = this.el.object3D.position;
+        const currentVelocity = this.el.body.getLinearVelocity();
+
+        const direction = new AFRAME.THREE.Vector3().subVectors(targetPosition, currentPos);
+        if (!this.altitude) direction.y = 0;
+
+        const distance = direction.length();
+        direction.normalize();
+
+        let currentSpeed = this.speed;
+
+        const isStoppingPoint =
+            (this.stopAtLastPoint && this.currentIndex === this.pointsArray.length - 1) ||
+            (this.pauseAtPointsDuration > 0);
+
+        if (isStoppingPoint && distance < this.slowdownRadius) {
+            currentSpeed = Math.max(this.minSlowdownSpeed, this.speed * (distance / this.slowdownRadius));
+        }
+
+        if (this.altitude) {
+            this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * currentSpeed, direction.y * currentSpeed, direction.z * currentSpeed));
+        } else {
+            this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * currentSpeed, currentVelocity.y(), direction.z * currentSpeed));
+        }
+    },
+
+    stopMovement() {
+        if (!this.el.body) return;
+        const currentVelocity = this.el.body.getLinearVelocity();
+
+        if (this.altitude) {
+            this.el.body.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
+        } else {
+            this.el.body.setLinearVelocity(new Ammo.btVector3(0, currentVelocity.y(), 0));
         }
     },
 
@@ -375,6 +415,7 @@ AFRAME.registerComponent('npc-walk', {
         } else {
             if (this.pauseAtPoints) {
                 this.isWaiting = true;
+                this.stopMovement();
                 this.setAnimation(this.animations.idle);
 
                 setTimeout(() => {
@@ -423,6 +464,7 @@ AFRAME.registerComponent('npc-walk', {
         if (this.stopAtLastPoint) { // stop at last point
             if (this.currentIndex >= this.pointsArray.length - 1) {
                 this.isFinished = true;
+                this.stopMovement();
                 this.setAnimation(this.animations.idle);
                 return
             }
