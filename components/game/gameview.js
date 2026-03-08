@@ -65,8 +65,9 @@ AFRAME.registerComponent("game-view", {
 
         // quarter turn
         this.rotationSpeed = this.data.rotationSpeed;
-        this.angle = 0;
-        this.targetAngle = 0;
+        const initialQuarterAngle = this.data.cameraOffsetAngle !== "auto" ? (parseFloat(this.data.cameraOffsetAngle) || 0) : 0;
+        this.angle = initialQuarterAngle;
+        this.targetAngle = initialQuarterAngle;
         this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase();
         this.keyTurnRight = this.data.keyTurnRight.toLowerCase();
 
@@ -100,8 +101,8 @@ AFRAME.registerComponent("game-view", {
     },
 
     handleQuarterTurnInput(e) {
-        if (e.key.toLowerCase() === this.keyTurnLeft) this.targetAngle += 90;
-        if (e.key.toLowerCase() === this.keyTurnRight) this.targetAngle -= 90;
+        if (e.key.toLowerCase() === this.keyTurnLeft) this.targetAngle -= 90;
+        if (e.key.toLowerCase() === this.keyTurnRight) this.targetAngle += 90;
         this.targetAngle = (this.targetAngle + 360) % 360;
         this.updateOffsetPosition();
     },
@@ -177,7 +178,14 @@ AFRAME.registerComponent("game-view", {
         if (oldData.keyTurnLeft !== this.data.keyTurnLeft) this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase();
         if (oldData.keyTurnRight !== this.data.keyTurnRight) this.keyTurnRight = this.data.keyTurnRight.toLowerCase();
         if (oldData.zoom !== this.data.zoom) this.zoom = this.data.zoom;
-        if (oldData.cameraOffsetAngle !== this.data.cameraOffsetAngle) this.cameraOffsetAngle = this.data.cameraOffsetAngle;
+        if (oldData.cameraOffsetAngle !== this.data.cameraOffsetAngle) {
+            this.cameraOffsetAngle = this.data.cameraOffsetAngle;
+            if (this.quarterTurn && this.data.cameraOffsetAngle !== "auto") {
+                const updatedAngle = parseFloat(this.data.cameraOffsetAngle) || 0;
+                this.angle = updatedAngle;
+                this.targetAngle = updatedAngle;
+            }
+        }
 
         if (oldData.position !== this.data.position) {
             this.cameraPosition.set(this.data.position.x, this.data.position.y, this.data.position.z);
