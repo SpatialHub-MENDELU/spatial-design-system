@@ -65,7 +65,7 @@ AFRAME.registerComponent("game-view", {
 
         // quarter turn
         this.rotationSpeed = this.data.rotationSpeed;
-        const initialQuarterAngle = this.data.cameraOffsetAngle !== "auto" ? (parseFloat(this.data.cameraOffsetAngle) || 0) : 0;
+        const initialQuarterAngle = this.getInitialQuarterAngle();
         this.angle = initialQuarterAngle;
         this.targetAngle = initialQuarterAngle;
         this.keyTurnLeft = this.data.keyTurnLeft.toLowerCase();
@@ -147,12 +147,9 @@ AFRAME.registerComponent("game-view", {
         if (!isValidValue(this.data.type, "type", ['thirdPersonFollow', 'thirdPersonFixed', 'quarterTurn', 'fixed'])) this.wrongInput = true;
         if (!isValidGameKey(this.data.keyTurnLeft)) this.wrongInput = true;
         if (!isValidGameKey(this.data.keyTurnRight)) this.wrongInput = true;
-
-        if (!this.wrongInput) {
-            if (this.isTargetNeeded && !this.data.target?.object3D) {
-                console.error("Target is missing or invalid.");
-                this.wrongInput = true;
-            }
+        if (this.isTargetNeeded && !this.data.target?.object3D) {
+            console.error("Target is missing or invalid.");
+            this.wrongInput = true;
         }
     },
 
@@ -165,11 +162,23 @@ AFRAME.registerComponent("game-view", {
             this.setType();
             this.type = this.data.type;
             this.isTargetNeeded = this.targetNeededTypes.includes(this.data.type);
+
+            if (this.quarterTurn) {
+                const updatedAngle = this.getInitialQuarterAngle();
+                this.angle = updatedAngle;
+                this.targetAngle = updatedAngle;
+            }
+
             this.updateOffsetPosition();
         }
 
         if (oldData.target !== this.data.target) {
-            this.target = this.data.target ? this.data.target.object3D : null;
+            if (this.isTargetNeeded) {
+                const newTarget = this.data.target ? this.data.target.object3D : undefined;
+                if (!newTarget) {
+                    this.target = this.data.target
+                }
+            }
         }
         if (oldData.height !== this.data.height) this.height = this.data.height;
         if (oldData.distance !== this.data.distance) this.distance = this.data.distance;
@@ -313,6 +322,18 @@ AFRAME.registerComponent("game-view", {
             }
         }
 
+        return 0;
+    },
+
+    getInitialQuarterAngle() {
+        if (this.data.cameraOffsetAngle !== "auto") {
+            return parseFloat(this.data.cameraOffsetAngle) || 0;
+        }
+        if (this.target) {
+            const offsetDeg = this.getAutoOffsetAngle();
+            const targetRotationY = THREE.MathUtils.radToDeg(this.target.rotation.y);
+            return targetRotationY - offsetDeg;
+        }
         return 0;
     },
 
