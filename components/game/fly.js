@@ -161,7 +161,11 @@ AFRAME.registerComponent("fly", {
         if (key === this.keys.right) this.movingRight = true
         if (key === this.keys.ascend) this.ascending = true
         if (key === this.keys.descend) this.descending = true
-        if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(true)
+        if (this.sprintEnabled && key === this.keys.sprint) {
+            if (this.freeDirectionalFlight) {
+                if (this.movingForward) this.isSprinting = true;
+            } else this.isSprinting = true
+        }
     },
 
     onKeyUp(e) {
@@ -172,7 +176,10 @@ AFRAME.registerComponent("fly", {
         if (key === this.keys.right) this.movingRight = false
         if (key === this.keys.ascend) this.ascending = false
         if (key === this.keys.descend) this.descending = false
-        if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(false)
+        if (this.sprintEnabled) {
+            if (key === this.keys.sprint) this.isSprinting = false
+            if (this.freeDirectionalFlight) if (this.isSprinting && !this.movingForward) this.isSprinting = false
+        }
     },
 
     tick(time, deltaTime) {
