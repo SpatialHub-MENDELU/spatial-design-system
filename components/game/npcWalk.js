@@ -12,6 +12,7 @@ AFRAME.registerComponent('npc-walk', {
 
         allowRotation: {type: "boolean", default: true}, // If true, it allows the NPC to rotate smoothly in the direction of movement.
         rotationSpeed: {type: "number", default: 500}, // Speed at which the NPC rotates toward its walking direction
+        allowGravity: {type: "boolean", default: true}, // If false, the NPC is not affected by gravity and can float if altitude is enabled.
 
         type: {type: "string", default: "points"}, // "points" or "randomMoving". The randomMoving enables random walking within the defined range area. The points type is walking through defined points defined in the points property.
 
@@ -19,7 +20,7 @@ AFRAME.registerComponent('npc-walk', {
         verticalPointTolerance: {type: "number", default: 0.1}, // Vertical tolerance distance to consider the NPC has reached the target position when altitude is enabled.
 
         // POINTS TYPE
-        points: {type: "string", default: "0 2 5, 5 5 5, 5 2 0"}, // Array of positions the NPC walks through in order.
+        points: {type: "string", default: "0 2 5, 5 5 5, 5 10 0"}, // Array of positions the NPC walks through in order.
         cyclePath: {type: "boolean", default: true}, // If true, the NPC loops back to the first point after reaching the last one, forming a continuous cycle. If false, the NPC returns to the first point by traversing the points in reverse order.
         randomizePointsOrder: {type: "boolean", default: false}, // If true, the NPC visits defined points in "points" in a random sequence instead of the defined order.
         stopAtLastPoint: {type: "boolean", default: false}, // If true, the NPC stops moving after reaching the last point in the sequence.
@@ -47,6 +48,9 @@ AFRAME.registerComponent('npc-walk', {
 
         this.speed = this.data.speed
         this.altitude = this.data.altitude
+
+        this.allowGravity = this.data.allowGravity
+        this.gravityY = -9.800000190734863
 
         this.horizontalPointTolerance = this.data.horizontalPointTolerance
         this.verticalPointTolerance = this.data.verticalPointTolerance
@@ -120,6 +124,7 @@ AFRAME.registerComponent('npc-walk', {
         if (oldData.altitude !== this.data.altitude) this.altitude = this.data.altitude
         if (oldData.pauseAtPoints !== this.data.pauseAtPoints) this.pauseAtPointsDuration = this.data.pauseAtPoints
         if (oldData.waitBeforeStart !== this.data.waitBeforeStart) this.waitingBeforeStartsDuration = this.data.waitBeforeStart
+        if (oldData.allowGravity !== this.data.allowGravity) this.allowGravity = this.data.allowGravity
 
         if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
         if (oldData.allowRotation !== this.data.allowRotation) this.allowRotation = this.data.allowRotation
@@ -196,6 +201,7 @@ AFRAME.registerComponent('npc-walk', {
         const deltaSec = deltaTime / 1000;
         if (this.wrongInput) return
         if (this.el.body) {
+            this.setGravity()
             if (!this.waitBeforeStart) this.pointsMovement(deltaSec)
         }
     },
@@ -403,6 +409,11 @@ AFRAME.registerComponent('npc-walk', {
         if (this.pointsType) this.setNextTargetPosition();
         if (this.randomMovingType) this.targetPosition = this.generateRandomPosition();
         if (!this.isFinished) this.positionReached = false;
+    },
+
+    setGravity() {
+        if (this.allowGravity) this.el.body.setGravity(new Ammo.btVector3(0, this.gravityY, 0));
+        else this.el.body.setGravity(new Ammo.btVector3(0, 0, 0));
     },
 
     pointsMovement(deltaSec) {
