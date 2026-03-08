@@ -273,16 +273,22 @@ AFRAME.registerComponent('npc-walk', {
 
     checkReachedPosition(targetPosition) {
         const currentPosition = this.el.object3D.position;
-        if (this.altitude) {
-            if (currentPosition.distanceTo(targetPosition) < this.verticalPointTolerance) this.positionReached = true;
-        } else {
-            const dx = currentPosition.x - targetPosition.x;
-            const dz = currentPosition.z - targetPosition.z;
-            const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+        const dx = currentPosition.x - targetPosition.x;
+        const dz = currentPosition.z - targetPosition.z;
 
-            if (distanceXZ < this.horizontalPointTolerance) {
-                this.positionReached = true;
-            }
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+
+        const horizontalReached = distanceXZ < this.horizontalPointTolerance;
+
+        let verticalReached = true;
+
+        if (this.altitude) {
+            const dy = Math.abs(currentPosition.y - targetPosition.y);
+            verticalReached = dy < this.verticalPointTolerance;
+        }
+
+        if (horizontalReached && verticalReached) {
+            this.positionReached = true;
         }
     },
 
