@@ -1,14 +1,14 @@
 import * as AFRAME from "aframe";
-import { PRIMARY_COLOR_DARK, PRIMARY_COLOR } from "../utils/colors.js";
+import { PRIMARY_COLOR, VARIANT_DARK_COLOR } from "../utils/colors.js";
 import { createStarShape } from "../utils/utils.js";
 
 AFRAME.registerComponent("ratings", {
     schema: {
         size: { type: "string", default: "medium" },
         opacity: { type: "number", default: 1 },
-        color: { type: "string", default: PRIMARY_COLOR_DARK }, // Base color (empty stars)
+        color: { type: "string", default: VARIANT_DARK_COLOR }, // Base color (empty stars)
         activecolor: { type: "string", default: PRIMARY_COLOR }, // Active color (filled stars)
-        value: { type: "number", default: 3 }, // How many stars are "filled"
+        value: { type: "number", default: 3 }, // How many stars are selected ("filled")
         length: { type: "number", default: 5 }, // Total number of stars
         readonly: { type: "boolean", default: false },
         clearable: { type: "boolean", default: true },
