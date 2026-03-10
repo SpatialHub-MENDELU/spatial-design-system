@@ -130,6 +130,33 @@ export function createPartiallyRoundedRectShape(width, height, radius, sides) {
     return shape;
 }
 
+/**
+ * @param {number} outerRadius - Distance from center to the tips.
+ * @param {number} innerRadius - Distance from center to the inner valleys.
+ * @param {number} points - Number of points (e.g., 5 for a classic star).
+ */
+export function createStarShape(outerRadius, innerRadius, points = 5) {
+  const shape = new THREE.Shape();
+  
+  // Calculate the angle step for each point (half-step because we do tip then valley)
+  const step = Math.PI / points;
+
+  // Start at the top point
+  shape.moveTo(0, outerRadius);
+
+  for (let i = 1; i <= 2 * points; i++) {
+    // Alternate between outer and inner radius
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const x = Math.sin(i * step) * radius;
+    const y = Math.cos(i * step) * radius;
+    
+    shape.lineTo(x, y);
+  }
+
+  shape.closePath();
+  return shape;
+}
+
 function rgbToGrayscale(r, g, b) {
   // The most commonly used conversion formula
   return 0.299 * r + 0.587 * g + 0.114 * b;
