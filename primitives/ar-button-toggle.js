@@ -11,6 +11,7 @@ AFRAME.registerPrimitive('a-ar-buttontoggle', {
         size: 'buttontoggle.size',
         opacity: 'buttontoggle.opacity',
         color: 'buttontoggle.color',
+        activecolor: 'buttontoggle.activecolor',
         mode: 'buttontoggle.mode',
         buttons: 'buttontoggle.buttons',
         mandatory: 'buttontoggle.mandatory',
