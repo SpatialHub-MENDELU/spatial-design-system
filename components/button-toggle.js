@@ -58,7 +58,7 @@ AFRAME.registerComponent("buttontoggle", {
             }
         }
 
-        if (this.data.mandatory && this.data.buttons.length > 0) {
+        if (this.data.mandatory && this.data.buttons.length > 0 && this.selectedIndices.length === 0) {
             this.selectedIndices.push(0);
         }
     
@@ -146,11 +146,10 @@ AFRAME.registerComponent("buttontoggle", {
             const buttonEl = document.createElement("a-ar-button");
             
             buttonEl.setAttribute("size", this.data.size);
+            buttonEl.setAttribute("opacity", this.data.opacity);
             if (data.label) buttonEl.setAttribute("content", data.label);
             buttonEl.setAttribute("elevated", false);
             buttonEl.setAttribute("animate", false);
-            //buttonEl.setAttribute("outlined", true);
-
             
             if (data.icon) buttonEl.setAttribute("icon", data.icon);
             if (data.iconpos) buttonEl.setAttribute("iconpos", data.iconpos);

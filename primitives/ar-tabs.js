@@ -8,7 +8,7 @@ AFRAME.registerPrimitive('a-ar-tabs', {
     mappings: {
         visible: 'geometry.visible',
         position: 'geometry.position',
-        tabsbuttons: 'tabs.tabsbuttons',
+        tabitems: 'tabs.tabitems',
         opacity: 'tabs.opacity',
         size: 'tabs.size',
         color: 'tabs.color',

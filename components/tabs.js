@@ -5,7 +5,7 @@ import "../primitives/ar-button-toggle.js"
 
 AFRAME.registerComponent("tabs", {
     schema: {
-        tabsbuttons: {
+        tabitems: {
             default: [],
             parse: function (value) {
                 if (Array.isArray(value)) return value;
@@ -38,7 +38,7 @@ AFRAME.registerComponent("tabs", {
         if (!oldData || Object.keys(oldData).length === 0) return;
 
         // Check specifically for things that require a full rebuild
-        if (this.data.tabsbuttons !== oldData.tabsbuttons || this.data.size !== oldData.size) {
+        if (this.data.tabitems !== oldData.tabitems || this.data.size !== oldData.size) {
             this.setTabs();
             return;
         }
@@ -58,7 +58,7 @@ AFRAME.registerComponent("tabs", {
         }
 
         this.buttonToggleEl = document.createElement("a-ar-buttontoggle");
-        this.buttonToggleEl.setAttribute("buttons", JSON.stringify(this.data.tabsbuttons));
+        this.buttonToggleEl.setAttribute("buttons", JSON.stringify(this.data.tabitems));
         
         this.buttonToggleEl.setAttribute("size", this.data.size);
         this.buttonToggleEl.setAttribute("color", this.data.color);
@@ -80,21 +80,20 @@ AFRAME.registerComponent("tabs", {
 
         // Setup initial visibility after the scene is ready
         if (this.el.sceneEl.hasLoaded) {
-            this.updateContentVisibility(this.data.tabsbuttons[0]);
+            this.updateContentVisibility(this.data.tabitems[0]);
         } else {
             this.el.sceneEl.addEventListener('loaded', () => {
-                this.updateContentVisibility(this.data.tabsbuttons[0]);
+                this.updateContentVisibility(this.data.tabitems[0]);
             });
         }
     },
 
     updateContentVisibility(activeTab) {
-        if (!activeTab || !this.data.tabsbuttons) return;
+        if (!activeTab || !this.data.tabitems) return;
 
-        this.data.tabsbuttons.forEach(tab => {
+        this.data.tabitems.forEach(tab => {
             if (!tab.content) return;
             
-            // Find the entity mentioned in the 'content' field
             const targetEl = document.querySelector(tab.content);
             if (targetEl) {
                 // If this tab's content matches the active tab's content, show it
