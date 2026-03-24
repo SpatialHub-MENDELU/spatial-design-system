@@ -1,6 +1,6 @@
 import * as AFRAME from "aframe"
 import "aframe-troika-text"
-import { PRIMARY_COLOR_DARK, determineHighlightedColor } from "../utils/colors.js"
+import { PRIMARY_COLOR_DARK, VARIANT_LIGHT_COLOR, determineHighlightedColor } from "../utils/colors.js"
 import { getContrast, setContrastColor } from "../utils/utils.js"
 
 AFRAME.registerComponent("menu", {
@@ -11,7 +11,6 @@ AFRAME.registerComponent("menu", {
         menuopacity: { type: "number", default: 1 },
         color: {type: "string", default: PRIMARY_COLOR_DARK},
         clickable: {type: "boolean", default: true},
-        variant: { type: "string", default: "filled" },
         layout: { type: "string", default: "grid" },
         logoicon: { type: "string", default: "" },
         backbutton: {type: 'boolean', default: false},
@@ -129,6 +128,18 @@ AFRAME.registerComponent("menu", {
         }, this.animationDuration)
     },
 
+    _getDisplayMode() {
+        let showText = this.data.showtext;
+        let showIcon = true;
+
+        if (this.items && this.items.length > 6) {
+            showText = false;
+            showIcon = true;
+        }
+
+        return { showText, showIcon };
+    },
+
     update(oldData) {
         // Update the background color if the `color` property changes
         if (oldData.color !== this.data.color) {
@@ -156,27 +167,37 @@ AFRAME.registerComponent("menu", {
             .querySelectorAll(".menu-item")
             .forEach(e => e.setAttribute("material", { opacity: this.data.itemsopacity }));
 
+        const { showText, showIcon } = this._getDisplayMode();
         const sizeCoef = this.sizeCoef;
-        const iconSizeWithText = sizeCoef;
+        const iconSizeWithText = sizeCoef * 1.2;
         const iconSizeNoText = sizeCoef * 1.5;
-        const iconSize = this.data.showtext ? iconSizeWithText : iconSizeNoText;
-        const iconY = this.data.showtext ? sizeCoef * 0.6 : 0;
-        const textY = this.data.showtext ? -sizeCoef * 0.6 : 0;
+        const iconSize = showText ? iconSizeWithText : iconSizeNoText;
+        const iconY = showText ? sizeCoef * 0.6 : 0;
+        const baseTextY = showIcon ? -sizeCoef * 0.6 : 0;
 
         this.el
-            .querySelectorAll(".menu-item a-troika-text")
-            .forEach(e => {
-                e.setAttribute('visible', this.data.showtext);
-                e.setAttribute('font-size', sizeCoef);
-                e.setAttribute("position", `0 ${textY} 0.01`);
-            });
+            .querySelectorAll(".menu-item")
+            .forEach((item, index) => {
+                const parsedItem = this.items[index];
+                if (!parsedItem) return;
 
-        this.el
-            .querySelectorAll(".menu-item a-image")
-            .forEach(e => {
-                e.setAttribute('height', iconSize);
-                e.setAttribute('width', iconSize);
-                e.setAttribute("position", `0 ${iconY} 0.01`);
+                const hasIcon = parsedItem.icon !== "" && parsedItem.icon !== undefined && parsedItem.icon !== null;
+                const textY = (hasIcon && showIcon) ? baseTextY : 0;
+
+                const textEl = item.querySelector("a-troika-text");
+                if (textEl) {
+                    textEl.setAttribute('visible', showText);
+                    textEl.setAttribute('font-size', sizeCoef);
+                    textEl.setAttribute("position", `0 ${textY} 0.01`);
+                }
+
+                const iconEl = item.querySelector("a-image");
+                if (iconEl) {
+                    iconEl.setAttribute('visible', showIcon);
+                    iconEl.setAttribute('height', iconSize);
+                    iconEl.setAttribute('width', iconSize);
+                    iconEl.setAttribute("position", `0 ${iconY} 0.01`);
+                }
             });
 
         this.el
@@ -192,7 +213,7 @@ AFRAME.registerComponent("menu", {
     setSize() {
         switch (this.data.size) {
             case "small":
-                this.sizeCoef = 0.055;
+                this.sizeCoef = 0.045;
                 break;
 
             case "medium":                    
@@ -251,18 +272,18 @@ AFRAME.registerComponent("menu", {
         const lastTwoItems = parsedItems.splice(parsedItems.length - (parsedItems.length === 4 ? 1 : 2), 2)
         parsedItems.unshift(...lastTwoItems)
 
+        const { showText, showIcon } = this._getDisplayMode();
+
         // Sorting items backwards, then moving last two items to the front (one if there are 4 items) to get them in the right order.
         
         const nodes = parsedItems.map((parsedItem, index) => {
             const item = document.createElement("a-entity")
             item.classList.add("menu-item", "clickable")
 
-            parsedItem.color = parsedItem.color === undefined ? 'white' : parsedItem.color
+            parsedItem.color = parsedItem.color === undefined ? VARIANT_LIGHT_COLOR : parsedItem.color
             item.setAttribute("material", {
                 color: parsedItem.color,
-                // opacity: this.data.variant === "transparent" ? 0.5 : 1,
                 opacity: this.data.itemsopacity,
-                transparent: this.data.variant === "transparent",
             })
 
             const content = document.createElement("a-entity")
@@ -270,7 +291,7 @@ AFRAME.registerComponent("menu", {
             const targetTextColor = this._getTextColor(parsedItem.textColor, parsedItem.color);
 
             const text = document.createElement("a-troika-text")
-            text.setAttribute("visible", this.data.showtext)
+            text.setAttribute("visible", showText)
             text.setAttribute("value", parsedItem.title === undefined ? "" : parsedItem.title)
             text.setAttribute("align", "center")
             text.setAttribute("baseline", "center")
@@ -281,12 +302,15 @@ AFRAME.registerComponent("menu", {
             content.appendChild(text)
 
             let icon = null;
-            if (parsedItem.icon !== "" && parsedItem.icon !== undefined && parsedItem.icon !== null) {
-                const iconSize = this.data.showtext ? sizeCoef : sizeCoef * 1.5;
-                const iconY = this.data.showtext ? sizeCoef * 0.6 : 0;
-                const textY = this.data.showtext ? -sizeCoef * 0.6 : 0;
+            const hasIcon = parsedItem.icon !== "" && parsedItem.icon !== undefined && parsedItem.icon !== null;
+            
+            if (hasIcon) {
+                const iconSize = showText ? sizeCoef * 1.2 : sizeCoef * 1.5;
+                const iconY = showText ? sizeCoef * 0.6 : 0;
+                const textY = showIcon ? -sizeCoef * 0.6 : 0;
 
                 icon = this._appendIcon(parsedItem.icon, iconSize);
+                icon.setAttribute("visible", showIcon);
                 icon.classList.add('size-reference-image');
                 icon.setAttribute("position", `0 ${iconY} 0.01`);
                 content.appendChild(icon);
