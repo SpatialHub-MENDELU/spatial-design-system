@@ -10,6 +10,7 @@ AFRAME.registerComponent("menu", {
         itemsopacity: { type: "number", default: 1 },
         menuopacity: { type: "number", default: 1 },
         color: {type: "string", default: PRIMARY_COLOR_DARK},
+        activecolor: {type: "string", default: ""},
         clickable: {type: "boolean", default: true},
         layout: { type: "string", default: "grid" },
         logoicon: { type: "string", default: "" },
@@ -132,7 +133,7 @@ AFRAME.registerComponent("menu", {
         let showText = this.data.showtext;
         let showIcon = true;
 
-        if (this.items && this.items.length > 6) {
+        if (this.items && this.items.length > 6 && this.data.layout === "circle") {
             showText = false;
             showIcon = true;
         }
@@ -150,7 +151,7 @@ AFRAME.registerComponent("menu", {
                 .querySelectorAll(".menu-item")
                 .forEach((item, index) => {
                     if (this.selected[index]) {
-                        const highlightedColor = determineHighlightedColor(this.data.color);
+                        const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
                         item.setAttribute("material", { color: highlightedColor });
 
                         const parsedItem = this.items[index];
@@ -230,15 +231,11 @@ AFRAME.registerComponent("menu", {
         }
 
         this.menuRadius = this.sizeCoef * 6.0;
-        this.gridDim = this.sizeCoef * 10.0;
+        this.cellUnit = this.sizeCoef * 6.0; // the size of one cell in the grid layout
         this.el.spacing = this.menuRadius * 0.05;
 
         if (this.data.layout === "circle") {
             this.el.setAttribute("geometry", { primitive: "circle", radius: this.menuRadius });
-        } else {
-            this.el.setAttribute("geometry", { primitive: "plane", width: this.gridDim, height: this.gridDim });
-            this.el.setAttribute("width", this.gridDim);
-            this.el.setAttribute("height", this.gridDim);
         }
     },
 
@@ -265,7 +262,6 @@ AFRAME.registerComponent("menu", {
 
     setItems(parsedItems) {
         this.items = parsedItems
-
         const sizeCoef = this.sizeCoef;
 
         parsedItems.sort((a, b) => parsedItems.indexOf(b) - parsedItems.indexOf(a));
@@ -325,7 +321,7 @@ AFRAME.registerComponent("menu", {
                     this.selected[index] = !this.selected[index];
 
                     // Calculate suitable highlighted color based on color lightness
-                    const highlightedColor = determineHighlightedColor(this.data.color);
+                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
                     const itemBackgroungColor = this.selected[index] ? highlightedColor : `${parsedItem.color}`;
 
                     item.setAttribute("material", {
@@ -354,9 +350,24 @@ AFRAME.registerComponent("menu", {
                 opacity: this.data.itemsopacity,
             })
         } else {
+            // Calculate dynamic dimensions
+            const cols = 2;
+            const rows = Math.ceil(nodes.length / cols);
+            const dynamicWidth = this.cellUnit * cols;
+            const dynamicHeight = this.cellUnit * rows;
+
+            // Update background geometry to match the grid aspect ratio
+            this.el.setAttribute("geometry", { 
+                primitive: "plane", 
+                width: dynamicWidth, 
+                height: dynamicHeight 
+            });
+
             this.el.setAttribute("grid", {
-                spacing: this.el.spacing,
-            })
+                columns: cols,
+                rows: rows,
+                padding: {x: 10, y: 10}
+            });
         }
 
         this.setSupportElements()
@@ -369,15 +380,17 @@ AFRAME.registerComponent("menu", {
 
         const innerCircleRadius = this.menuRadius * 0.87;
         const icon = this.data.logoicon
-        const border = document.createElement("a-ring")
-        console.log("border", border)
 
-        border.setAttribute("radius-outer", innerCircleRadius * 1.15)
-        border.setAttribute("radius-inner", innerCircleRadius * 1.12)
-        border.setAttribute("material", {color: this.data.color, opacity: this.data.opacity})
-        border.setAttribute("geometry", {segmentsTheta: 64})
-        
-        supportElementsContainer.appendChild(border)
+        if (this.data.layout === "circle") {
+            const border = document.createElement("a-ring")
+
+            border.setAttribute("radius-outer", innerCircleRadius * 1.15)
+            border.setAttribute("radius-inner", innerCircleRadius * 1.12)
+            border.setAttribute("material", {color: this.data.color, opacity: this.data.opacity})
+            border.setAttribute("geometry", {segmentsTheta: 64})
+            
+            supportElementsContainer.appendChild(border)
+        }
 
         if(this.data.backbutton){
         const arrowback = document.createElement("a-circle")
@@ -467,79 +480,74 @@ AFRAME.registerComponent('grid', {
     schema: {
       columns: { type: 'int', default: 2 },
       rows: { type: 'int', default: 2 },
-      padding: { type: 'vec2', default: { x: 0, y: 0 } }
+      padding: { type: 'vec2', default: { x: 10, y: 10 } }
     },
- 
-    isAnimating: false,
-   
+
     init() {
-      this.initGridProperties();
-      this.setLayout();
+        let timeout = null;
+        this.el.addEventListener("child-attached", (e) => {
+            if (!e.detail.el.hasAttribute("data-layout-excluded")) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => this.updateLayout(), 20);
+            }
+        });
     },
- 
-    initGridProperties() {
-        const elGeometry = this.el.getObject3D("mesh")?.geometry;
- 
-        this.gridWidth = elGeometry?.parameters?.width || 1;
-        this.gridHeight = elGeometry?.parameters?.height || 1;
-        this.gridDepth = elGeometry?.parameters?.depth || 0; 
-        this.gridItems = Array.from(this.el.children);
 
-        this.normalizedPadding = {};
-        this.normalizedPadding.x = this.data.padding.x > 0 && this.data.padding.x < 100 ? this.data.padding.x / 100 : 0;
-        this.normalizedPadding.y = this.data.padding.y > 0 && this.data.padding.y < 100 ? this.data.padding.y / 100 : 0;
+    update() { this.updateLayout(); },
 
-        this.gridColumns = this.data.columns;
-        this.gridRows = this.data.rows;
+    updateLayout() {
+        const elGeometry = this.el.getAttribute("geometry");
+        if (!elGeometry) return;
 
-        // Check, if `a-ar-row` or `a-ar-column` is used
-        if (this.gridRows === 1) {
-          this.gridColumns = this.gridColumns > this.gridItems.length ? this.gridColumns : this.gridItems.length;
-        } else if (this.gridColumns === 1) {
-          this.gridRows = this.gridRows > this.gridItems.length ? this.gridRows : this.gridItems.length;
-        }
+        const gridWidth = elGeometry.width || 1;
+        const gridHeight = elGeometry.height || 1;
+        const gridItems = Array.from(this.el.children).filter(el => !el.hasAttribute("data-layout-excluded"));
+        
+        if (gridItems.length === 0) return;
 
-        const actualGridRows = Math.ceil(this.gridItems.length / this.gridColumns); 
+        const cols = this.data.columns;
+        const rows = Math.ceil(gridItems.length / cols);
 
-        // Use `actualGridRows` to prevent items overflow
-        if (actualGridRows > this.gridRows) {
-          this.gridRows = actualGridRows;
-        }
-    },
- 
-    setLayout() { 
-      const itemWidth = this.gridWidth / this.gridColumns;
-      const itemHeight = this.gridHeight / this.gridRows;
+        // Convert percentage to a factor
+        const padXFactor = this.data.padding.x / 100;
+        const padYFactor = this.data.padding.y / 100;
 
-      const itemBaseXPosition = -this.gridWidth / 2 + itemWidth / 2 - itemWidth / 2 * this.normalizedPadding.x;
-      const itemBaseYPosition = this.gridHeight / 2 - itemHeight / 2 + itemHeight / 2 * this.normalizedPadding.y;
-      const itemXOffset = itemWidth + (itemWidth * this.normalizedPadding.x) / Math.max(this.gridColumns - 1, 1);
-      const itemYOffset = itemHeight + (itemHeight * this.normalizedPadding.y) / Math.max(this.gridRows - 1, 1);
+        // 1. Calculate the size of a SINGLE gap
+        // Divide total padding by (count + 1) to get equal gaps inside and out
+        const singleGapX = (gridWidth * padXFactor) / (cols + 1);
+        const singleGapY = (gridHeight * padYFactor) / (rows + 1);
 
-      let xIndex = 0;
-      let yIndex = 0;
+        // 2. Calculate the item size (Total size minus all gaps, divided by item count)
+        const itemWidth = (gridWidth - (singleGapX * (cols + 1))) / cols;
+        const itemHeight = (gridHeight - (singleGapY * (rows + 1))) / rows;
 
-      for (const item of this.gridItems) {
-        const itemBbox = new THREE.Box3().setFromObject(item.object3D);
-        const itemBboxSize = itemBbox.getSize(new THREE.Vector3());
+        gridItems.forEach((item, index) => {
+            if (!item.hasAttribute("geometry")) {
+                item.setAttribute("geometry", { primitive: "plane", width: 1, height: 1 });
+            }
 
-        item.object3D.position.x = itemBaseXPosition + itemXOffset * xIndex;
-        item.object3D.position.y = itemBaseYPosition + itemYOffset * yIndex;
-        // Adding `gridHeight * 0.01` prevents overlap issues when items share the same depth as the grid (e.g. planes)
-        item.object3D.position.z = this.gridDepth / 2 + itemBboxSize.z / 2 + this.gridHeight * 0.01;
-                
-        item.object3D.scale.x = itemWidth / itemBboxSize.x - (itemWidth / itemBboxSize.x) * this.normalizedPadding.x;
-        item.object3D.scale.y = itemHeight / itemBboxSize.y - (itemHeight / itemBboxSize.y) * this.normalizedPadding.y;
+            // Update item geometry to the calculated width/height
+            item.setAttribute("geometry", { 
+                primitive: "plane", 
+                width: itemWidth, 
+                height: itemHeight 
+            });
+            item.object3D.scale.set(1, 1, 1);
 
-        xIndex++;
- 
-        if (xIndex >= this.gridColumns) {
-          xIndex = 0;
-          yIndex--;
-        }
-      }
+            const colIndex = index % cols;
+            const rowIndex = Math.floor(index / cols);
+
+            // 3. Position the item
+            // Start at the left edge + the first gap + previous items/gaps + half of current item
+            item.object3D.position.x = (-gridWidth / 2) + singleGapX + (colIndex * (itemWidth + singleGapX)) + (itemWidth / 2);
+            
+            // Start at top edge - the first gap - previous items/gaps - half of current item
+            item.object3D.position.y = (gridHeight / 2) - singleGapY - (rowIndex * (itemHeight + singleGapY)) - (itemHeight / 2);
+            
+            item.object3D.position.z = 0.01;
+        });
     }
-})
+});
 
 AFRAME.registerComponent('circle', {
     schema: {
