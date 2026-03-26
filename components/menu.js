@@ -153,16 +153,48 @@ AFRAME.registerComponent("menu", {
                     if (this.selected[index]) {
                         const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
                         item.setAttribute("material", { color: highlightedColor });
+                        const parsedItem = this.items[index];
+                        const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
 
+                        const text = item.querySelector("a-troika-text");
+                        if (text) text.setAttribute("color", targetTextColor);
+
+                        // Sync icon color to match text color
+                        const icon = item.querySelector("a-image");
+                        if (icon) icon.setAttribute("color", targetTextColor);
+                    }
+                });
+        }
+
+        if (oldData.menuopacity !== this.data.menuopacity) {
+            this.el.setAttribute("material", { opacity: this.data.menuopacity });
+        }
+
+        const sizeChanged = oldData.size && oldData.size !== this.data.size;
+        const itemsChanged = oldData.items && oldData.items !== this.data.items;
+
+        if (sizeChanged) {
+            this.setSize();
+        }
+
+        if (sizeChanged || itemsChanged) {
+            this.removeAllItems();
+            this.prepareItems();
+
+            // Restore the color of already selected items if only the size changed
+            if (sizeChanged && !itemsChanged) {
+                this.el.querySelectorAll(".menu-item").forEach((item, index) => {
+                    if (this.selected[index]) {
+                        const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
+                        item.setAttribute("material", { color: highlightedColor });
                         const parsedItem = this.items[index];
                         const text = item.querySelector("a-troika-text");
                         const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
                         if (text) text.setAttribute("color", targetTextColor);
                     }
                 });
+            }
         }
-
-        this.replaceItemsIfChanged(oldData.items);
 
         this.el
             .querySelectorAll(".menu-item")
@@ -195,8 +227,7 @@ AFRAME.registerComponent("menu", {
                 const iconEl = item.querySelector("a-image");
                 if (iconEl) {
                     iconEl.setAttribute('visible', showIcon);
-                    iconEl.setAttribute('height', iconSize);
-                    iconEl.setAttribute('width', iconSize);
+                    iconEl.setAttribute("geometry", { width: iconSize, height: iconSize });
                     iconEl.setAttribute("position", `0 ${iconY} 0.01`);
                 }
             });
@@ -239,11 +270,16 @@ AFRAME.registerComponent("menu", {
         }
     },
 
-    _appendIcon(src, size, id) {
+    _appendIcon(src, size) {
         const iconEl = document.createElement("a-image");
-        if (id) iconEl.setAttribute("id", id);
         iconEl.setAttribute("src", src);
         iconEl.setAttribute("geometry", { width: size, height: size });
+        iconEl.setAttribute("material", { 
+            transparent: true, 
+            alphaTest: 0.5, 
+            shader: "flat" 
+        });
+        iconEl.setAttribute("position", { x: 0, y: 0, z: 0.02 });   
         return iconEl;
     },
 
@@ -269,8 +305,6 @@ AFRAME.registerComponent("menu", {
         parsedItems.unshift(...lastTwoItems)
 
         const { showText, showIcon } = this._getDisplayMode();
-
-        // Sorting items backwards, then moving last two items to the front (one if there are 4 items) to get them in the right order.
         
         const nodes = parsedItems.map((parsedItem, index) => {
             const item = document.createElement("a-entity")
@@ -294,7 +328,6 @@ AFRAME.registerComponent("menu", {
             text.setAttribute("anchor", "center")
             text.setAttribute("font-size", sizeCoef)
             text.setAttribute("color", targetTextColor)
-            text.classList.add("size-reference-text")
             content.appendChild(text)
 
             let icon = null;
@@ -307,8 +340,8 @@ AFRAME.registerComponent("menu", {
 
                 icon = this._appendIcon(parsedItem.icon, iconSize);
                 icon.setAttribute("visible", showIcon);
-                icon.classList.add('size-reference-image');
                 icon.setAttribute("position", `0 ${iconY} 0.01`);
+                icon.setAttribute("color", targetTextColor);
                 content.appendChild(icon);
 
                 text.setAttribute("position", `0 ${textY} 0.01`);
@@ -330,6 +363,8 @@ AFRAME.registerComponent("menu", {
 
                     const currentTargetTextColor = this._getTextColor(parsedItem.textColor, itemBackgroungColor);
                     if (text) text.setAttribute("color", currentTargetTextColor);
+                    const iconEl = item.querySelector("a-image");
+                    if (iconEl) iconEl.setAttribute("color", currentTargetTextColor);
                 }
 
                 item.parentElement.emit('select', {item: parsedItem});
@@ -386,7 +421,7 @@ AFRAME.registerComponent("menu", {
 
             border.setAttribute("radius-outer", innerCircleRadius * 1.15)
             border.setAttribute("radius-inner", innerCircleRadius * 1.12)
-            border.setAttribute("material", {color: this.data.color, opacity: this.data.opacity})
+            border.setAttribute("material", {color: this.data.color, opacity: this.data.itemsopacity})
             border.setAttribute("geometry", {segmentsTheta: 64})
             
             supportElementsContainer.appendChild(border)
@@ -445,16 +480,6 @@ AFRAME.registerComponent("menu", {
     removeAllItems() {
         if (this.el.children.length > 0) {
             Array.from(this.el.children).forEach(el => el.parentNode.removeChild(el))
-        }
-    },
-
-    /**
-     * @param {{icon: string, title: string, color: string}} oldItems Items from oldData
-     */
-    replaceItemsIfChanged(oldItems) {
-        if (oldItems && this.data.items !== oldItems) {
-            this.removeAllItems()
-            this.prepareItems()
         }
     },
 
