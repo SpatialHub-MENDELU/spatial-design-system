@@ -2,6 +2,7 @@ import * as AFRAME from "aframe"
 import "aframe-troika-text"
 import { PRIMARY_COLOR_DARK, VARIANT_LIGHT_COLOR, determineHighlightedColor } from "../utils/colors.js"
 import { getContrast, setContrastColor } from "../utils/utils.js"
+import arrowBackIcon from "../assets/arrow-back-white.png"
 
 AFRAME.registerComponent("menu", {
     schema: { 
@@ -13,6 +14,7 @@ AFRAME.registerComponent("menu", {
         activecolor: {type: "string", default: ""},
         clickable: {type: "boolean", default: true},
         layout: { type: "string", default: "grid" },
+        gridcolumns: { type: "number", default: 2 },
         logoicon: { type: "string", default: "" },
         backbutton: {type: 'boolean', default: false},
         showtext: {type: 'boolean', default: true},
@@ -142,64 +144,98 @@ AFRAME.registerComponent("menu", {
     },
 
     update(oldData) {
-        // Update the background color if the `color` property changes
-        if (oldData.color !== this.data.color) {
-            this.el.setAttribute("material", { color: this.data.color });
+        // Skip the first update loop as init() handles initial setup
+        if (Object.keys(oldData).length === 0) return;
 
-            // Update the color of already selected items
-            this.el
-                .querySelectorAll(".menu-item")
-                .forEach((item, index) => {
-                    if (this.selected[index]) {
-                        const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
-                        item.setAttribute("material", { color: highlightedColor });
-                        const parsedItem = this.items[index];
-                        const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
-
-                        const text = item.querySelector("a-troika-text");
-                        if (text) text.setAttribute("color", targetTextColor);
-
-                        // Sync icon color to match text color
-                        const icon = item.querySelector("a-image");
-                        if (icon) icon.setAttribute("color", targetTextColor);
-                    }
-                });
-        }
-
-        if (oldData.menuopacity !== this.data.menuopacity) {
-            this.el.setAttribute("material", { opacity: this.data.menuopacity });
-        }
-
-        const sizeChanged = oldData.size && oldData.size !== this.data.size;
-        const itemsChanged = oldData.items && oldData.items !== this.data.items;
-
-        if (sizeChanged) {
-            this.setSize();
-        }
-
-        if (sizeChanged || itemsChanged) {
-            this.removeAllItems();
-            this.prepareItems();
-
-            // Restore the color of already selected items if only the size changed
-            if (sizeChanged && !itemsChanged) {
-                this.el.querySelectorAll(".menu-item").forEach((item, index) => {
-                    if (this.selected[index]) {
-                        const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
-                        item.setAttribute("material", { color: highlightedColor });
-                        const parsedItem = this.items[index];
-                        const text = item.querySelector("a-troika-text");
-                        const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
-                        if (text) text.setAttribute("color", targetTextColor);
-                    }
-                });
+        // Checking which properties have changed and executing the appropriate functions
+        const changedProperties = Object.keys(this.data).filter(property => this.data[property] !== oldData[property]);
+        
+        changedProperties.forEach(property => {
+            switch (property) {
+                case 'size':
+                    this.setSize();
+                    this.recreateAll();
+                    break;
+                case 'items':
+                    this.selected = [];
+                    this.recreateAll();
+                    break;
+                case 'layout':
+                case 'gridcolumns':
+                    this.recreateAll();
+                    break;
+                case 'itemsopacity':
+                    this.updateItemsOpacity();
+                    break;
+                case 'menuopacity':
+                    this.updateMenuOpacity();
+                    break;
+                case 'color':
+                case 'activecolor':
+                    this.updateMenuColor();
+                    break;
+                case 'logoicon':
+                case 'backbutton':
+                    this.setSupportElements();
+                    break;
+                case 'showtext':
+                    this.updateItemsLayout();
+                    break;
+                case 'clickable': // No visual change, handled in event listener
+                    break;
+                default:
+                    break;
             }
-        }
+        });
+    },
 
+    recreateAll() {
+        // Clean up old layout components before recreating items
+        this.el.removeAttribute('grid');
+        this.el.removeAttribute('circle');
+
+        this.removeAllItems();
+        this.prepareItems();
+    },
+
+    updateMenuColor() {
+        this.el.setAttribute("material", { color: this.data.color });
+
+        // Update the color of already selected items
+        this.el
+            .querySelectorAll(".menu-item")
+            .forEach((item, index) => {
+                if (this.selected[index]) {
+                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
+                    item.setAttribute("material", { color: highlightedColor });
+                    const parsedItem = this.items[index];
+                    const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
+
+                    const text = item.querySelector("a-troika-text");
+                    if (text) text.setAttribute("color", targetTextColor);
+
+                    // Sync icon color to match text color
+                    const icon = item.querySelector("a-image");
+                    if (icon) icon.setAttribute("color", targetTextColor);
+                }
+            });
+        
+        this.setSupportElements();
+    },
+
+    updateMenuOpacity() {
+        this.el.setAttribute("material", { opacity: this.data.menuopacity });
+    },
+
+    updateItemsOpacity() {
         this.el
             .querySelectorAll(".menu-item")
             .forEach(e => e.setAttribute("material", { opacity: this.data.itemsopacity }));
+        
+        this.setSupportElements();
+    },
 
+    updateItemsLayout() {
         const { showText, showIcon } = this._getDisplayMode();
         const sizeCoef = this.sizeCoef;
         const iconSizeWithText = sizeCoef * 1.2;
@@ -231,15 +267,6 @@ AFRAME.registerComponent("menu", {
                     iconEl.setAttribute("position", `0 ${iconY} 0.01`);
                 }
             });
-
-        this.el
-            .querySelectorAll("a-ring")
-            .forEach(e => {
-                e.setAttribute("radius-outer", this.menuRadius);
-                e.setAttribute("radius-inner", this.menuRadius * 0.974);
-                e.setAttribute("material", { color: this.data.color, opacity: this.data.itemsopacity });
-                e.setAttribute("geometry", { segmentsTheta: 64 });
-            });
     },
 
     setSize() {
@@ -261,7 +288,7 @@ AFRAME.registerComponent("menu", {
                 break;
         }
 
-        this.menuRadius = this.sizeCoef * 6.0;
+        this.menuRadius = this.sizeCoef * 8.0;
         this.cellUnit = this.sizeCoef * 6.0; // the size of one cell in the grid layout
         this.el.spacing = this.menuRadius * 0.05;
 
@@ -310,15 +337,20 @@ AFRAME.registerComponent("menu", {
             const item = document.createElement("a-entity")
             item.classList.add("menu-item", "clickable")
 
-            parsedItem.color = parsedItem.color === undefined ? VARIANT_LIGHT_COLOR : parsedItem.color
+            const isSelected = this.selected[index];
+            const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
+            
+            parsedItem.color = parsedItem.color === undefined ? VARIANT_LIGHT_COLOR : parsedItem.color;
+            const itemBackgroundColor = isSelected ? highlightedColor : parsedItem.color;
+
             item.setAttribute("material", {
-                color: parsedItem.color,
+                color: itemBackgroundColor,
                 opacity: this.data.itemsopacity,
             })
 
             const content = document.createElement("a-entity")
 
-            const targetTextColor = this._getTextColor(parsedItem.textColor, parsedItem.color);
+            const targetTextColor = this._getTextColor(parsedItem.textColor, itemBackgroundColor);
 
             const text = document.createElement("a-troika-text")
             text.setAttribute("visible", showText)
@@ -355,13 +387,13 @@ AFRAME.registerComponent("menu", {
 
                     // Calculate suitable highlighted color based on color lightness
                     const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
-                    const itemBackgroungColor = this.selected[index] ? highlightedColor : `${parsedItem.color}`;
+                    const itemBackgroundColor = this.selected[index] ? highlightedColor : `${parsedItem.color}`;
 
                     item.setAttribute("material", {
-                        color: itemBackgroungColor
+                        color: itemBackgroundColor
                     });
 
-                    const currentTargetTextColor = this._getTextColor(parsedItem.textColor, itemBackgroungColor);
+                    const currentTargetTextColor = this._getTextColor(parsedItem.textColor, itemBackgroundColor);
                     if (text) text.setAttribute("color", currentTargetTextColor);
                     const iconEl = item.querySelector("a-image");
                     if (iconEl) iconEl.setAttribute("color", currentTargetTextColor);
@@ -378,6 +410,7 @@ AFRAME.registerComponent("menu", {
         this.el.append(...nodes)
 
         if (this.data.layout === "circle") {
+            this.el.setAttribute("geometry", { primitive: "circle", radius: this.menuRadius });
             this.el.setAttribute("circle", {
                 spacing: this.el.spacing,
                 radius: this.menuRadius * 0.87,
@@ -386,7 +419,7 @@ AFRAME.registerComponent("menu", {
             })
         } else {
             // Calculate dynamic dimensions
-            const cols = 2;
+            const cols = this.data.gridcolumns;
             const rows = Math.ceil(nodes.length / cols);
             const dynamicWidth = this.cellUnit * cols;
             const dynamicHeight = this.cellUnit * rows;
@@ -410,6 +443,12 @@ AFRAME.registerComponent("menu", {
     },
 
     setSupportElements() {
+        // Remove old support elements container
+        const oldContainer = this.el.querySelector('[data-layout-excluded]');
+        if (oldContainer) {
+            oldContainer.remove();
+        }
+
         const supportElementsContainer = document.createElement("a-entity")
         supportElementsContainer.setAttribute("data-layout-excluded", "")
 
@@ -427,49 +466,35 @@ AFRAME.registerComponent("menu", {
             supportElementsContainer.appendChild(border)
         }
 
-        if(this.data.backbutton){
-        const arrowback = document.createElement("a-circle")
-        arrowback.setAttribute("radius", 0.2 * innerCircleRadius)
-        arrowback.setAttribute("material", {color: this.data.color, opacity: 1 })
-        arrowback.setAttribute("position", `0 0 0.02`)
-        arrowback.setAttribute("class", "back-button clickable")
+        if (this.data.backbutton) {
+            const arrowback = document.createElement("a-circle")
+            arrowback.setAttribute("radius", 0.2 * innerCircleRadius)
+            arrowback.setAttribute("material", {color: this.data.color, opacity: 1 })
+            arrowback.setAttribute("position", `0 0 0.02`)
+            arrowback.setAttribute("class", "back-button clickable")
 
-        const arrowbackicon = document.createElement("a-image")
-        arrowbackicon.setAttribute("src", "/public/arrow_back_white.png")
-        arrowbackicon.setAttribute("height", 0.22 * innerCircleRadius)
-        arrowbackicon.setAttribute("width", 0.22 * innerCircleRadius)
-        arrowbackicon.setAttribute("position", "0 0 0.02")
-        arrowback.appendChild(arrowbackicon)
-        arrowback.addEventListener("click", (e) => {
-            arrowback.parentElement.emit('back')
-            console.log('back button clicked', arrowback)
-        })
+            const arrowbackicon = this._appendIcon(arrowBackIcon, 0.22 * innerCircleRadius)
+            arrowback.appendChild(arrowbackicon)
+            arrowback.addEventListener("click", (e) => {
+                arrowback.parentElement.emit('back')
+                console.log('back button clicked', arrowback)
+            })
 
-        supportElementsContainer.appendChild(arrowback)
+            supportElementsContainer.appendChild(arrowback)
         
         } else {
             if(icon !== ""){
-            const logo = document.createElement("a-circle")
-            logo.classList.add("center-logo-icon")
-            logo.setAttribute("radius", 0.2 * innerCircleRadius)
-            logo.setAttribute("material", {color: this.data.color, opacity: 1 })
-            logo.setAttribute("position", "0 0 0.02")
+                const logo = document.createElement("a-circle")
+                logo.classList.add("center-logo-icon")
+                logo.setAttribute("radius", 0.2 * innerCircleRadius)
+                logo.setAttribute("material", {color: this.data.color, opacity: 1 })
+                logo.setAttribute("position", "0 0 0.02")
 
-            if(icon !== "" && icon !== undefined) {
-                const logoicon = document.createElement("a-image")
-
-                let myImg = new Image;
-                myImg.src = icon;
-                myImg.onload = function(){
-                    logoicon.setAttribute("src", icon)
-                    logoicon.setAttribute("height", 0.2 * innerCircleRadius)
-                    logoicon.setAttribute("width", 0.2 * innerCircleRadius)
-                    logoicon.setAttribute("position", "0 0 0.03")
-                    logo.appendChild(logoicon)
-                }
-            }
-            
-            supportElementsContainer.appendChild(logo)
+                const logoicon = this._appendIcon(icon, 0.2 * innerCircleRadius)
+                logoicon.setAttribute("position", "0 0 0.03")
+                logo.appendChild(logoicon)
+                
+                supportElementsContainer.appendChild(logo)
             
             }
         }
@@ -509,16 +534,29 @@ AFRAME.registerComponent('grid', {
     },
 
     init() {
-        let timeout = null;
-        this.el.addEventListener("child-attached", (e) => {
-            if (!e.detail.el.hasAttribute("data-layout-excluded")) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => this.updateLayout(), 20);
+        this.timeout = null;
+        this.debouncedUpdate = () => {
+            clearTimeout(this.timeout);
+            this.timeout = setTimeout(() => this.updateLayout(), 20);
+        };
+
+        this.childAttachedHandler = (e) => {
+            if (e.detail.el && !e.detail.el.hasAttribute("data-layout-excluded")) {
+                this.debouncedUpdate();
             }
-        });
+        };
+        
+        this.el.addEventListener("child-attached", this.childAttachedHandler);
+        this.el.addEventListener("child-detached", this.debouncedUpdate);
     },
 
     update() { this.updateLayout(); },
+
+    remove() {
+        this.el.removeEventListener("child-attached", this.childAttachedHandler);
+        this.el.removeEventListener("child-detached", this.debouncedUpdate);
+        clearTimeout(this.timeout);
+    },
 
     updateLayout() {
         const elGeometry = this.el.getAttribute("geometry");
@@ -585,32 +623,28 @@ AFRAME.registerComponent('circle', {
       isAnimating: false,
       
       init() {
-        this.updateLayout()
+        this.timeout = null;
+        this.debouncedUpdate = () => {
+            clearTimeout(this.timeout);
+            this.timeout = setTimeout(() => this.updateLayout(), 20);
+        };
 
-        // Below is a timeout to avoid calling `updateLayout` multiple times
-        // This is needed due to the nature of `child-attached` event
-        // https://aframe.io/docs/1.4.0/core/entity.html#event-detail
-        let timeout = null
-        this.el.addEventListener("child-attached", (e) => {
-            if (!e.detail.el.hasAttribute("data-layout-excluded")) {
-                clearTimeout(timeout)
-                
-                timeout = setTimeout(() => {
-                    this.updateLayout()
-                }, 20)
+        this.childAttachedHandler = (e) => {
+            if (e.detail.el && !e.detail.el.hasAttribute("data-layout-excluded")) {
+                this.debouncedUpdate();
             }
-        })
+        };
+        
+        this.el.addEventListener("child-attached", this.childAttachedHandler);
+        this.el.addEventListener("child-detached", this.debouncedUpdate);
 
-        // The same timeout is used to prevent `updateLayout` from being called
-        // when replacing items in `menu` (adding and removing at the same time triggers both events) 
-        // Otherwise it works as intended
-        this.el.addEventListener("child-detached", () => {
-            clearTimeout(timeout)
+        this.updateLayout();
+      },
 
-            timeout = setTimeout(() => {
-                this.updateLayout()
-            }, 20)
-        })
+      remove() {
+        this.el.removeEventListener("child-attached", this.childAttachedHandler);
+        this.el.removeEventListener("child-detached", this.debouncedUpdate);
+        clearTimeout(this.timeout);
       },
 
       updateLayout() {

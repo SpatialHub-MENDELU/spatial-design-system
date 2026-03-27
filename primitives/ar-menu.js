@@ -17,6 +17,7 @@ AFRAME.registerPrimitive('a-ar-menu', {
     clickable: 'menu.clickable',
     items: 'menu.items',
     layout: 'menu.layout',
+    gridcolumns: 'menu.gridcolumns',
     logoicon: 'menu.logoicon',
     backbutton: 'menu.backbutton',
     showtext: 'menu.showtext',
