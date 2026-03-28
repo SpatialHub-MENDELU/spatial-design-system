@@ -1,4 +1,22 @@
 import * as AFRAME from "aframe";
+import '../components/list.js';
+
+AFRAME.registerPrimitive('a-ar-list', {
+    defaultComponents: {
+        list: { },
+    },
+    
+    mappings: {
+        visible: 'geometry.visible',
+        position: 'geometry.position',
+        size: 'list.size',
+        width: 'list.width',
+        opacity: 'list.opacity',
+        textcolor: 'list.textcolor',
+        items: 'list.items',
+        type: 'list.type'
+    }
+})
 
 AFRAME.registerPrimitive('a-ar-row', {
     defaultComponents: {
