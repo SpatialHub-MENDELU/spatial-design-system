@@ -206,9 +206,9 @@ AFRAME.registerComponent("menu", {
             .querySelectorAll(".menu-item")
             .forEach((item, index) => {
                 if (this.selected[index]) {
-                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
-                    item.setAttribute("material", { color: highlightedColor });
                     const parsedItem = this.items[index];
+                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color || this.data.color);
+                    item.setAttribute("material", { color: highlightedColor });
                     const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
 
                     const text = item.querySelector("a-troika-text");
@@ -338,9 +338,9 @@ AFRAME.registerComponent("menu", {
             item.classList.add("menu-item", "clickable")
 
             const isSelected = this.selected[index];
-            const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
             
             parsedItem.color = parsedItem.color === undefined ? VARIANT_LIGHT_COLOR : parsedItem.color;
+            const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color);
             const itemBackgroundColor = isSelected ? highlightedColor : parsedItem.color;
 
             item.setAttribute("material", {
@@ -386,7 +386,7 @@ AFRAME.registerComponent("menu", {
                     this.selected[index] = !this.selected[index];
 
                     // Calculate suitable highlighted color based on color lightness
-                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(this.data.color);
+                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color);
                     const itemBackgroundColor = this.selected[index] ? highlightedColor : `${parsedItem.color}`;
 
                     item.setAttribute("material", {
@@ -485,7 +485,7 @@ AFRAME.registerComponent("menu", {
         } else {
             if(icon !== ""){
                 const logo = document.createElement("a-circle")
-                logo.classList.add("center-logo-icon")
+                logo.classList.add("center-logo-icon", "clickable")
                 logo.setAttribute("radius", 0.2 * innerCircleRadius)
                 logo.setAttribute("material", {color: this.data.color, opacity: 1 })
                 logo.setAttribute("position", "0 0 0.02")
@@ -494,6 +494,11 @@ AFRAME.registerComponent("menu", {
                 logoicon.setAttribute("position", "0 0 0.03")
                 logo.appendChild(logoicon)
                 
+                logo.addEventListener("click", (e) => {
+                    logo.parentElement.emit('logo')
+                    console.log('logo clicked', logo)
+                })
+
                 supportElementsContainer.appendChild(logo)
             
             }
