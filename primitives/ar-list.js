@@ -13,6 +13,7 @@ AFRAME.registerPrimitive('a-ar-list', {
         width: 'list.width',
         opacity: 'list.opacity',
         textcolor: 'list.textcolor',
+        color: 'list.color',
         items: 'list.items',
         type: 'list.type'
     }
@@ -31,7 +32,8 @@ AFRAME.registerPrimitive('a-ar-row', {
         visible: 'geometry.visible',
         position: 'geometry.position',
         padding: 'grid.padding',
-        opacity: 'material.opacity'
+        opacity: 'material.opacity',
+        color: 'material.color'
     }
 })
 
@@ -48,7 +50,7 @@ AFRAME.registerPrimitive('a-ar-column', {
         visible: 'geometry.visible',
         position: 'geometry.position',
         padding: 'grid.padding',
-        opacity: 'material.opacity'
+        opacity: 'material.opacity',
+        color: 'material.color'
     }
 })
-

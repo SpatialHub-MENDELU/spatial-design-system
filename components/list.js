@@ -1,5 +1,6 @@
 import * as AFRAME from "aframe"
 import "aframe-troika-text";
+import { VARIANT_LIGHT_COLOR, determineHighlightedColor } from "../utils/colors";
 
 AFRAME.registerComponent("list", {
     schema: {
@@ -7,6 +8,7 @@ AFRAME.registerComponent("list", {
         size: { type: "string", default: "medium"},
         opacity: { type: "number", default: 1 },
         textcolor: { type: "string", default: "black" },
+        color: { type: "string", default: VARIANT_LIGHT_COLOR },
         type: { type: "string", default: "text" },
         items: { 
             default: [{ title: "Item", subtitle: "", icon: ""}],
@@ -27,6 +29,8 @@ AFRAME.registerComponent("list", {
     },
 
     init() {
+        this.rows = [];
+        this.selectedIndex = -1;
         this.setItems();
     },
 
@@ -43,6 +47,7 @@ AFRAME.registerComponent("list", {
                 case 'textcolor':
                 case 'opacity':
                 case 'size':
+                case 'color':
                     this.setItems();
                     break;
                 default:
@@ -93,8 +98,19 @@ AFRAME.registerComponent("list", {
         }
   },
 
+    getValidWidth() {
+        let width = parseFloat(this.data.width);
+        if (isNaN(width) || !isFinite(width) || width <= 0) {
+            console.warn(`List width must be a positive number greater than 0. Using default of 1.5.`);
+            return 1.5;
+        }
+        return width;
+    },
+
     setItems() {
         this._clearItems();
+        this.rows = [];
+        this.selectedIndex = -1;
 
         if (this.data.type === "text") {
             this.createTextList();
@@ -105,6 +121,7 @@ AFRAME.registerComponent("list", {
 
     createTextList() {
         const items = this.data.items;
+        const width = this.getValidWidth();
         let currentY = 0;
 
         let sizeCoef = 1;
@@ -135,14 +152,14 @@ AFRAME.registerComponent("list", {
                     fontSize: titleFontSize,
                     position: { x: 0, y: 0, z: 0 },
                     opacity: this.data.opacity,
-                    clipRect: `0 -1 ${this.data.width} 1`
+                    clipRect: `0 -1 ${width} 1`
                 });
             }
 
             // Add Subtitle
             if (item.title && item.subtitle) {
                 const charWidth = subtitleFontSize * letterWidthRatio;
-                const charsPerLine = Math.max(1, Math.floor(this.data.width / charWidth));
+                const charsPerLine = Math.max(1, Math.floor(width / charWidth));
                 const lines = Math.ceil(item.subtitle.length / charsPerLine);
                 const subtitleHeight = lines * (subtitleFontSize * 1.2); // 1.2 is troika default line-height
 
@@ -150,7 +167,7 @@ AFRAME.registerComponent("list", {
                     fontSize: subtitleFontSize,
                     position: { x: 0, y: -subtitleOffset, z: 0 },
                     opacity: this.data.opacity * 0.8,
-                    maxWidth: this.data.width,
+                    maxWidth: width,
                     lineHeight: 1.2,
                     baseline: "top"
                 });
@@ -170,10 +187,119 @@ AFRAME.registerComponent("list", {
 
         // Center the wrapper vertically and horizontally relative to the root entity
         const centerY = lastY / 2;
-        wrapper.setAttribute("position", { x: -this.data.width / 2, y: -centerY, z: 0 });
+        wrapper.setAttribute("position", { x: -width / 2, y: -centerY, z: 0 });
     },
 
     createCardList() {
-        // Future card logic goes here...
+        const items = this.data.items;
+        const width = this.getValidWidth();
+        let sizeCoef = this.data.size === "small" ? 0.7 : (this.data.size === "large" ? 1.5 : 1);
+
+        const padding = 0.05 * sizeCoef;
+        const itemPadding = 0.05 * sizeCoef; 
+        
+        // 1. Create the main column (the card body)
+        const mainColumn = document.createElement("a-ar-column");
+        mainColumn.setAttribute("width", width);
+        mainColumn.setAttribute("material", "color", this.data.color);
+        mainColumn.setAttribute("opacity", this.data.opacity);
+        this.el.appendChild(mainColumn);
+
+        // Pre-calculate heights to properly center items within the column background
+        let itemHeights = [];
+        let totalHeight = padding * 2; // Top and bottom padding
+
+        items.forEach((item) => {
+            const titleFontSize = 0.075 * sizeCoef;
+            const subtitleFontSize = 0.06 * sizeCoef;
+            const subtitleOffset = 0.07 * sizeCoef;
+            let itemHeight = item.subtitle ? (subtitleOffset + subtitleFontSize + 0.05) : (titleFontSize + 0.1);
+            
+            itemHeights.push({
+                height: itemHeight,
+                titleFontSize,
+                subtitleFontSize
+            });
+            totalHeight += itemHeight;
+        });
+
+        if (items.length > 1) {
+            totalHeight += (items.length - 1) * itemPadding;
+        }
+
+        // Start positioning from the top of the column
+        let currentY = (totalHeight / 2) - padding;
+
+        items.forEach((item, index) => {
+            // 2. Create Row for each item
+            const row = document.createElement("a-ar-row");
+            
+            const heights = itemHeights[index];
+            const itemHeight = heights.height;
+            const itemCenterY = currentY - (itemHeight / 2);
+
+            row.setAttribute("width", width);
+            row.setAttribute("height", itemHeight);
+            
+            // Positioning within the column
+            row.setAttribute("position", { x: 0, y: itemCenterY, z: 0.01 });
+            
+            // 3. Add Text (Positioned relative to the row's center)
+            const textStartX = -(width / 2) + padding;
+
+            if (item.title) {
+                this._appendText(row, item.title, {
+                    fontSize: heights.titleFontSize,
+                    position: { x: textStartX, y: item.subtitle ? 0.03 : 0, z: 0.02 },
+                    opacity: this.data.opacity
+                });
+            }
+
+            if (item.subtitle) {
+                this._appendText(row, item.subtitle, {
+                    fontSize: heights.subtitleFontSize,
+                    position: { x: textStartX, y: -0.04, z: 0.02 },
+                    opacity: this.data.opacity * 0.7,
+                    maxWidth: width - (padding * 2)
+                });
+            }
+
+            // 4. Interaction
+            row.classList.add("clickable");
+            row.addEventListener("click", () => {
+                this.selectedIndex = index;
+                this._updateRowHighlights();
+                this.el.emit("selected", { item, index });
+            });
+
+            mainColumn.appendChild(row);
+            this.rows.push(row);
+
+            currentY = itemCenterY - (itemHeight / 2) - itemPadding;
+        });
+
+        // Size the background to fit all rows
+        mainColumn.setAttribute("height", totalHeight);
+        
+        // Center the whole list
+        mainColumn.setAttribute("position", { x: 0, y: 0, z: 0 });
     },
+
+    _updateRowHighlights() {
+        const highlightedColor = determineHighlightedColor(this.data.color);
+``
+        this.rows.forEach((row, index) => {
+            if (index === this.selectedIndex) {
+                row.setAttribute("material", {
+                    color: highlightedColor,
+                    opacity: 1.0 // Make it solid when selected
+                });
+            } else {
+                // Return to transparent background so the column color shows through
+                row.setAttribute("material", {
+                    opacity: 0.0 
+                });
+            }
+        });
+    }
 });
