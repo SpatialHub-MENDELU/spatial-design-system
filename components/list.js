@@ -187,7 +187,7 @@ AFRAME.registerComponent("list", {
 
         // Center the wrapper vertically and horizontally relative to the root entity
         const centerY = lastY / 2;
-        wrapper.setAttribute("position", { x: -width / 2, y: -centerY, z: 0 });
+        wrapper.setAttribute("position", { x: 0, y: -centerY, z: 0 });
     },
 
     createCardList() {
@@ -208,12 +208,24 @@ AFRAME.registerComponent("list", {
         // Pre-calculate heights to properly center items within the column background
         let itemHeights = [];
         let totalHeight = padding * 2; // Top and bottom padding
+        
+        const letterWidthRatio = 0.55;
+        const contentWidth = width - (padding * 2);
 
         items.forEach((item) => {
             const titleFontSize = 0.075 * sizeCoef;
             const subtitleFontSize = 0.06 * sizeCoef;
             const subtitleOffset = 0.07 * sizeCoef;
-            let itemHeight = item.subtitle ? (subtitleOffset + subtitleFontSize + 0.05) : (titleFontSize + 0.1);
+            
+            let subtitleHeight = 0;
+            if (item.subtitle) {
+                const charWidth = subtitleFontSize * letterWidthRatio;
+                const charsPerLine = Math.max(1, Math.floor(contentWidth / charWidth));
+                const lines = Math.ceil(item.subtitle.length / charsPerLine);
+                subtitleHeight = lines * (subtitleFontSize * 1.2);
+            }
+
+            let itemHeight = item.subtitle ? (subtitleOffset + subtitleHeight + 0.05) : (titleFontSize + 0.1);
             
             itemHeights.push({
                 height: itemHeight,
@@ -246,21 +258,25 @@ AFRAME.registerComponent("list", {
             
             // 3. Add Text (Positioned relative to the row's center)
             const textStartX = -(width / 2) + padding;
+            const titleY = item.subtitle ? (itemHeight / 2) - (0.06 * sizeCoef) : 0;
 
             if (item.title) {
                 this._appendText(row, item.title, {
                     fontSize: heights.titleFontSize,
-                    position: { x: textStartX, y: item.subtitle ? 0.03 : 0, z: 0.02 },
+                    position: { x: textStartX, y: titleY, z: 0.02 },
                     opacity: this.data.opacity
                 });
             }
 
             if (item.subtitle) {
+                const subtitleY = titleY - (0.04 * sizeCoef);
                 this._appendText(row, item.subtitle, {
                     fontSize: heights.subtitleFontSize,
-                    position: { x: textStartX, y: -0.04, z: 0.02 },
+                    position: { x: textStartX, y: subtitleY, z: 0.02 },
                     opacity: this.data.opacity * 0.7,
-                    maxWidth: width - (padding * 2)
+                    maxWidth: contentWidth,
+                    lineHeight: 1.2,
+                    baseline: "top"
                 });
             }
 
