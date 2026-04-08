@@ -35,6 +35,14 @@ AFRAME.registerComponent("walk", {
             sprint: this.data.sprintClipName
         };
 
+        this.directionName = {
+            forward: "forward",
+            backward: "backward",
+            left: "left",
+            right: "right",
+            target: 'target'
+        }
+
         this.scene = this.el.sceneEl;
         this.camera = this.el.sceneEl.camera
 
@@ -204,44 +212,62 @@ AFRAME.registerComponent("walk", {
 
     onKeyDown(e) {
         const key = e.key.toLowerCase();
-        if (key === this.keys.left) {
+        if (key === this.keys.left && !this.movingLeft) {
             this.turnDirection = 'left';
             this.movingLeft = true
+            this.el.emit("walk-move-start", {direction: this.directionName.left, speed: this.speed,rotationSpeed: this.rotationSpeed});
         }
-        if (key === this.keys.right) {
+        if (key === this.keys.right && !this.movingRight) {
             this.movingRight = true
             this.turnDirection = 'right';
+            this.el.emit("walk-move-start", {direction: this.directionName.right, speed: this.speed, rotationSpeed: this.rotationSpeed});
         }
-        if (key === this.keys.up) {
+        if (key === this.keys.up && !this.movingForward) {
             this.movingForward = true;
+            this.el.emit("walk-move-start", {direction: this.directionName.forward, speed: this.speed});
         }
-        if (key === this.keys.down) this.movingBackward = true;
+        if (key === this.keys.down && !this.movingBackward) {
+            this.movingBackward = true;
+            this.el.emit("walk-move-start", {direction: this.directionName.backward, speed: this.speed});
+        }
         if (this.sprintEnabled && key === this.keys.sprint) {
-            if (this.smoothTurn) {
-                if (this.movingForward) this.isSprinting = true;
+            if (this.smoothTurn && this.movingForward) {
+                this.isSprinting = true;
             }
             if (this.stepTurnDiagonal || this.stepTurnCardinal) {
                 if (this.movingForward || this.movingBackward || this.movingLeft || this.movingRight) this.isSprinting = true;
             }
+
+            if (this.isSprinting) this.el.emit("walk-sprint-start", {speed: this.sprintSpeed});
         }
     },
 
     onKeyUp(e) {
         const key = e.key.toLowerCase();
-        if (key === this.keys.left) {
+        if (key === this.keys.left && this.movingLeft) {
             this.movingLeft = false;
             if (this.turnDirection === 'left') this.turnDirection = null;
+            this.el.emit("walk-move-stop", {direction: this.directionName.left});
         }
-        if (key === this.keys.right) {
+        if (key === this.keys.right && this.movingRight) {
             this.movingRight = false
             if (this.turnDirection === 'right') this.turnDirection = null;
+            this.el.emit("walk-move-stop", {direction: this.directionName.right});
         }
-        if (key === this.keys.up) this.movingForward = false;
-        if (key === this.keys.down) this.movingBackward = false;
+        if (key === this.keys.up && this.movingForward) {
+            this.movingForward = false;
+            this.el.emit("walk-move-stop", {direction: this.directionName.forward});
+        }
+        if (key === this.keys.down && this.movingBackward) {
+            this.movingBackward = false;
+            this.el.emit("walk-move-stop", {direction: this.directionName.backward});
+        }
 
         if (this.sprintEnabled) {
             if (key === this.keys.sprint) this.isSprinting = false
             if (this.smoothTurn) if (this.isSprinting && !this.movingForward) this.isSprinting = false;
+
+            if (!this.isSprinting) this.el.emit("walk-sprint-stop");
         }
 
     },
@@ -249,6 +275,7 @@ AFRAME.registerComponent("walk", {
     onClick(e) {
         if (this.targetWalk) {
             this.setTargetPosition(e)
+            this.el.emit("walk-move-start", {direction: this.directionName.target, speed: this.speed, targetPosition: this.targetPosition, rotationSpeed: this.rotationSpeed});
         }
     },
 
@@ -528,9 +555,22 @@ AFRAME.registerComponent("walk", {
 
     moveToTarget() {
         if (!this.reachTarget) {
-            this.setAnimation(this.animations.walk)
-            const direction = new AFRAME.THREE.Vector3().subVectors(this.targetPosition, this.el.object3D.position).normalize();
-            this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
+            this.setAnimation(this.animations.walk);
+
+            const currentPos = this.el.object3D.position;
+            const direction = new AFRAME.THREE.Vector3(
+                this.targetPosition.x - currentPos.x,
+                0,
+                this.targetPosition.z - currentPos.z
+            ).normalize();
+
+            const currentVelocity = this.el.body.getLinearVelocity();
+
+            this.el.body.setLinearVelocity(new Ammo.btVector3(
+                direction.x * this.speed,
+                currentVelocity.y(),
+                direction.z * this.speed
+            ));
         }
     },
 
@@ -544,7 +584,10 @@ AFRAME.registerComponent("walk", {
         const distanceXZ = Math.sqrt(dx * dx + dz * dz);
 
         if (distanceXZ < 0.5) {
-            this.reachTarget = true;
+            if (!this.reachTarget) {
+                this.reachTarget = true;
+                this.el.emit("walk-move-stop", {direction: this.directionName.target});
+            }
         }
     },
 

@@ -7,7 +7,8 @@ AFRAME.registerComponent("buttontoggle", {
     schema: {
         opacity: { type: "number", default: 1},
         size: { type: "string", default: "medium"},
-        color: { type: "string", default: PRIMARY_COLOR_DARK},
+        color: { type: "string", default: VARIANT_LIGHT_COLOR },
+        activecolor: { type: "string", default: PRIMARY_COLOR_DARK },
         mode: { type: "string", default: ""},
         buttons: { 
             default: [{ label: "Close", icon: "", iconpos: "left", action: "close" }],
@@ -57,7 +58,7 @@ AFRAME.registerComponent("buttontoggle", {
             }
         }
 
-        if (this.data.mandatory && this.data.buttons.length > 0) {
+        if (this.data.mandatory && this.data.buttons.length > 0 && this.selectedIndices.length === 0) {
             this.selectedIndices.push(0);
         }
     
@@ -69,6 +70,7 @@ AFRAME.registerComponent("buttontoggle", {
                     this.updateButtonsOpacity();
                     break;
                 case 'color':
+                case 'activecolor':
                 case 'mode':
                     this.updateButtonsColor();
                     break;
@@ -88,7 +90,7 @@ AFRAME.registerComponent("buttontoggle", {
 
     setMode() {
         // Mode is ignored if a specific color is set (and it's not the default)
-        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
+        if (this.data.color !== VARIANT_LIGHT_COLOR && this.data.color !== "") {
             return;
         }
         switch (this.data.mode) {
@@ -104,13 +106,11 @@ AFRAME.registerComponent("buttontoggle", {
     },
 
     updateButtonsColor() {
-        // Determine final color based on props
-        if (this.data.color !== PRIMARY_COLOR_DARK && this.data.color !== "") {
-            this.finalColor = this.data.color;
-        } else if (this.data.mode !== "") {
+        this.finalColor = this.data.color;
+        this.finalActiveColor = this.data.activecolor;
+
+        if (this.data.mode !== "") {
             this.setMode();
-        } else {
-            this.finalColor = PRIMARY_COLOR_DARK;
         }
         
         this.buttons.forEach((button, index) => {
@@ -122,9 +122,9 @@ AFRAME.registerComponent("buttontoggle", {
         const isSelected = this.selectedIndices.includes(index);
 
         if (isSelected) {
-            buttonEl.setAttribute("color", this.finalColor); // Set to the 'active' color
+            buttonEl.setAttribute("color", this.finalActiveColor); // Set to the 'active' color
         } else {
-            buttonEl.setAttribute("color", "white"); // Set to the 'default/unselected' color
+            buttonEl.setAttribute("color", this.finalColor); // Set to the 'default/unselected' color
         }
     },
 
@@ -146,11 +146,10 @@ AFRAME.registerComponent("buttontoggle", {
             const buttonEl = document.createElement("a-ar-button");
             
             buttonEl.setAttribute("size", this.data.size);
+            buttonEl.setAttribute("opacity", this.data.opacity);
             if (data.label) buttonEl.setAttribute("content", data.label);
             buttonEl.setAttribute("elevated", false);
             buttonEl.setAttribute("animate", false);
-            //buttonEl.setAttribute("outlined", true);
-
             
             if (data.icon) buttonEl.setAttribute("icon", data.icon);
             if (data.iconpos) buttonEl.setAttribute("iconpos", data.iconpos);

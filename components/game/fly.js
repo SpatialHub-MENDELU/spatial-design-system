@@ -52,6 +52,15 @@ AFRAME.registerComponent("fly", {
             sprint: this.data.sprintClipName
         }
 
+        this.directionName = {
+            forward: "forward",
+            backward: "backward",
+            left: "left",
+            right: "right",
+            ascend: "ascend",
+            descend: "descend",
+        }
+
         this.keys = {
             up: this.data.keyUp.toLowerCase(),
             down: this.data.keyDown.toLowerCase(),
@@ -155,14 +164,32 @@ AFRAME.registerComponent("fly", {
 
     onKeyDown(e) {
         const key = e.key.toLowerCase();
-        if (key === this.keys.up) this.movingForward = true
-        if (key === this.keys.down) this.movingBackward = true
-        if (key === this.keys.left) this.movingLeft = true
-        if (key === this.keys.right) this.movingRight = true
-        if (key === this.keys.ascend) this.ascending = true
-        if (key === this.keys.descend) this.descending = true
+        if (key === this.keys.up && !this.movingForward) {
+            this.movingForward = true
+            this.el.emit("fly-move-start", {direction: this.directionName.forward, speed: this.speed})
+        }
+        if (key === this.keys.down && !this.movingBackward) {
+            this.movingBackward = true
+            this.el.emit("fly-move-start", {direction: this.directionName.backward, speed: this.speed})
+        }
+        if (key === this.keys.left && !this.movingLeft) {
+            this.movingLeft = true
+            this.el.emit("fly-move-start", {direction: this.directionName.left, speed: this.speed, rotationSpeed: this.rotationSpeed})
+        }
+        if (key === this.keys.right && !this.movingRight) {
+            this.movingRight = true
+            this.el.emit("fly-move-start", {direction: this.directionName.right, speed: this.speed, rotationSpeed: this.rotationSpeed})
+        }
+        if (key === this.keys.ascend && !this.ascending) {
+            this.ascending = true
+            this.el.emit("fly-move-start", {direction: this.directionName.ascend, speed: this.speed})
+        }
+        if (key === this.keys.descend && !this.descending) {
+            this.descending = true
+            this.el.emit("fly-move-start", {direction: this.directionName.descend, speed: this.speed})
+        }
         if (this.sprintEnabled && key === this.keys.sprint) {
-            if (this.freeDirectionalFlight) {
+              if (this.freeDirectionalFlight) {
                 if (this.movingForward) this.isSprinting = true;
             } else this.isSprinting = true
         }
@@ -170,15 +197,33 @@ AFRAME.registerComponent("fly", {
 
     onKeyUp(e) {
         const key = e.key.toLowerCase();
-        if (key === this.keys.up) this.movingForward = false
-        if (key === this.keys.down) this.movingBackward = false
-        if (key === this.keys.left) this.movingLeft = false
-        if (key === this.keys.right) this.movingRight = false
-        if (key === this.keys.ascend) this.ascending = false
-        if (key === this.keys.descend) this.descending = false
+        if (key === this.keys.up && this.movingForward) {
+            this.movingForward = false
+            this.el.emit("fly-move-stop", {direction: this.directionName.forward})
+        }
+        if (key === this.keys.down && this.movingBackward) {
+            this.movingBackward = false
+            this.el.emit("fly-move-stop", {direction: this.directionName.backward})
+        }
+        if (key === this.keys.left && this.movingLeft) {
+            this.movingLeft = false
+            this.el.emit("fly-move-stop", {direction: this.directionName.left})
+        }
+        if (key === this.keys.right && this.movingRight) {
+            this.movingRight = false
+            this.el.emit("fly-move-stop", {direction: this.directionName.right})
+        }
+        if (key === this.keys.ascend && this.ascending) {
+            this.ascending = false
+            if (this.freeDirectionalFlight) this.el.emit("fly-move-stop", {direction: this.directionName.ascend})
+        }
+        if (key === this.keys.descend && this.descending) {
+            this.descending = false
+            if (this.freeDirectionalFlight) this.el.emit("fly-move-stop", {direction: this.directionName.descend})
+        }
         if (this.sprintEnabled) {
             if (key === this.keys.sprint) this.isSprinting = false
-            if (this.freeDirectionalFlight) if (this.isSprinting && !this.movingForward) this.isSprinting = false
+            if (this.freeDirectionalFlight && this.isSprinting && !this.movingForward) this.isSprinting = false
         }
     },
 
@@ -326,9 +371,11 @@ AFRAME.registerComponent("fly", {
         if (value === true) {
             if (this.freeDirectionalFlight && this.movingForward) this.isSprinting = true
             if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = true
+            if (this.isSprinting) this.el.emit("fly-sprint-start", {speed: this.sprintSpeed})
         } else {
             if (this.freeDirectionalFlight && this.movingForward) this.isSprinting = false
             if (this.autoForward || this.autoForwardFixedDirection) this.isSprinting = false
+            if (!this.isSprinting) this.el.emit("fly-sprint-stop")
         }
     },
 
