@@ -555,9 +555,22 @@ AFRAME.registerComponent("walk", {
 
     moveToTarget() {
         if (!this.reachTarget) {
-            this.setAnimation(this.animations.walk)
-            const direction = new AFRAME.THREE.Vector3().subVectors(this.targetPosition, this.el.object3D.position).normalize();
-            this.el.body.setLinearVelocity(new Ammo.btVector3(direction.x * this.speed, 0, direction.z * this.speed));
+            this.setAnimation(this.animations.walk);
+
+            const currentPos = this.el.object3D.position;
+            const direction = new AFRAME.THREE.Vector3(
+                this.targetPosition.x - currentPos.x,
+                0,
+                this.targetPosition.z - currentPos.z
+            ).normalize();
+
+            const currentVelocity = this.el.body.getLinearVelocity();
+
+            this.el.body.setLinearVelocity(new Ammo.btVector3(
+                direction.x * this.speed,
+                currentVelocity.y(),
+                direction.z * this.speed
+            ));
         }
     },
 
