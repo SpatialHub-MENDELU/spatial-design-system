@@ -188,7 +188,11 @@ AFRAME.registerComponent("fly", {
             this.descending = true
             this.el.emit("fly-move-start", {direction: this.directionName.descend, speed: this.speed})
         }
-        if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(true)
+        if (this.sprintEnabled && key === this.keys.sprint) {
+              if (this.freeDirectionalFlight) {
+                if (this.movingForward) this.isSprinting = true;
+            } else this.isSprinting = true
+        }
     },
 
     onKeyUp(e) {
@@ -217,7 +221,10 @@ AFRAME.registerComponent("fly", {
             this.descending = false
             if (this.freeDirectionalFlight) this.el.emit("fly-move-stop", {direction: this.directionName.descend})
         }
-        if (this.sprintEnabled && key === this.keys.sprint) this.setIsSprinting(false)
+        if (this.sprintEnabled) {
+            if (key === this.keys.sprint) this.isSprinting = false
+            if (this.freeDirectionalFlight && this.isSprinting && !this.movingForward) this.isSprinting = false
+        }
     },
 
     tick(time, deltaTime) {
