@@ -34,7 +34,7 @@
     "aframe-troika-text": "^0.14.0"
   },
   "devDependencies": {
-    "vite": "^6.0.11"
+    "vite": "^8.0.5"
   },
   "overrides": {
     "three-bmfont-text": "@spatialhub/three-bmfont-text"
