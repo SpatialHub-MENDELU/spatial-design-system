@@ -16,7 +16,7 @@ AFRAME.registerComponent("card", {
         prependicon: { type: "string", default: ""},
         appendicon: { type: "string", default: ""},
         buttons: { 
-            default: [{ label: "Close", action: "close" }],
+            default: [],
             parse: function (value) {
                 if (typeof value === 'string') {
                     try {
@@ -228,26 +228,24 @@ AFRAME.registerComponent("card", {
 
         const hasButtons = this.data.buttons && this.data.buttons.length > 0;
 
-        if (!hasButtons) {
-            const contentWidth = this.data.appendicon ? width - (padding * 2) - iconSize - 0.05 : width - (padding * 2);
-            // Estimate text height
-            const charWidth = contentFontSize * 0.55; // Approx width factor
-            const charsPerLine = Math.floor(contentWidth / charWidth);
-            const lines = Math.ceil(this.data.content.length / charsPerLine);
-            const textHeight = lines * (contentFontSize * lineHeight);
-            
-            // Calculate new height
-            // height = top_space + text + bottom_padding
-            // top_space is offset_contentStart
-            height = offset_contentStart + textHeight + padding;
-            
-            // Enforce a minimum height if needed, or just use calculated
-            height = Math.max(height, 0.4); // Minimum height
-        }
+        const contentWidth = this.data.appendicon ? width - (padding * 2) - iconSize - 0.05 : width - (padding * 2);
+        // Estimate text height
+        const charWidth = contentFontSize * 0.55; // Approx width factor
+        const charsPerLine = Math.floor(contentWidth / charWidth);
+        const lines = Math.ceil(this.data.content.length / charsPerLine);
+        const textHeight = lines * (contentFontSize * lineHeight);
+        
+        // Calculate new height
+        // height = top_space + text + bottom_padding
+        // top_space is offset_contentStart
+        const bottomPadding = hasButtons ? 0.25 : padding;
+        height = offset_contentStart + textHeight + bottomPadding;
+        
+        // Enforce a minimum height if needed, or just use calculated
+        height = Math.max(height, 0.4); // Minimum height
 
         this.createCard(width, height);
 
-        const contentWidth = this.data.appendicon ? width - (padding * 2) - iconSize - 0.05 : width - (padding * 2);
         let titleXOffset = 0;
 
         const titleRowYCenter = height / 2 - padding - (iconSize / 2);
@@ -309,23 +307,11 @@ AFRAME.registerComponent("card", {
             contentStartY = titleRowYCenter;
         }   
 
-        // Determine the bottom "cutoff" point
-        // If there are no buttons, we only need to respect the bottom padding (0.2)
-        const bottomBoundary = hasButtons ? 0.3 : padding; 
-
-        const maxContentHeight = contentStartY - (-height / 2 + bottomBoundary);
-
-        // Calculate clipping to avoid cutting lines in half
-        const lineHeightUnits = contentFontSize * lineHeight;
-        const maxLines = Math.floor(maxContentHeight / lineHeightUnits);
-        const clippedHeight = maxLines * lineHeightUnits;
-
         this._appendText("content", this.data.content, {
             fontSize: contentFontSize,
             lineHeight: lineHeight,
             maxWidth: contentWidth,
             baseline: "top",
-            clipRect: `0 -${clippedHeight} ${contentWidth} 0`,
             position: {x: -width / 2 + padding, y: contentStartY, z: 0.05}
         });
 
@@ -414,7 +400,7 @@ AFRAME.registerComponent("card", {
         }
         const subtitle = this.el.querySelector("#subtitle");
         if (subtitle) {
-            subtitle.setAttribute("fill-opacity", this.data.opacity * 0.9);
+            subtitle.setAttribute("fill-opacity", this.data.opacity * 0.8);
         }
     },
 
