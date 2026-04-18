@@ -1,5 +1,5 @@
-import { isPositiveNumber, isValidGameKey, isValidValue } from "../../utils/gameUtils";
-import {MOVE_COMPONENTS} from "../../constants/gameConstants";
+import {isPositiveNumber, isValidGameKey, isValidValue} from "../../utils/gameUtils";
+import {MOVE_COMPONENTS} from "./gameConstants";
 
 AFRAME.registerComponent("game-view", {
     schema: {
@@ -18,7 +18,7 @@ AFRAME.registerComponent("game-view", {
         maxHeight: {type: "number", default: 15},
 
         // only for quarter-turn
-        rotationSpeed : {type: "number", default: 5},
+        rotationSpeed: {type: "number", default: 5},
         keyTurnLeft: {type: "string", default: "q"},
         keyTurnRight: {type: "string", default: "e"},
 
@@ -47,7 +47,7 @@ AFRAME.registerComponent("game-view", {
 
         this.wrongInput = false;
         this.checkInputs();
-        if(this.wrongInput) return;
+        if (this.wrongInput) return;
 
         this.type = this.data.type;
         this.setType();
@@ -59,7 +59,7 @@ AFRAME.registerComponent("game-view", {
             THREE.MathUtils.degToRad(this.data.rotation.z)
         );
 
-        if(this.isTargetNeeded) this.target = this.data.target?.object3D;
+        if (this.isTargetNeeded) this.target = this.data.target?.object3D;
 
         this.previousTargetPosition = new THREE.Vector3();
 
@@ -156,7 +156,7 @@ AFRAME.registerComponent("game-view", {
     update(oldData) {
         this.wrongInput = false;
         this.checkInputs();
-        if(this.wrongInput) return;
+        if (this.wrongInput) return;
 
         if (oldData.type !== this.data.type) {
             this.setType();
@@ -243,7 +243,7 @@ AFRAME.registerComponent("game-view", {
         this.thirdPersonFollow = false;
         this.fixed = false;
 
-        switch(this.data.type) {
+        switch (this.data.type) {
             case 'thirdPersonFixed':
                 this.thirdPersonFixed = true;
                 break;
@@ -282,7 +282,7 @@ AFRAME.registerComponent("game-view", {
     // CAMERA TYPES METHODS
 
     updateOffsetPosition() {
-        if(this.thirdPersonFollow) return;
+        if (this.thirdPersonFollow) return;
 
         if (this.fixed) {
             this.updateCameraFixed();
@@ -290,8 +290,8 @@ AFRAME.registerComponent("game-view", {
         }
 
         if (this.target) {
-            const { x, y, z } = this.target.position;
-            const { height, distance, tilt } = this.data;
+            const {x, y, z} = this.target.position;
+            const {height, distance, tilt} = this.data;
 
             if (this.thirdPersonFixed) this.updateCameraThirdPersonFixed(x, y, z, height, distance, tilt);
             if (this.quarterTurn) this.updateCameraQuarterTurn(x, y, z, height, distance, tilt);
@@ -340,7 +340,7 @@ AFRAME.registerComponent("game-view", {
     // fixed
     updateCameraFixed() {
         const pivot = this.cameraPosition;
-        const { height, distance } = this.data;
+        const {height, distance} = this.data;
 
         const rotY = this.cameraRotation.y;
         const rotX = this.cameraRotation.x;
@@ -378,7 +378,7 @@ AFRAME.registerComponent("game-view", {
 
     // third-person-follow
     trackTargetRotation() {
-        const { x, y, z } = this.target.position;
+        const {x, y, z} = this.target.position;
         let targetRotationY = this.target.rotation.y;
 
         const offsetDeg = this.getAutoOffsetAngle();
