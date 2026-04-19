@@ -201,6 +201,7 @@ AFRAME.registerComponent("card", {
       if (id) iconEl.setAttribute("id", id);
       iconEl.setAttribute("src", src);
       iconEl.setAttribute("geometry", { width: size, height: size });
+      iconEl.setAttribute("class", "clickable");
       this.el.appendChild(iconEl);
       return iconEl;
   },

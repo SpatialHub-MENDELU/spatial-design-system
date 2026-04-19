@@ -1,4 +1,3 @@
-import * as AFRAME from "aframe";
 import '../components/list.js';
 
 AFRAME.registerPrimitive('a-ar-list', {
