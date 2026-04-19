@@ -20,5 +20,6 @@ AFRAME.registerPrimitive('a-ar-card', {
         buttons: 'card.buttons',
         outlined: 'card.outlined',
         image: 'card.image',
+        height: 'card.height',
     }
 })

@@ -6,6 +6,7 @@ import "../primitives/ar-button.js"
 
 AFRAME.registerComponent("card", {
     schema: {
+        height: { type: "number", default: 0 },
         opacity: { type: "number", default: 1},
         mode: { type: "string", default: ""},
         color: { type: "string", default: PRIMARY_COLOR_DARK},
@@ -68,6 +69,7 @@ AFRAME.registerComponent("card", {
                 case 'subtitle':
                 case 'title':
                 case 'content':
+                case 'height':
                     this.setContent();
                     break;
                 case 'buttons':
@@ -208,7 +210,7 @@ AFRAME.registerComponent("card", {
         
         // Default dimensions
         let width = 1.5;
-        let height = 1;
+        let height = this.data.height >= 0.4 ? this.data.height : 1;
 
         const padding = 0.1;
         const iconSize = 0.075;
@@ -239,10 +241,12 @@ AFRAME.registerComponent("card", {
         // height = top_space + text + bottom_padding
         // top_space is offset_contentStart
         const bottomPadding = hasButtons ? 0.25 : padding;
-        height = offset_contentStart + textHeight + bottomPadding;
         
-        // Enforce a minimum height if needed, or just use calculated
-        height = Math.max(height, 0.4); // Minimum height
+        if (this.data.height < 0.4) {
+            height = offset_contentStart + textHeight + bottomPadding;
+            // Enforce a minimum height if needed, or just use calculated
+            height = Math.max(height, 0.4); // Minimum height
+        }
 
         this.createCard(width, height);
 
@@ -307,13 +311,25 @@ AFRAME.registerComponent("card", {
             contentStartY = titleRowYCenter;
         }   
 
-        this._appendText("content", this.data.content, {
+        const contentConfig = {
             fontSize: contentFontSize,
             lineHeight: lineHeight,
             maxWidth: contentWidth,
             baseline: "top",
             position: {x: -width / 2 + padding, y: contentStartY, z: 0.05}
-        });
+        };
+
+        if (this.data.height >= 0.4) {
+            const maxContentHeight = contentStartY - (-height / 2 + bottomPadding); // Space until buttons area
+            
+            // Calculate clipping to avoid cutting lines in half
+            const lineHeightUnits = contentFontSize * lineHeight;
+            const maxLines = Math.max(0, Math.floor(maxContentHeight / lineHeightUnits));
+            const clippedHeight = maxLines * lineHeightUnits;
+            contentConfig.clipRect = `0 -${clippedHeight} ${contentWidth} 0`;
+        }
+
+        this._appendText("content", this.data.content, contentConfig);
 
         this.setButtons();
         this.updateTextColor();
