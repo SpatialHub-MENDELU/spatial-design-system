@@ -11,12 +11,12 @@ AFRAME.registerComponent("walk", {
         keyLeft: {type: "string", default: "a"}, // Key used to move the character left.
         keyRight: {type: "string", default: "d"}, // Key used to move the character right.
 
-        speed: {type: "number", default: 5}, // Defines the player's base walking speed.
+        speed: {type: "number", default: 3}, // Defines the player's base walking speed.
         rotationSpeed: {type: "number", default: 90}, // Defines the turning speed. NOTE: For stepTurnCardinal and stepTurnDiagonal, set a higher value (p.e. 600). For target walk as well (p.e. 450)
 
         sprint: {type: "boolean", default: false}, // If true, the player can sprint when holding the sprintKey, increasing their speed to sprintSpeed.
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
-        sprintSpeed: {type: "number", default: 8}, // Defines the sprinting speed when the sprint mode is active.
+        sprintSpeed: {type: "number", default: 6}, // Defines the sprinting speed when the sprint mode is active.
 
         turnType: {type: "string", default: "smoothTurn"}, // smoothTurn, stepTurnDiagonal, stepTurnCardinal. Defines the walking mode and how the player turns and moves.
         autoWalk: {type: "boolean", default: false}, // If true, the player will automatically start walking forward without input.
