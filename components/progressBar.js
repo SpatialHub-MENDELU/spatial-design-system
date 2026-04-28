@@ -1,5 +1,6 @@
 import * as AFRAME from "aframe";
 import * as TWEEN from "@tweenjs/tween.js";
+import "aframe-troika-text";
 import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR, SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, DISABLED_COLOR} from "../utils/colors.js";
 import { createRoundedRectShape, getContrast, setContrastColor} from "../utils/utils.js";
 
@@ -91,7 +92,7 @@ AFRAME.registerComponent("progressBar", {
         return this.userRounded && numericValue >= 10;
     },
 
-    updateProgressBarColor() {        
+    updateProgressBarColor() {
         if (this.shadowMesh) {
             if (this.data.state !== "") {
                 this.shadowMesh.material.color.set(this.finalColor);
@@ -105,7 +106,7 @@ AFRAME.registerComponent("progressBar", {
                 this.finalColor = PRIMARY_COLOR_DARK;
                 this.shadowMesh.material.color.set("#000");
             }
-        } 
+        }
         if (this.progressBarMesh) {
             this.progressBarMesh.material.color.set(this.finalColor);
         }
@@ -151,14 +152,14 @@ AFRAME.registerComponent("progressBar", {
         }
 
         // Update the text element's color
-        const textEl = this.el.querySelector("a-text");
+        const textEl = this.el.querySelector("a-troika-text");
         if (textEl) {
             textEl.setAttribute("color", textcolor);
         }
     },
 
     updateTextVisibility() {
-        const textEl = this.el.querySelector("a-text");
+        const textEl = this.el.querySelector("a-troika-text");
         let visibility = this.data.textvisibility;
         if (textEl) {
             textEl.setAttribute("visible", visibility);
@@ -166,23 +167,20 @@ AFRAME.registerComponent("progressBar", {
     },
 
     setSize() {
-        let sizeCoef = 1
         switch (this.data.size) {
             case "small":
-                sizeCoef = 0.7
-                break;
-            
-            case "medium":
+                this.sizeCoef = 0.06;
                 break;
 
             case "large":
-                sizeCoef = 2
+                this.sizeCoef = 0.09;
                 break;
 
+            case "medium":
             default:
-                break
+                this.sizeCoef = 0.075;
+                break;
         }
-        this.el.setAttribute('sizeCoef',sizeCoef)
     },
 
     getValidNumericValue(value) {
@@ -193,24 +191,25 @@ AFRAME.registerComponent("progressBar", {
         return Math.max(0, Math.min(100, numericValue));
     },
 
-    createProgressBar(widthArg = 4, heightArg = 0.4){
-        const sizeCoef = this.el.getAttribute('sizeCoef')
+    createProgressBar(widthArg = 1.5) {
+        const sizeCoef = this.sizeCoef;
+        const padding = 0.05;
+        const height = sizeCoef + 2 * padding;
+        const max_width = widthArg;
+
         const group = new AFRAME.THREE.Group();
 
-        const height = heightArg * sizeCoef;
         let borderRadius;
-
         let numericValue = this.getValidNumericValue(this.data.value);
-        
+
         if (numericValue < 4) {
-            borderRadius = 0.03; // No rounding for very small values, because the shape would be distorted
+            borderRadius = 0; // No rounding for very small values, because the shape would be distorted
         } else {
-            borderRadius = this.effectiveRounded ? 0.2 * sizeCoef : 0.08 * sizeCoef;
+            borderRadius = this.effectiveRounded ? sizeCoef * 0.9 : sizeCoef * 0.3;
         }
 
-        const max_width = widthArg * sizeCoef
-        let width = max_width * (numericValue / 100) // Use numericValue instead of this.data.value
-        
+        let width = max_width * (numericValue / 100);
+
         // If the value is set to more than 100, display error and set to 100
         if (numericValue > 100){
             width = max_width;
@@ -218,13 +217,13 @@ AFRAME.registerComponent("progressBar", {
             console.log("The value can't be more than 100, so it was set to maximum of one hundred percent.");
         }
 
-        this.width = width
+        this.width = width;
 
         const opacityValue = this.data.opacity;
-    
+
         if (numericValue > 0) {
                 // Create a main ProgressBar mesh
-                const progressBarShape = createRoundedRectShape(width, height, borderRadius)
+                const progressBarShape = createRoundedRectShape(width, height, borderRadius);
 
                 const progressBarGeometry  = new AFRAME.THREE.ExtrudeGeometry(
                     progressBarShape,
@@ -235,22 +234,22 @@ AFRAME.registerComponent("progressBar", {
                     color: this.finalColor,
                     opacity: opacityValue,
                     transparent: true
-                })
+                });
 
-                const progressBarMesh = new AFRAME.THREE.Mesh(progressBarGeometry, progressBarMaterial)
-                
+                const progressBarMesh = new AFRAME.THREE.Mesh(progressBarGeometry, progressBarMaterial);
+
                 const x_axis = 0 - max_width/2 + width/2;
-                progressBarMesh.position.set(x_axis, 0, 0)
+                progressBarMesh.position.set(x_axis, 0, 0);
 
-                this.progressBarMesh = progressBarMesh
+                this.progressBarMesh = progressBarMesh;
 
                 group.add(progressBarMesh);
         }
 
 
         // Create shadow effect with a slightly larger rectangle as the background
-        const shadowWidth = max_width + sizeCoef * 0.15; 
-        const shadowHeight = height + sizeCoef * 0.12; 
+        const shadowWidth = max_width + 0.05;
+        const shadowHeight = height + 0.03;
         const shadowBorderRadius = borderRadius + sizeCoef * 0.05;
 
         const shadowShape = createRoundedRectShape(shadowWidth, shadowHeight, shadowBorderRadius);
@@ -270,14 +269,14 @@ AFRAME.registerComponent("progressBar", {
         this.el.setObject3D('mesh', group);
     },
 
-    reverseProgressBar() {
-        const sizeCoef = this.el.getAttribute('sizeCoef');
+    reverseProgressBar(widthArg = 1.5) {
+        const sizeCoef = this.sizeCoef;
+        const max_width = widthArg;
         let reversed = this.data.reversed;
-        const max_width = 4 * sizeCoef;
 
         let numericValue = this.getValidNumericValue(this.data.value);
-        
-        const width = max_width * (numericValue / 100);      
+
+        const width = max_width * (numericValue / 100);
         let x_axis = 0;
         if (!reversed) {
             x_axis = 0 - max_width / 2 + width / 2;
@@ -297,9 +296,9 @@ AFRAME.registerComponent("progressBar", {
         }
     },
 
-    setContent() {
+    setContent(widthArg = 1.5) {
         let numericValue = this.getValidNumericValue(this.data.value);
-        
+
         let text;
         if (numericValue >= 100) {
             text = "100 %";
@@ -321,48 +320,50 @@ AFRAME.registerComponent("progressBar", {
             }
         }
 
-        const sizeCoef = this.el.getAttribute('sizeCoef')
-        let reversed = this.data.reversed
+        const sizeCoef = this.sizeCoef;
+        let reversed = this.data.reversed;
 
-        let textEl = this.el.querySelector("a-text")
-        if(textEl) textEl.remove();
+        let textEl = this.el.querySelector("a-troika-text");
+        if (textEl) textEl.remove();
 
-        textEl = document.createElement("a-text")
-        textEl.setAttribute("visible", this.data.textvisibility)
-        textEl.setAttribute("value", text === undefined ? "" : text)
-        textEl.setAttribute("align", "center")
-        textEl.setAttribute('scale', {x: 0.7 * sizeCoef, y: 0.7 * sizeCoef , z: 0.7 * sizeCoef});
-        textEl.setAttribute("position", '0 0 0.05')
-        
+        textEl = document.createElement("a-troika-text");
+        textEl.setAttribute("visible", this.data.textvisibility);
+        textEl.setAttribute("value", text === undefined ? "" : text);
+        textEl.setAttribute("align", "center");
+        textEl.setAttribute("anchor", "center");
+        textEl.setAttribute("baseline", "center");
+        textEl.setAttribute("font-size", sizeCoef);
+        textEl.setAttribute("position", "0 0 0.05");
+
         // Create the progress bar and calculate its x-axis
-        this.createProgressBar();
-        const max_width = 4 * sizeCoef;
+        this.createProgressBar(widthArg);
+        const max_width = widthArg;
         const width = this.progressBarMesh ? max_width * (numericValue / 100) : 0; // Fallback to 0 if progressBarMesh is not defined, in that way x_axis will be calculated correctly
-        let x_axis = 0
-        let positionForDecimal = 0; // Adjustment  in text for decimal numbers
+        let x_axis = 0;
+        let positionForDecimal = 0; // Adjustment in text for decimal numbers
         if (String(numericValue).includes('.')) {
-            numericValue < 5 ? positionForDecimal = width/2 + 0.1 : positionForDecimal = width/2 // Adjust for decimal point
+            numericValue < 5 ? positionForDecimal = width/2 + 0.1 : positionForDecimal = width/2; // Adjust for decimal point
         }
 
         if (!reversed) {
             if (numericValue >= 20) {
                 // Set the position of the text element to match the progress bar's center
-                x_axis = 0 - max_width / 2 + width / 2;   
+                x_axis = 0 - max_width / 2 + width / 2;
             } else {
                 // Set the position of the text element to match on the right side progress bar with padding
-                x_axis = 0 - max_width / 2 + width + 0.25 + positionForDecimal;
+                x_axis = 0 - max_width / 2 + width + 0.15 + positionForDecimal;
             }
         } else {
             if (numericValue >= 20) {
                 x_axis = 0 + max_width / 2 - width / 2;
             } else {
-                x_axis = 0 + max_width / 2 - width - 0.25 - positionForDecimal;
+                x_axis = 0 + max_width / 2 - width - 0.15 - positionForDecimal;
             }
         }
 
         textEl.setAttribute("position", { x: x_axis, y: 0, z: 0.05 });
 
-        this.reverseProgressBar();
+        this.reverseProgressBar(widthArg);
 
         // Ensure text color is updated after reversing
         if (textEl && this.data.state !== "") {
@@ -407,7 +408,7 @@ AFRAME.registerComponent("progressBar", {
         }
 
         // Update text color based on mode
-        const textEl = this.el.querySelector("a-text");
+        const textEl = this.el.querySelector("a-troika-text");
         if (textEl) {
             textEl.setAttribute("color", this.data.mode === "light" ? "black" : "white");
         }
@@ -421,22 +422,22 @@ AFRAME.registerComponent("progressBar", {
 
         switch (this.data.state) {
             case "success":
-                this.el.setAttribute("material", { color: SUCCESS_COLOR, opacity: 1 })
-                this.el.querySelector("a-text").setAttribute("color", "white")
+                this.el.setAttribute("material", { color: SUCCESS_COLOR, opacity: 1 });
+                this.el.querySelector("a-troika-text").setAttribute("color", "white");
                 // Adjust final color to match the state
-                this.finalColor = SUCCESS_COLOR
+                this.finalColor = SUCCESS_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(SUCCESS_COLOR);
-                    shadowMesh.material.opacity = 0.65
+                    shadowMesh.material.opacity = 0.65;
                     // Make sure material is transparent to display opacity
                     shadowMesh.material.transparent = true;
                 }
                 break;
             case "warning":
-                this.el.setAttribute("material", { color: WARNING_COLOR, opacity: 1 })
-                this.el.querySelector("a-text").setAttribute("color", "white")
+                this.el.setAttribute("material", { color: WARNING_COLOR, opacity: 1 });
+                this.el.querySelector("a-troika-text").setAttribute("color", "white");
                 // Adjust final color to match the state
-                this.finalColor = WARNING_COLOR
+                this.finalColor = WARNING_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(WARNING_COLOR);
                     shadowMesh.material.opacity = 0.65;
@@ -445,10 +446,10 @@ AFRAME.registerComponent("progressBar", {
                 }
                 break;
             case "error":
-                this.el.setAttribute("material", { color: ERROR_COLOR, opacity: 1 })
-                this.el.querySelector("a-text").setAttribute("color", "white")
+                this.el.setAttribute("material", { color: ERROR_COLOR, opacity: 1 });
+                this.el.querySelector("a-troika-text").setAttribute("color", "white");
                 // Adjust final color to match the state
-                this.finalColor = ERROR_COLOR
+                this.finalColor = ERROR_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(ERROR_COLOR);
                     shadowMesh.material.opacity = 0.65;
@@ -457,10 +458,10 @@ AFRAME.registerComponent("progressBar", {
                 }
                 break;
             case "disabled":
-                this.el.setAttribute("material", { color: DISABLED_COLOR, opacity: 1 })
-                this.el.querySelector("a-text").setAttribute("color", "black")
+                this.el.setAttribute("material", { color: DISABLED_COLOR, opacity: 1 });
+                this.el.querySelector("a-troika-text").setAttribute("color", "black");
                 // Adjust final color to match the state
-                this.finalColor = DISABLED_COLOR
+                this.finalColor = DISABLED_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(DISABLED_COLOR);
                     shadowMesh.material.opacity = 0.65;
