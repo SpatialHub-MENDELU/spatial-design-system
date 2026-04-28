@@ -1,4 +1,5 @@
 import * as AFRAME from "aframe"
+import "aframe-troika-text"
 import { PRIMARY_COLOR_DARK, VARIANT_DARK_COLOR, VARIANT_LIGHT_COLOR } from "../utils/colors.js"
 import { createRoundedRectShape, getContrast, setContrastColor} from "../utils/utils.js"
 
@@ -129,7 +130,7 @@ AFRAME.registerComponent("chip", {
         }
 
         // Update the text element's color
-        const textEl = this.el.querySelector("a-text");
+        const textEl = this.el.querySelector("a-troika-text");
         if (textEl) {
             textEl.setAttribute("color", textcolor);
         }
@@ -140,39 +141,30 @@ AFRAME.registerComponent("chip", {
     },
 
     setSize() {
-        let sizeCoef = 1
         switch (this.data.size) {
             case "small":
-                sizeCoef = 0.7
+                this.sizeCoef = 0.06;
                 break;
-            
-            case "medium":
-                break;
-
             case "large":
-                sizeCoef = 2
+                this.sizeCoef = 0.09;
                 break;
-            
             case "extra-large":
-                sizeCoef = 3
+                this.sizeCoef = 0.12;
                 break;
-
+            case "medium":
             default:
-                break
+                this.sizeCoef = 0.075;
+                break;
         }
-        this.el.setAttribute('sizeCoef',sizeCoef)
     },
 
-    createChip(widthArg = 1, heightArg = 0.4) {
-        const sizeCoef = this.el.getAttribute('sizeCoef');
+    createChip(width, height) {
         const group = new AFRAME.THREE.Group();
 
-        const width = widthArg * sizeCoef;
-        const height = heightArg * sizeCoef;
-        let borderRadius = 0.08 * sizeCoef;
+        let borderRadius = 0.02;
 
         if (this.data.rounded) {
-            borderRadius = 0.2 * sizeCoef;
+            borderRadius = 0.08;
         }
 
         this.width = width;
@@ -209,8 +201,8 @@ AFRAME.registerComponent("chip", {
 
         // Create an outline if outlined is true
         if (this.data.outlined && !this.data.textonly && !this.data.elevated) {
-            const borderSize = 0.04 * sizeCoef;
-            const outlineShape = createRoundedRectShape(width + borderSize, height + borderSize, borderRadius + 0.024);
+            const borderSize = 0.03;
+            const outlineShape = createRoundedRectShape(width + borderSize, height + borderSize, borderRadius + 0.02);
             const outlineGeometry = new AFRAME.THREE.ShapeGeometry(outlineShape);
             const outlineMaterial = new AFRAME.THREE.MeshBasicMaterial({
                 color: this.data.color,
@@ -233,7 +225,7 @@ AFRAME.registerComponent("chip", {
                 transparent: true
             });
             const shadowMesh = new AFRAME.THREE.Mesh(shadowGeometry, shadowMaterial);
-            const moveChipCoef = width / 36;
+            const moveChipCoef = width / 30;
             shadowMesh.position.set(moveChipCoef, -moveChipCoef, -0.01);
             this.shadowMesh = shadowMesh;
             group.add(shadowMesh);
@@ -243,18 +235,21 @@ AFRAME.registerComponent("chip", {
     },
 
     _clearContent() {
-        const textEl = this.el.querySelector("a-text");
+        const textEl = this.el.querySelector("a-troika-text");
         if (textEl) textEl.remove();
         const iconEl = this.el.querySelector("a-image");
         if (iconEl) iconEl.remove();
     },
 
     _appendText(value, sizeCoef) {
-        const textEl = document.createElement("a-text");
+        const textEl = document.createElement("a-troika-text");
         textEl.setAttribute("value", value === undefined ? "" : value);
         textEl.setAttribute("align", "center");
-        textEl.setAttribute('scale', { x: 0.7 * sizeCoef, y: 0.7 * sizeCoef, z: 0.7 * sizeCoef });
+        textEl.setAttribute("baseline", "center");
+        textEl.setAttribute("anchor", "center");
+        textEl.setAttribute("font-size", sizeCoef);
         textEl.setAttribute("position", '0 0 0.05');
+        textEl.setAttribute("letter-spacing", "0");
         textEl.setAttribute("fill-opacity", this.data.opacity);
         this.el.appendChild(textEl);
         return textEl;
@@ -281,45 +276,42 @@ AFRAME.registerComponent("chip", {
             text = text.substring(0, 12) + "...";
         }
 
-        const sizeCoef = this.el.getAttribute('sizeCoef');
+        const sizeCoef = this.sizeCoef;
 
-        const letterWidth = 0.08;
-        const textWidth = text.length * letterWidth;
-        const iconWidth = 0.2;
-        const paddingInner = 0.1;
-        const paddingOuter = 0.2;
+        const letterWidthRatio = 0.55;
+        const textWidth = text.length * letterWidthRatio * sizeCoef;
+        const iconWidth = 1.0 * sizeCoef;
+        const innerPadding = 0.05;
+        const outerPadding = 0.1;
 
         let widthArg = 0;
         if (icon !== "") {
-            widthArg = paddingInner + iconWidth + paddingInner + textWidth + paddingOuter;
+            widthArg = innerPadding + iconWidth + innerPadding + textWidth + outerPadding;
         } else {
-            widthArg = paddingOuter + textWidth + paddingOuter;
+            widthArg = outerPadding + textWidth + outerPadding;
         }
-        
-        this.createChip(widthArg);
+
+        const heightArg = sizeCoef + 2 * innerPadding;
+
+        this.createChip(widthArg, heightArg);
 
         const textEl = this._appendText(text, sizeCoef);
         let iconEl = null;
 
         if (icon !== "") {
-            const scaledIconWidth = iconWidth * sizeCoef;
-            iconEl = this._appendIcon(icon, scaledIconWidth);
+            iconEl = this._appendIcon(icon, iconWidth);
 
-            const scaledTextWidth = textWidth * sizeCoef;
-            const scaledPaddingInner = paddingInner * sizeCoef;
-            const scaledPaddingOuter = paddingOuter * sizeCoef;
-            
             let textXPosition;
             let iconXPosition;
-            
+
             if (iconpos === "right") {
-                textXPosition = -this.width/2 + scaledPaddingOuter + scaledTextWidth/2;
-                iconXPosition = -this.width/2 + scaledPaddingOuter + scaledTextWidth + scaledPaddingInner + scaledIconWidth/2;
+                textXPosition = -this.width/2 + outerPadding + textWidth/2;
+                iconXPosition = -this.width/2 + outerPadding + textWidth + innerPadding + iconWidth/2;
             } else {
-                iconXPosition = -this.width/2 + scaledPaddingInner + scaledIconWidth/2;
-                textXPosition = -this.width/2 + scaledPaddingInner + scaledIconWidth + scaledPaddingInner + scaledTextWidth/2;
+                iconXPosition = -this.width/2 + innerPadding + iconWidth/2;
+                textXPosition = -this.width/2 + innerPadding + iconWidth + innerPadding + textWidth/2;
             }
-            
+
             textEl.setAttribute("position", { x: textXPosition, y: 0, z: 0.05 });
             iconEl.setAttribute("position", { x: iconXPosition, y: 0, z: 0.02 });
         }
@@ -336,7 +328,7 @@ AFRAME.registerComponent("chip", {
         switch (this.data.mode) {
             case "light":
                 this.el.setAttribute("material", { color: VARIANT_LIGHT_COLOR, opacity: 1 });
-                this.el.querySelector("a-text").setAttribute("color", "black");
+                this.el.querySelector("a-troika-text").setAttribute("color", "black");
                 this.finalColor = VARIANT_LIGHT_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(VARIANT_LIGHT_COLOR);
@@ -346,7 +338,7 @@ AFRAME.registerComponent("chip", {
                 break;
             case "dark":
                 this.el.setAttribute("material", { color: VARIANT_DARK_COLOR, opacity: 1 });
-                this.el.querySelector("a-text").setAttribute("color", "white");
+                this.el.querySelector("a-troika-text").setAttribute("color", "white");
                 this.finalColor = VARIANT_DARK_COLOR;
                 if (shadowMesh) {
                     shadowMesh.material.color.set(VARIANT_DARK_COLOR);
@@ -354,7 +346,7 @@ AFRAME.registerComponent("chip", {
                     shadowMesh.material.transparent = true;
                 }
                 if (this.data.outlined && !this.data.textonly && !this.data.elevated) {
-                    this.el.querySelector("a-text").setAttribute("color", VARIANT_DARK_COLOR);
+                    this.el.querySelector("a-troika-text").setAttribute("color", VARIANT_DARK_COLOR);
                 }
                 break;
             default:
