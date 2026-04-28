@@ -87,14 +87,14 @@ AFRAME.registerComponent("dialog", {
         });
     },
 
-    createDialog(widthArg = 3, heightArg = 2) {
+    createDialog(widthArg = 1.5, heightArg = 1.1) {
         if (this.dialogMesh) return;
 
         const group = new AFRAME.THREE.Group();
 
         const width = widthArg
         const height = heightArg
-        let  borderRadius = 0.12
+        let  borderRadius = 0.06
         this.width = width
         this.height = height
 
@@ -153,7 +153,7 @@ AFRAME.registerComponent("dialog", {
 
         const buttonEl = document.createElement("a-ar-button");
         buttonEl.setAttribute("content", label);
-        buttonEl.setAttribute("size", "medium");
+        buttonEl.setAttribute("size", "small");
         buttonEl.setAttribute("textonly", true);
         buttonEl.setAttribute("uppercase", true);
         
@@ -170,9 +170,19 @@ AFRAME.registerComponent("dialog", {
         const distanceBetweenCenters = assumedButtonWidth + interButtonSpacing;
         const xPos = (index - (totalButtons - 1) / 2) * distanceBetweenCenters;
 
-        buttonEl.setAttribute("position", { x: xPos, y: -0.7, z: 0.07 });
+        buttonEl.setAttribute("position", { x: xPos, y: -this.height / 2 + 0.15, z: 0.07 });
 
         this.el.appendChild(buttonEl);
+    },
+
+    _appendIcon(src, size, id) {
+        const iconEl = document.createElement("a-image");
+        if (id) iconEl.setAttribute("id", id);
+        iconEl.setAttribute("src", src);
+        iconEl.setAttribute("geometry", { width: size, height: size });
+        iconEl.setAttribute("class", "clickable");
+        this.el.appendChild(iconEl);
+        return iconEl;
     },
 
     setContent() {
@@ -180,66 +190,38 @@ AFRAME.registerComponent("dialog", {
         if (!this.width) this.createDialog();
 
         const { width, height } = this;
-        const padding = 0.2;
+        const padding = 0.1;
+        const iconSize = 0.075;
         const contentWidth = width - (padding * 2);
         let titleXOffset = 0;
-
-        const iconSize = 0.15;
         const titleRowYCenter = height / 2 - padding - (iconSize / 2);
 
         // 1. Add Prepend Icon
         if (this.data.prependicon) {
-            const iconSrc = this.data.prependicon;
-            const myImg = new Image();
-            myImg.src = iconSrc;
-            myImg.onload = () => {
-                const prependIcon = document.createElement("a-image");
-                prependIcon.setAttribute("id", "prependIcon");
-                prependIcon.setAttribute("src", iconSrc);
-                prependIcon.setAttribute("width", iconSize);
-                prependIcon.setAttribute("height", iconSize);
-                
-                const iconX = -width / 2 + padding + (iconSize / 2);
-                prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});                
-                
-                this.el.appendChild(prependIcon);
-                this.updateTextColor(); // Ensure color is correct after load
-            };
+            const iconX = -width / 2 + padding + (iconSize / 2);
+            const prependIcon = this._appendIcon(this.data.prependicon, iconSize, "prependIcon");
+            prependIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
             titleXOffset = iconSize + 0.1; // Shift title to the right
         }
 
         // 2. Add Closing Icon
         if (this.data.closingicon === true) {
-            const iconSrc = "/close.png";
-            const myImg = new Image();
-            myImg.src = iconSrc;
-            myImg.onload = () => {
-                const closeIcon = document.createElement("a-image");
-                closeIcon.setAttribute("id", "closingIcon");
-                closeIcon.setAttribute("src", iconSrc);
-                closeIcon.setAttribute("width", 0.15);
-                closeIcon.setAttribute("height", 0.15);
-                
-                const iconX = width / 2 - padding - 0.075;
-                closeIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
-                closeIcon.classList.add("clickable");
-                
-                closeIcon.addEventListener("click", () => this.closeDialog());
-                this.el.appendChild(closeIcon);
-                this.updateTextColor();
-            };
+            const iconX = width / 2 - padding - (iconSize / 2);
+            const closeIcon = this._appendIcon("/close.png", iconSize, "closingIcon");
+            closeIcon.setAttribute("position", {x: iconX, y: titleRowYCenter, z: 0.05});
+            closeIcon.addEventListener("click", () => this.closeDialog());
         }
 
         // 3. Add Title
         this._appendText("title", this.data.title, {
-            fontSize: 0.15,
+            fontSize: 0.09,
             clipRect: `0 -1 ${contentWidth - titleXOffset} 1`,
             position: {x: -width / 2 + padding + titleXOffset, y: titleRowYCenter, z: 0.05}
         });
 
         // 4. Add Content Text
         // Calculate layout to fit text within the dialog body
-        const contentFontSize = 0.1;
+        const contentFontSize = 0.06;
         const lineHeight = 1.2;
         const contentStartY = titleRowYCenter - (iconSize / 2) - 0.1;      
         const maxContentHeight = contentStartY - (-height / 2 + 0.5); // Space until buttons area
