@@ -170,15 +170,21 @@ AFRAME.registerComponent("progressBar", {
         switch (this.data.size) {
             case "small":
                 this.sizeCoef = 0.06;
+                this.innerPadding = 0.15;
+                this.widthArg = 1.2;
                 break;
 
             case "large":
                 this.sizeCoef = 0.09;
+                this.innerPadding = 0.2;
+                this.widthArg = 1.8;
                 break;
 
             case "medium":
             default:
                 this.sizeCoef = 0.075;
+                this.innerPadding = 0.175;
+                this.widthArg = 1.5;
                 break;
         }
     },
@@ -191,11 +197,11 @@ AFRAME.registerComponent("progressBar", {
         return Math.max(0, Math.min(100, numericValue));
     },
 
-    createProgressBar(widthArg = 1.5) {
+    createProgressBar() {
         const sizeCoef = this.sizeCoef;
         const padding = 0.05;
         const height = sizeCoef + 2 * padding;
-        const max_width = widthArg;
+        const max_width = this.widthArg;
 
         const group = new AFRAME.THREE.Group();
 
@@ -269,9 +275,9 @@ AFRAME.registerComponent("progressBar", {
         this.el.setObject3D('mesh', group);
     },
 
-    reverseProgressBar(widthArg = 1.5) {
+    reverseProgressBar() {
         const sizeCoef = this.sizeCoef;
-        const max_width = widthArg;
+        const max_width = this.widthArg;
         let reversed = this.data.reversed;
 
         let numericValue = this.getValidNumericValue(this.data.value);
@@ -296,7 +302,7 @@ AFRAME.registerComponent("progressBar", {
         }
     },
 
-    setContent(widthArg = 1.5) {
+    setContent() {
         let numericValue = this.getValidNumericValue(this.data.value);
 
         let text;
@@ -336,8 +342,8 @@ AFRAME.registerComponent("progressBar", {
         textEl.setAttribute("position", "0 0 0.05");
 
         // Create the progress bar and calculate its x-axis
-        this.createProgressBar(widthArg);
-        const max_width = widthArg;
+        this.createProgressBar();
+        const max_width = this.widthArg;
         const width = this.progressBarMesh ? max_width * (numericValue / 100) : 0; // Fallback to 0 if progressBarMesh is not defined, in that way x_axis will be calculated correctly
         let x_axis = 0;
         let positionForDecimal = 0; // Adjustment in text for decimal numbers
@@ -351,19 +357,19 @@ AFRAME.registerComponent("progressBar", {
                 x_axis = 0 - max_width / 2 + width / 2;
             } else {
                 // Set the position of the text element to match on the right side progress bar with padding
-                x_axis = 0 - max_width / 2 + width + 0.15 + positionForDecimal;
+                x_axis = 0 - max_width / 2 + width + this.innerPadding + positionForDecimal;
             }
         } else {
             if (numericValue >= 20) {
                 x_axis = 0 + max_width / 2 - width / 2;
             } else {
-                x_axis = 0 + max_width / 2 - width - 0.15 - positionForDecimal;
+                x_axis = 0 + max_width / 2 - width - this.innerPadding - positionForDecimal;
             }
         }
 
         textEl.setAttribute("position", { x: x_axis, y: 0, z: 0.05 });
 
-        this.reverseProgressBar(widthArg);
+        this.reverseProgressBar();
 
         // Ensure text color is updated after reversing
         if (textEl && this.data.state !== "") {
