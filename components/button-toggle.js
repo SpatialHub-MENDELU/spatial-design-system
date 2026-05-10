@@ -42,7 +42,6 @@ AFRAME.registerComponent("buttontoggle", {
             this.selectedIndices.push(0);
         }
 
-        this.updateButtonsColor(); // Determine finalColor
         this.setButtons();
     },
 
@@ -107,7 +106,6 @@ AFRAME.registerComponent("buttontoggle", {
 
     updateButtonsColor() {
         this.finalColor = this.data.color;
-        this.finalActiveColor = this.data.activecolor;
 
         if (this.data.mode !== "") {
             this.setMode();
@@ -122,7 +120,7 @@ AFRAME.registerComponent("buttontoggle", {
         const isSelected = this.selectedIndices.includes(index);
 
         if (isSelected) {
-            buttonEl.setAttribute("color", this.finalActiveColor); // Set to the 'active' color
+            buttonEl.setAttribute("color", this.data.activecolor); // Set to the 'active' color
         } else {
             buttonEl.setAttribute("color", this.finalColor); // Set to the 'default/unselected' color
         }
@@ -139,21 +137,23 @@ AFRAME.registerComponent("buttontoggle", {
         this.el.innerHTML = "";
         this.buttons = [];
 
-        let currentX = 0;
         const buttonData = this.data.buttons;
-    
+        const totalWidth = buttonData.reduce((sum, data) => sum + this.calculateButtonWidth(data.label, data.icon), 0);
+
+        let currentX = -totalWidth / 2;
+
         buttonData.forEach((data, index) => {
             const buttonEl = document.createElement("a-ar-button");
-            
+
             buttonEl.setAttribute("size", this.data.size);
             buttonEl.setAttribute("opacity", this.data.opacity);
             if (data.label) buttonEl.setAttribute("content", data.label);
             buttonEl.setAttribute("elevated", false);
             buttonEl.setAttribute("animate", false);
-            
+
             if (data.icon) buttonEl.setAttribute("icon", data.icon);
             if (data.iconpos) buttonEl.setAttribute("iconpos", data.iconpos);
-            
+
             // Handle Rounded/Tile logic
             this.applyShapeAttributes(buttonEl, index, buttonData.length);
 
@@ -166,14 +166,11 @@ AFRAME.registerComponent("buttontoggle", {
             this.buttons.push(buttonEl);
 
             this.updateButtonVisuals(buttonEl, index);
-            
-            let width = this.calculateButtonWidth(data.label, data.icon);
-            buttonEl.setAttribute("position", { x: currentX + width / 2, y: 0, z: 0 }); // Position center of button
+
+            const width = this.calculateButtonWidth(data.label, data.icon);
+            buttonEl.setAttribute("position", { x: currentX + width / 2, y: 0, z: 0 });
             currentX += width;
         });
-
-        // Center the whole group
-        this.el.object3D.position.x = -currentX / 2; // By the end of the cycle 'currentX' is the total width of all buttons
     },
 
     applyShapeAttributes(buttonEl, index, total) {
@@ -244,6 +241,10 @@ AFRAME.registerComponent("buttontoggle", {
     },
 
     onButtonClick(index) {
+        const now = Date.now();
+        if (this._lastClickTime !== undefined && now - this._lastClickTime < 100) return;
+        this._lastClickTime = now;
+
         const foundIndex = this.selectedIndices.indexOf(index);
         const isSelected = foundIndex > -1;
 

@@ -64,6 +64,7 @@ AFRAME.registerComponent("list", {
 
     _appendText(parent, value, config) {
         const el = document.createElement("a-troika-text");
+        el.setAttribute("data-layout-excluded", "");
         el.setAttribute("value", value || "");
         el.setAttribute("align", config.align || "left");
         el.setAttribute("anchor", config.anchor || "left");
