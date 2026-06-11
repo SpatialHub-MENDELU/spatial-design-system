@@ -29,9 +29,9 @@ document.querySelector('#app').innerHTML = `
 <!--        </a-entity>-->
 <!--        -->
         <!-- Characters -->
-<!--        <a-entity walk id="fox-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1.8 0">-->
-<!--            <a-entity gltf-model="#fox" ammo-shape="type: hull;" position="0 -1.3 0.2" scale="1 1 1" ></a-entity>-->
-<!--        </a-entity>-->
+        <a-entity walk="sprint: true;" id="fox-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 1.8 0">
+            <a-entity gltf-model="#fox" ammo-shape="type: hull;" position="0 -1.3 0.2" scale="1 1 1" ></a-entity>
+        </a-entity>
         
 
 <!--        <a-entity fly id="dragon-character" ammo-body="type: dynamic; angularFactor: 0 0 0; mass: 20; activationState: disableDeactivation" position="0 0.2 0" rotation="0 0 0">-->
@@ -80,8 +80,8 @@ document.querySelector('#app').innerHTML = `
 
 
         <!-- Camera -->
-        <a-entity camera  wasd-controls rotation="-40 0 0" position="0 10 20" ></a-entity>
-<!--        <a-entity camera gameview="target: #plane-character" rotation="-30 0 0"></a-entity>-->
+<!--        <a-entity camera  wasd-controls rotation="-40 0 0" position="0 10 20" ></a-entity>-->
+        <a-entity camera game-view="target: #fox-character; type: thirdPersonFollow;" rotation="-30 0 0"></a-entity>
         
     </a-scene>
 `
