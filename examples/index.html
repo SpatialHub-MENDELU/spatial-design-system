@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SDS Examples</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    header h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #f8fafc;
+    }
+
+    header p {
+      margin-top: 10px;
+      font-size: 1rem;
+      color: #94a3b8;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .card {
+      background: #1e2330;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 28px 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    }
+
+    .card:hover {
+      border-color: #4f6ef7;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(79, 110, 247, 0.15);
+    }
+
+    .card-icon {
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .card-desc {
+      font-size: 0.875rem;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .badge {
+      align-self: flex-start;
+      margin-top: auto;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .badge-ar  { background: #0f3a2b; color: #34d399; }
+    .badge-vr  { background: #1e1b4b; color: #818cf8; }
+    .badge-ui  { background: #1c2237; color: #60a5fa; }
+    .badge-game{ background: #2a1a0e; color: #fb923c; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Spatial Design System</h1>
+    <p>Pick an example to explore</p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="./ar-components/">
+      <div class="card-icon">📱</div>
+      <div class="card-title">AR Components</div>
+      <div class="card-desc">Basic AR primitives — buttons and checkboxes rendered in augmented reality with auto-XR and touch raycasting.</div>
+      <span class="badge badge-ar">AR</span>
+    </a>
+
+    <a class="card" href="./vr-components/">
+      <div class="card-icon">🥽</div>
+      <div class="card-title">VR Components</div>
+      <div class="card-desc">Full VR scene with controller movement, teleportation, a flashlight, and a maze to explore.</div>
+      <span class="badge badge-vr">VR</span>
+    </a>
+
+    <a class="card" href="./hands-interaction/">
+      <div class="card-icon">🤲</div>
+      <div class="card-title">Hands Interaction</div>
+      <div class="card-desc">AR demo using hand-tracking to grab, move, and stretch 3D objects. Place animals in their correct environments.</div>
+      <span class="badge badge-ar">AR</span>
+    </a>
+
+    <a class="card" href="./place-object/">
+      <div class="card-icon">📍</div>
+      <div class="card-title">Place Object</div>
+      <div class="card-desc">Place 3D objects on real-world surfaces (horizontal, vertical, ceiling) using AR surface detection.</div>
+      <span class="badge badge-ar">AR</span>
+    </a>
+
+    <a class="card" href="./follow-entity/">
+      <div class="card-icon">🔵</div>
+      <div class="card-title">Follow Entity</div>
+      <div class="card-desc">Demonstrates the follow-camera and follow-element components — entities that trail the camera or another entity.</div>
+      <span class="badge badge-ui">3D</span>
+    </a>
+
+    <a class="card" href="./flexbox/">
+      <div class="card-icon">⬛</div>
+      <div class="card-title">Flexbox Layout</div>
+      <div class="card-desc">Spatial flexbox system: all combinations of direction, justify, and align-items laid out in 3D space.</div>
+      <span class="badge badge-ui">UI</span>
+    </a>
+
+    <a class="card" href="./flex-columns/">
+      <div class="card-icon">▦</div>
+      <div class="card-title">Flex Columns</div>
+      <div class="card-desc">Responsive column grid (flex-col) with configurable breakpoints for 3D spatial layouts.</div>
+      <span class="badge badge-ui">UI</span>
+    </a>
+
+    <a class="card" href="./game-components/">
+      <div class="card-icon">🎮</div>
+      <div class="card-title">Game Components</div>
+      <div class="card-desc">Physics-based game scene with walk, NPC walk, fly, and third-person camera components.</div>
+      <span class="badge badge-game">Game</span>
+    </a>
+  </div>
+</body>
+</html>

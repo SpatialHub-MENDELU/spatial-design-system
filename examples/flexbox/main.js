@@ -74,6 +74,7 @@ const layouts = {
 
 // Generate HTML
 let sceneHTML = `
+  <a-entity camera position="6 0 3"></a-entity>
   ${createText('justify', {x: -18, y: 18.5}, 4)}
   ${createText('align', {x: -8, y: 18.5}, 4)}
 `;
@@ -153,34 +154,6 @@ sceneHTML += `
         });
     });
 });
-
-sceneHTML += `
-  <a-plane 
-    position="0 0 -10" 
-    width="6"
-    height="4"
-    material="color: ${CONFIG.colors.background}"
-    flexbox="
-      direction: row;
-      wrap: true;
-      justify: center;
-      items: center;
-    "
-  >
-     <a-plane 
-      color="blue" 
-      text="value: ${1}; color: white; align: center; width: 12; font: kelsonsans;"
-      flex-col="
-        sm: 2;
-        md: 4;
-        lg: 6;
-        xl: 8;
-        2xl: 10;
-        3xl: 12;
-      "
-    ></a-plane>
-  </a-plane>
-`
 
 scene.innerHTML = sceneHTML;
 app.appendChild(scene);

@@ -46,12 +46,13 @@ Use it in your A-FRAME scene:
 ```
 
 
-## Example project
+## Running examples locally
 
-See an example minimalistic _Vite_ project with _A-FRAME_ and _Spatial Design System_ installed. 
+The repository includes a set of interactive examples covering AR, VR, hands interaction, flexbox layout, game components, and more.
 
-1. Go to folder `example-project` (download it from [GitHub repository](https://github.com/SpatialHub-MENDELU/spatial-design-system))
-2. Run `npm install`.
-3. Run `npm run dev`. 
-4. Open the displayed link in browser. 
-5. You should see a green button. Move left and right and the button will be always facing the user thanks to the _billboard_ component.
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) to see the examples landing page. From there you can navigate to each example.

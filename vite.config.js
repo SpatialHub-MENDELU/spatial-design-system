@@ -3,6 +3,11 @@ import { resolve } from 'path'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+    root: resolve(__dirname, 'examples'),
+    server: {
+        port: 5173,
+        allowedHosts: true,
+    },
     build: {
         lib: {
             // Could also be a dictionary or array of multiple entry points
@@ -23,7 +28,7 @@ export default defineConfig({
                     // aframe
                     aframe: 'AFRAME'
                 },
-                dir: 'umd' // output directory
+                dir: resolve(__dirname, 'umd') // output directory
             },
         }
     }
