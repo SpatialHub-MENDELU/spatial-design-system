@@ -343,7 +343,7 @@ AFRAME.registerComponent("flexbox", {
 
             currentX += itemBboxSize.x / 2;
 
-            const itemDoesNotFit = currentX + itemBboxSize.x / 2 > this.container.width / 2;
+            const itemDoesNotFit = currentX + itemBboxSize.x / 2 > this.container.width / 2 + 1e-6;
             if (itemDoesNotFit) {
                 // Move to the next line
                 currentX = -this.container.width / 2 + itemBboxSize.x / 2;
@@ -380,7 +380,7 @@ AFRAME.registerComponent("flexbox", {
 
             currentY -= itemBboxSize.y / 2;
 
-            const doesItemNotFit = currentY - itemBboxSize.y / 2 < -this.container.height / 2;
+            const doesItemNotFit = currentY - itemBboxSize.y / 2 < -this.container.height / 2 - 1e-6;
             if (doesItemNotFit) {
                 // Move to the next column
                 currentY = this.container.height / 2 - itemBboxSize.y / 2;
@@ -484,26 +484,10 @@ AFRAME.registerComponent("flexbox", {
 
                 colItem.setAttribute(this.MAIN_DIMENSION, newDimensionSize);
 
-                // We don't need to adjust positions since wrapping already accounts for these sizes
-                // Just update other items that might need to be repositioned
-
-                // Only adjust subsequent items in the same line if needed
-                if (this.originalSizes && this.originalSizes.has(colItem)) {
-                    const originalSize = this.originalSizes.get(colItem);
-                    const sizeDiff = newDimensionSize - originalSize[this.MAIN_AXIS];
-
-                    if (Math.abs(sizeDiff) > 0.001) {
-                        // Only shift subsequent items if there's a significant difference
-                        const inLineIndex = line.indexOf(colItem);
-                        for (let i = inLineIndex + 1; i < line.length; i++) {
-                            if(this.isDirectionRow()) {
-                                line[i].object3D.position[this.MAIN_AXIS] += sizeDiff;
-                            } else {
-                                line[i].object3D.position[this.MAIN_AXIS] -= sizeDiff;
-                            }
-                        }
-                    }
-                }
+                // No position adjustment needed: setRowItemsLayoutWrap / setRowItemsLayout
+                // (and the col equivalents) already laid the line out using the calculated
+                // column sizes via getItemBboxSize → calculatedSizes. Shifting again here
+                // would double-apply the size delta and cause items to overlap.
             });
         });
     },
