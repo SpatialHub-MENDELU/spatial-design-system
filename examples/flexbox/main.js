@@ -74,7 +74,7 @@ const layouts = {
 
 // Generate HTML
 let sceneHTML = `
-  <a-entity camera position="6 0 3"></a-entity>
+  <a-entity camera wasd-controls position="6 0 3"></a-entity>
   ${createText('justify', {x: -18, y: 18.5}, 4)}
   ${createText('align', {x: -8, y: 18.5}, 4)}
 `;
