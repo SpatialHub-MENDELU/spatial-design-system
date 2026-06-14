@@ -217,6 +217,7 @@ AFRAME.registerComponent("flexbox", {
     async setItemsLayout() {
         // Initialize/reset the lines array
         this.lines = [[]];
+        this.colBasedLayout = false;
 
         this.preCalculateColumnSizes();
 
@@ -248,31 +249,140 @@ AFRAME.registerComponent("flexbox", {
         this.originalSizes = new Map();
         this.calculatedSizes = new Map();
 
-        // Find flex-col items
         const colItems = this.items.filter(item => item.getAttribute("flex-col") !== null);
+        const growItems = this.items.filter(item => this.hasFlexGrow(item));
 
-        if (!colItems.length) return;
+        if (!colItems.length && !growItems.length) return;
 
         const columnSize = this.container[this.MAIN_DIMENSION] / 12;
 
         colItems.forEach(colItem => {
             if (!colItem.components || !colItem.components['flex-col']) return;
 
-            // Get original size
             const originalSize = this.getItemBboxSize(colItem);
-            this.originalSizes.set(colItem, {...originalSize});
+            this.originalSizes.set(colItem, { x: originalSize.x, y: originalSize.y, z: originalSize.z });
 
-            // Calculate flex-col size
             const colValue = colItem.components['flex-col'].getCurrentColumn();
             if (!colValue) return;
 
             const newDimensionSize = columnSize * +colValue;
 
-            // Store calculated size for use during layout
-            const calculatedSize = {...originalSize};
+            const calculatedSize = { x: originalSize.x, y: originalSize.y, z: originalSize.z };
             calculatedSize[this.MAIN_AXIS] = newDimensionSize;
             this.calculatedSizes.set(colItem, calculatedSize);
         });
+
+        // flex-grow items get a basis of 0 on the main axis so wrap packs them onto
+        // whatever line still has room; applyGrow then expands them into the leftover space.
+        growItems.forEach(growItem => {
+            let base;
+            if (this.calculatedSizes.has(growItem)) {
+                base = { ...this.calculatedSizes.get(growItem) };
+            } else {
+                const originalSize = this.getItemBboxSize(growItem);
+                base = { x: originalSize.x, y: originalSize.y, z: originalSize.z };
+                if (!this.originalSizes.has(growItem)) {
+                    this.originalSizes.set(growItem, { ...base });
+                }
+            }
+            base[this.MAIN_AXIS] = 0;
+            this.calculatedSizes.set(growItem, base);
+        });
+    },
+
+    hasFlexGrow(item) {
+        const v = item.getAttribute("flex-grow");
+        return v !== null && v !== "false";
+    },
+
+    getItemColSpan(item) {
+        if (item.getAttribute("flex-col") !== null && item.components && item.components['flex-col']) {
+            const v = item.components['flex-col'].getCurrentColumn();
+            if (v) return +v;
+        }
+        // Fallback: derive cols from physical width so the item still participates in the grid
+        const colUnit = this.container[this.MAIN_DIMENSION] / 12;
+        if (colUnit <= 0) return 0;
+        const size = this.getItemBboxSize(item)[this.MAIN_AXIS];
+        return Math.min(12, size / colUnit);
+    },
+
+    setRowItemsLayoutWrapColBased() {
+        // 12-column grid wrap: an item joins the current row while col-sum ≤ 12,
+        // and flex-grow items expand to fill any remaining cols on their row.
+        const COL_CAPACITY = 12;
+        const lines = [[]];
+        let currentLine = lines[0];
+        let currentColSum = 0;
+
+        for (let i = 0; i < this.items.length; i++) {
+            const item = this.items[i];
+            const cols = this.getItemColSpan(item);
+            if (currentColSum + cols > COL_CAPACITY + 1e-6 && currentLine.length > 0) {
+                currentLine = [];
+                lines.push(currentLine);
+                currentColSum = 0;
+            }
+            currentLine.push(item);
+            currentColSum += cols;
+        }
+
+        // Distribute leftover cols on each row equally to that row's flex-grow items
+        const growExtraCols = new Map();
+        lines.forEach(line => {
+            const lineColSum = line.reduce((s, it) => s + this.getItemColSpan(it), 0);
+            const slack = COL_CAPACITY - lineColSum;
+            if (slack <= 0) return;
+            const growItems = line.filter(it => this.hasFlexGrow(it));
+            if (!growItems.length) return;
+            const extra = slack / growItems.length;
+            growItems.forEach(it => growExtraCols.set(it, extra));
+        });
+
+        // Lay out each row physically. col_unit is always container.width / 12 so a
+        // "6 col" item is always half the container, regardless of gap — gap is layered
+        // on top of cols, and rows can overflow if the author picks a too-large gap.
+        const colUnit = this.container.width / COL_CAPACITY;
+        let currentY = this.container.height / 2;
+
+        lines.forEach((line, lineIdx) => {
+            let currentX = -this.container.width / 2;
+            let lineHeight = 0;
+
+            line.forEach(item => {
+                const cols = this.getItemColSpan(item) + (growExtraCols.get(item) || 0);
+                const physicalWidth = cols * colUnit;
+                const itemBbox = this.getItemBboxSize(item);
+                const itemHeight = itemBbox.y;
+                const itemDepth = itemBbox.z;
+
+                item.setAttribute(this.MAIN_DIMENSION, physicalWidth);
+
+                const cs = this.calculatedSizes.get(item) || { x: physicalWidth, y: itemHeight, z: itemDepth };
+                cs.x = physicalWidth;
+                cs.y = itemHeight;
+                cs.z = itemDepth;
+                this.calculatedSizes.set(item, cs);
+
+                currentX += physicalWidth / 2;
+                item.object3D.position.set(
+                    currentX,
+                    currentY - itemHeight / 2,
+                    this.container.depth / 2 + itemDepth / 2 + this.container.height * 0.01
+                );
+                // No gap.x between items: the 12-col grid is the spacing unit, so cols
+                // are placed edge-to-edge. gap.y still separates rows.
+                currentX += physicalWidth / 2;
+                lineHeight = Math.max(lineHeight, itemHeight);
+            });
+
+            if (lineIdx < lines.length - 1) {
+                currentY -= lineHeight + this.data.gap.y;
+            }
+        });
+
+        this.lines = lines;
+        this.colBasedLayout = true;
     },
 
     updateNestedFlexboxes() {
@@ -331,6 +441,13 @@ AFRAME.registerComponent("flexbox", {
     },
 
     setRowItemsLayoutWrap() {
+        // Switch to the 12-column grid path when any flex-grow item is present —
+        // flex-grow's "fill leftover cols up to 12" semantics only make sense in col-space.
+        if (this.items.some(item => this.hasFlexGrow(item))) {
+            this.setRowItemsLayoutWrapColBased();
+            return;
+        }
+
         const lines = [[]]; // Initialize lines array
         let currentLine = lines[0];
         let currentX = -this.container.width / 2;
@@ -405,6 +522,7 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyGrow() {
+        if (this.colBasedLayout) return; // Grow already distributed in column space
         if (!this.lines || !this.lines.length) return;
 
         this.lines.forEach(line => {
@@ -433,7 +551,20 @@ AFRAME.registerComponent("flexbox", {
                     growItem.setAttribute(ORIGINAL_DIRECTION_ATTRIBUTE, growItem.getAttribute(this.MAIN_DIMENSION) || '1');
                 }
 
-                growItem.setAttribute(this.MAIN_DIMENSION, +growItem.getAttribute(ORIGINAL_DIRECTION_ATTRIBUTE) + freeSpacePerItem);
+                // Grow from the current (post-bootstrap) size, not the original attribute —
+                // otherwise a flex-col item that was just enlarged by applyBootstrapGrid
+                // would be shrunk back to its pre-col base + grow share. For items with
+                // flex-grow this base is 0 (set in preCalculateColumnSizes), so the new
+                // size is simply the leftover-space share.
+                const baseSize = this.getItemBboxSize(growItem)[this.MAIN_AXIS];
+                const newSize = baseSize + freeSpacePerItem;
+                growItem.setAttribute(this.MAIN_DIMENSION, newSize);
+
+                // Keep calculatedSizes in sync so later passes (justify, align) see the
+                // post-grow size instead of the 0 basis.
+                if (this.calculatedSizes && this.calculatedSizes.has(growItem)) {
+                    this.calculatedSizes.get(growItem)[this.MAIN_AXIS] = newSize;
+                }
 
                 if(this.isDirectionRow()) {
                     growItem.object3D.position[this.MAIN_AXIS] += freeSpacePerItem / 2;
@@ -454,6 +585,7 @@ AFRAME.registerComponent("flexbox", {
     },
 
     applyBootstrapGrid() {
+        if (this.colBasedLayout) return; // Column sizing already applied in setRowItemsLayoutWrapColBased
         if (!this.lines || !this.lines.length) return;
 
         this.lines.forEach(line => {
@@ -470,6 +602,9 @@ AFRAME.registerComponent("flexbox", {
 
             colItems.forEach(colItem => {
                 if (!colItem.components || !colItem.components['flex-col']) return;
+                // flex-grow takes precedence over flex-col sizing — applyGrow assigns
+                // these items the leftover space on their line.
+                if (this.hasFlexGrow(colItem)) return;
 
                 const originalDimensionSize = colItem.getAttribute(this.MAIN_DIMENSION) || '1';
                 const colValue = colItem.components['flex-col'].getCurrentColumn();
