@@ -77,9 +77,12 @@ let sceneHTML = `
   <a-entity camera look-controls
             wasd-controls="wsAxis: y; wsInverted: true; fly: true; acceleration: 250"
             position="0 8 -4"></a-entity>
-  ${createText('Use WASD to move (W/S = up/down, A/D = strafe). Click & drag to look around.', {x: -15, y: 20}, 2)}
-  ${createText('justify', {x: -18, y: 17.5}, 4)}
-  ${createText('align', {x: -8, y: 17.5}, 4)}
+  ${createText('Use WASD to move (W/S = up/down, A/D = strafe). Click & drag to look around.', {x: -15, y: 21}, 2)}
+  ${createText('justify', {x: -18, y: 18.5}, 4)}
+  ${createText('align', {x: -8, y: 18.5}, 4)}
+
+  <a-plane position="-13 0.5 ${CONFIG.zIndex}" width="0.05" height="38" color="#9ca3af"></a-plane>
+  <a-plane position="3 0.5 ${CONFIG.zIndex}"   width="0.05" height="38" color="#9ca3af"></a-plane>
 `;
 
 // Generate justify section

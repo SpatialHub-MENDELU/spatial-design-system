@@ -87,6 +87,14 @@ let html = `
   ${createText('flex-grow',         { x: COLS.grow,  y: 18 }, 3)}
   ${createText('flex-col grid',     { x: COLS.col,   y: 18 }, 3)}
   ${createText('issue regressions', { x: COLS.issue, y: 18 }, 3)}
+
+  ${[
+      (COLS.wrap + COLS.col) / 2,
+      (COLS.col + COLS.grow) / 2,
+      (COLS.grow + COLS.issue) / 2,
+  ].map(sx => `
+    <a-plane position="${sx} 0.5 ${Z}" width="0.05" height="36" color="#9ca3af"></a-plane>
+  `).join('')}
 `;
 
 // ---- wrap column ----
@@ -221,7 +229,7 @@ html += flexDemo({
     const variants = [
         { w: 3, h: 2.2, bp: 'sm  → 12 each (4 stacked rows)' },
         { w: 6, h: 1.2, bp: 'md  → 6 each (2 per row)' },
-        { w: 9, h: 0.7, bp: 'lg  → 3 each (4 per row)' },
+        { w: 8, h: 0.7, bp: 'lg  → 3 each (4 per row)' },
     ];
     const labelGap = 0.5;
     const interGap = 0.7;
