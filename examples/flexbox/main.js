@@ -74,9 +74,12 @@ const layouts = {
 
 // Generate HTML
 let sceneHTML = `
-  <a-entity camera wasd-controls position="6 0 3"></a-entity>
-  ${createText('justify', {x: -18, y: 18.5}, 4)}
-  ${createText('align', {x: -8, y: 18.5}, 4)}
+  <a-entity camera look-controls
+            wasd-controls="wsAxis: y; wsInverted: true; fly: true; acceleration: 250"
+            position="0 8 -4"></a-entity>
+  ${createText('Use WASD to move (W/S = up/down, A/D = strafe). Click & drag to look around.', {x: -15, y: 20}, 2)}
+  ${createText('justify', {x: -18, y: 17.5}, 4)}
+  ${createText('align', {x: -8, y: 17.5}, 4)}
 `;
 
 // Generate justify section
