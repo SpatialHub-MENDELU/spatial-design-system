@@ -73,7 +73,7 @@ const flexDemo = ({ x, y, w = 4, h = 3, title, flexbox, items }) => {
 };
 
 const COLS = { wrap: 0, col: 9, grow: 18, issue: 27 };
-const ROWS = [14, 5, -4, -13];
+const ROWS = [14, 5, -4, -13, -20];
 
 let html = `
   <a-entity camera look-controls
@@ -93,7 +93,7 @@ let html = `
       (COLS.col + COLS.grow) / 2,
       (COLS.grow + COLS.issue) / 2,
   ].map(sx => `
-    <a-plane position="${sx} 0.5 ${Z}" width="0.05" height="36" color="#9ca3af"></a-plane>
+    <a-plane position="${sx} -3 ${Z}" width="0.05" height="50" color="#9ca3af"></a-plane>
   `).join('')}
 `;
 
@@ -261,6 +261,33 @@ html += flexDemo({
         `;
         cursorY -= labelGap + v.h + (i < variants.length - 1 ? interGap : 0);
     });
+}
+
+// Numeric width breakpoints. Container is small (2m)
+// so the 1.7m breakpoint demonstrates the 4-col layout out of the box.
+{
+    const cx = COLS.col;
+    const cy = ROWS[4];
+    const flexbox = 'direction: row; justify: start; items: start; wrap: true; gap: 0';
+    const colAttr = 'flex-col="0: 12; 1: 6; 1.7: 4;"';
+    const cellColors = ['#03FCC6', '#00C170', 'white'];
+    const children = cellColors.map((c, i) => `
+        <a-plane color="${c}" height="0.3" ${colAttr}></a-plane>
+    `).join('');
+
+    html += `
+        ${createText('numeric breakpoints + labels', { x: cx, y: cy + 1.4 })}
+        ${createText('container: 2m × 0.4m', { x: cx, y: cy + 0.75 }, 1.3)}
+        ${createText(`flexbox: ${flexbox}`, { x: cx, y: cy + 0.3 }, 1.3)}
+        ${createText('items: col[0: 12, 1: 6, 1.7: 4]', { x: cx, y: cy - 0.5 }, 1.3)}
+        <a-plane
+            position="${cx} ${cy - 1} ${Z}"
+            width="2"
+            height="0.4"
+            material="color: #018A6C"
+            flexbox="${flexbox}"
+        >${children}</a-plane>
+    `;
 }
 
 html += flexDemo({
