@@ -1,7 +1,7 @@
 import * as AFRAME from "aframe"
 import "aframe-troika-text"
 import { PRIMARY_COLOR_DARK, VARIANT_LIGHT_COLOR, determineHighlightedColor } from "../utils/colors.js"
-import { getContrast, setContrastColor } from "../utils/utils.js"
+import { getContrast, setContrastColor, computeBbox } from "../utils/utils.js"
 import arrowBackIcon from "../assets/arrow-back-white.png"
 
 AFRAME.registerComponent("menu", {
@@ -535,7 +535,8 @@ AFRAME.registerComponent('grid', {
     schema: {
       columns: { type: 'int', default: 2 },
       rows: { type: 'int', default: 2 },
-      padding: { type: 'vec2', default: { x: 10, y: 10 } }
+      padding: { type: 'vec2', default: { x: 10, y: 10 } },
+      spacing: { type: 'number', default: 0 }
     },
 
     init() {
@@ -564,14 +565,25 @@ AFRAME.registerComponent('grid', {
     },
 
     updateLayout() {
-        const elGeometry = this.el.getAttribute("geometry");
-        if (!elGeometry) return;
+        const gridItems = Array.from(this.el.children).filter(el => !el.hasAttribute("data-layout-excluded"));
+        if (gridItems.length === 0) return;
 
+        const elGeometry = this.el.getAttribute("geometry");
+
+        if (elGeometry) {
+            // The grid has its own (plane) geometry, e.g. when driven by the
+            // menu component: stretch the children to fill the available area.
+            this.layoutInGeometry(elGeometry, gridItems);
+        } else {
+            // Plain `<a-entity grid>` with arbitrary children: keep the
+            // children's own size and arrange them in a centered grid.
+            this.layoutByItemSize(gridItems);
+        }
+    },
+
+    layoutInGeometry(elGeometry, gridItems) {
         const gridWidth = elGeometry.width || 1;
         const gridHeight = elGeometry.height || 1;
-        const gridItems = Array.from(this.el.children).filter(el => !el.hasAttribute("data-layout-excluded"));
-        
-        if (gridItems.length === 0) return;
 
         const cols = this.data.columns;
         const rows = Math.ceil(gridItems.length / cols);
@@ -595,10 +607,10 @@ AFRAME.registerComponent('grid', {
             }
 
             // Update item geometry to the calculated width/height
-            item.setAttribute("geometry", { 
-                primitive: "plane", 
-                width: itemWidth, 
-                height: itemHeight 
+            item.setAttribute("geometry", {
+                primitive: "plane",
+                width: itemWidth,
+                height: itemHeight
             });
             item.object3D.scale.set(1, 1, 1);
 
@@ -608,11 +620,49 @@ AFRAME.registerComponent('grid', {
             // 3. Position the item
             // Start at the left edge + the first gap + previous items/gaps + half of current item
             item.object3D.position.x = (-gridWidth / 2) + singleGapX + (colIndex * (itemWidth + singleGapX)) + (itemWidth / 2);
-            
+
             // Start at top edge - the first gap - previous items/gaps - half of current item
             item.object3D.position.y = (gridHeight / 2) - singleGapY - (rowIndex * (itemHeight + singleGapY)) - (itemHeight / 2);
-            
+
             item.object3D.position.z = 0.01;
+        });
+    },
+
+    layoutByItemSize(gridItems) {
+        const cols = this.data.columns;
+        const rows = Math.ceil(gridItems.length / cols);
+        const spacing = this.data.spacing;
+
+        // Use the largest child bounding box as the cell size so that items of
+        // different sizes still align on a regular grid.
+        let cellWidth = 0;
+        let cellHeight = 0;
+        const size = new THREE.Vector3();
+
+        gridItems.forEach((item) => {
+            const bbox = computeBbox(item);
+            if (!bbox.isEmpty()) {
+                bbox.getSize(size);
+                cellWidth = Math.max(cellWidth, size.x);
+                cellHeight = Math.max(cellHeight, size.y);
+            }
+        });
+
+        // Fall back to a unit cell if the meshes aren't ready yet.
+        if (cellWidth === 0) cellWidth = 1;
+        if (cellHeight === 0) cellHeight = 1;
+
+        const stepX = cellWidth + spacing;
+        const stepY = cellHeight + spacing;
+
+        gridItems.forEach((item, index) => {
+            const colIndex = index % cols;
+            const rowIndex = Math.floor(index / cols);
+
+            // Center the grid around the entity's origin.
+            item.object3D.position.x = (colIndex - (cols - 1) / 2) * stepX;
+            item.object3D.position.y = -(rowIndex - (rows - 1) / 2) * stepY;
+            item.object3D.position.z = 0;
         });
     }
 });
@@ -620,7 +670,7 @@ AFRAME.registerComponent('grid', {
 AFRAME.registerComponent('circle', {
     schema: {
         radius: { type: "number", default: 1 },
-        spacing: { type: "number", default: 0.1 },
+        spacing: { type: "number", default: 0 },
         color: { type: "color", default: "blue" },
         opacity: { type: "number", default: 1 }
       },
@@ -653,7 +703,7 @@ AFRAME.registerComponent('circle', {
       },
 
       updateLayout() {
-        const circleSpacing = this.el.spacing
+        const circleSpacing = this.data.spacing
         const circleRadius = this.data.radius
 
         const children = Array.from(this.el.children).filter((el) => !el.hasAttribute("data-layout-excluded"))
