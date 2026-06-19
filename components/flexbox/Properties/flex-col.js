@@ -1,5 +1,17 @@
 import * as AFRAME from "aframe";
 
+// Named breakpoints in ascending order, with their default meter thresholds.
+// The container's `customBreakpoints` overrides these thresholds positionally.
+const BREAKPOINT_ORDER = ['sm', 'md', 'lg', 'xl', '2xl', '3xl'];
+const DEFAULT_THRESHOLDS = {
+    sm: 0,    // default value
+    md: 4,    // 4m
+    lg: 7,    // 7m
+    xl: 10,   // 10m
+    '2xl': 12, // 12m
+    '3xl': 15  // 15m
+};
+
 AFRAME.registerComponent("flex-col", {
     schema: {
         sm: { type: "number" },
@@ -8,41 +20,6 @@ AFRAME.registerComponent("flex-col", {
         xl: { type: "number" },
         '2xl': { type: "number" },
         '3xl': { type: "number" },
-    },
-
-    // Override parse to handle custom numeric breakpoints
-    parse(value) {
-        const data = {};
-        
-        if (typeof value === 'string') {
-            // Parse string like "sm: 4; md: 6; 5.5: 8"
-            const pairs = value.split(';').map(s => s.trim()).filter(s => s);
-            
-            for (const pair of pairs) {
-                const [key, val] = pair.split(':').map(s => s.trim());
-                if (key && val) {
-                    // Check if key is a number or predefined breakpoint
-                    if (!isNaN(parseFloat(key)) || ['sm', 'md', 'lg', 'xl', '2xl', '3xl'].includes(key)) {
-                        const numValue = parseFloat(val);
-                        if (!isNaN(numValue)) {
-                            data[key] = numValue;
-                        }
-                    }
-                }
-            }
-        } else if (typeof value === 'object' && value !== null) {
-            // Handle object format
-            for (const [key, val] of Object.entries(value)) {
-                if (!isNaN(parseFloat(key)) || ['sm', 'md', 'lg', 'xl', '2xl', '3xl'].includes(key)) {
-                    const numValue = parseFloat(val);
-                    if (!isNaN(numValue)) {
-                        data[key] = numValue;
-                    }
-                }
-            }
-        }
-        
-        return data;
     },
 
     init() {
@@ -93,33 +70,35 @@ AFRAME.registerComponent("flex-col", {
         });
     },
 
+    // Resolve the meter threshold of each named breakpoint, applying the parent
+    // flexbox container's customBreakpoints override (positional, ascending order).
+    getThresholds() {
+        const thresholds = { ...DEFAULT_THRESHOLDS };
+
+        const parent = this.el.parentEl;
+        const flexbox = parent && parent.components && parent.components.flexbox;
+        if (flexbox && typeof flexbox.getCustomBreakpoints === 'function') {
+            flexbox.getCustomBreakpoints().forEach((threshold, i) => {
+                if (i < BREAKPOINT_ORDER.length) {
+                    thresholds[BREAKPOINT_ORDER[i]] = threshold;
+                }
+            });
+        }
+
+        return thresholds;
+    },
+
     getAvailableBreakpoints() {
         const breakpoints = [];
-        
-        const predefinedBreakpoints = {
-            '3xl': 15,  // 15m 
-            '2xl': 12,  // 12m 
-            'xl': 10,   // 10m 
-            'lg': 7,    // 7m 
-            'md': 4,    // 4m 
-            'sm': 0     // default value
-        };
-        
-        for (const [name, threshold] of Object.entries(predefinedBreakpoints)) {
+        const thresholds = this.getThresholds();
+
+        for (const name of BREAKPOINT_ORDER) {
             // Only add if the breakpoint is actually defined in the data
             if (this.data[name] !== undefined && this.data[name] !== 0) {
-                breakpoints.push({ name, threshold, value: this.data[name] });
+                breakpoints.push({ name, threshold: thresholds[name], value: this.data[name] });
             }
         }
-        
-        // Add custom numeric breakpoints ONLY if they are actually defined
-        for (const [key, value] of Object.entries(this.data)) {
-            if (!isNaN(parseFloat(key)) && value !== undefined && value !== 0) {
-                const threshold = parseFloat(key);
-                breakpoints.push({ name: key, threshold, value });
-            }
-        }
-        
+
         // Sort by threshold descending (largest first)
         return breakpoints.sort((a, b) => b.threshold - a.threshold);
     },

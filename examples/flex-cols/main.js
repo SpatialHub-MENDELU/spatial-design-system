@@ -263,23 +263,24 @@ html += flexDemo({
     });
 }
 
-// Numeric width breakpoints. Container is small (2m)
-// so the 1.7m breakpoint demonstrates the 4-col layout out of the box.
+// Custom breakpoints defined on the container. Container is small (2m) so the
+// lg threshold (1.7m, set via customBreakpoints) demonstrates the 4-col layout.
 {
     const cx = COLS.col;
     const cy = ROWS[4];
-    const flexbox = 'direction: row; justify: start; items: start; wrap: true; gap: 0';
-    const colAttr = 'flex-col="0: 12; 1: 6; 1.7: 4;"';
+    // customBreakpoints overrides the sm/md/lg thresholds to 0m / 1m / 1.7m.
+    const flexbox = 'direction: row; justify: start; items: start; wrap: true; gap: 0; customBreakpoints: 0 1 1.7';
+    const colAttr = 'flex-col="sm: 12; md: 6; lg: 4"';
     const cellColors = ['#03FCC6', '#00C170', 'white'];
     const children = cellColors.map((c, i) => `
         <a-plane color="${c}" height="0.3" ${colAttr}></a-plane>
     `).join('');
 
     html += `
-        ${createText('numeric breakpoints + labels', { x: cx, y: cy + 1.4 })}
+        ${createText('custom breakpoints + labels', { x: cx, y: cy + 1.4 })}
         ${createText('container: 2m × 0.4m', { x: cx, y: cy + 0.75 }, 1.3)}
         ${createText(`flexbox: ${flexbox}`, { x: cx, y: cy + 0.3 }, 1.3)}
-        ${createText('items: col[0: 12, 1: 6, 1.7: 4]', { x: cx, y: cy - 0.5 }, 1.3)}
+        ${createText('items: col[sm: 12; md: 6; lg: 4]', { x: cx, y: cy - 0.5 }, 1.3)}
         <a-plane
             position="${cx} ${cy - 1} ${Z}"
             width="2"
@@ -305,20 +306,20 @@ html += flexDemo({
 html += flexDemo({
     x: COLS.issue, y: ROWS[0], w: 2.6,
     title: '#41 breakpoints',
-    flexbox: 'direction: row; justify: center; items: start; wrap: true; gap: 0 0',
+    flexbox: 'direction: row; justify: center; items: start; wrap: true; gap: 0 0; customBreakpoints: 0 3 5',
     items: [
-        { color: 'red',    attrs: 'flex-col="0: 10; 3: 4; 5: 12"', size: { w: 1, h: 0.5, d: 0.001 } },
-        { color: 'orange', attrs: 'flex-col="0: 8; 3: 8;"',        size: { w: 1, h: 0.5, d: 0.001 } },
+        { color: 'red',    attrs: 'flex-col="sm: 10; md: 4; lg: 12"', size: { w: 1, h: 0.5, d: 0.001 } },
+        { color: 'orange', attrs: 'flex-col="sm: 8; md: 8"',          size: { w: 1, h: 0.5, d: 0.001 } },
     ],
 });
 
 html += flexDemo({
     x: COLS.issue + 7, y: ROWS[0], w: 3.6,
     title: '',
-    flexbox: 'direction: row; justify: center; items: start; wrap: true; gap: 0 0',
+    flexbox: 'direction: row; justify: center; items: start; wrap: true; gap: 0 0; customBreakpoints: 0 3 5',
     items: [
-        { color: 'red',    attrs: 'flex-col="0: 10; 3: 4; 5: 12"', size: { w: 1, h: 0.5, d: 0.001 } },
-        { color: 'orange', attrs: 'flex-col="0: 8; 3: 8;"',        size: { w: 1, h: 0.5, d: 0.001 } },
+        { color: 'red',    attrs: 'flex-col="sm: 10; md: 4; lg: 12"', size: { w: 1, h: 0.5, d: 0.001 } },
+        { color: 'orange', attrs: 'flex-col="sm: 8; md: 8"',          size: { w: 1, h: 0.5, d: 0.001 } },
     ],
 });
 
@@ -353,7 +354,7 @@ html += flexDemo({
     title: 'combined showcase',
     flexbox: 'direction: row; justify: center; items: start; wrap: true; gap: 1 0',
     items: [
-        { color: 'red',    attrs: 'flex-col="3: 6; 4: 11;"' },
+        { color: 'red',    attrs: 'flex-col="sm: 6; md: 11"' },
         { color: 'yellow', attrs: 'flex-col="sm: 12; md: 6; lg: 3"' },
         { color: 'purple', attrs: 'flex-col="sm: 4; lg: 3" flex-grow' },
         { color: 'orange', attrs: 'flex-col="sm: 4; lg: 3" flex-grow' },

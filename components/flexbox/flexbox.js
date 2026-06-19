@@ -13,7 +13,10 @@ AFRAME.registerComponent("flexbox", {
         justify: { default: JUSTIFY.START  },    // start | end | center | between | around
         items: { default: ITEMS.START },        // start | end | center
         wrap: { default: false },
-        gap: { type: "vec2", default: { x: 0, y: 0 } }
+        gap: { type: "vec2", default: { x: 0, y: 0 } },
+        // Override the meter thresholds of the named breakpoints (sm md lg xl 2xl 3xl),
+        // positionally. Accepts 1-6 numbers, e.g. customBreakpoints: 1 4 5.5
+        customBreakpoints: { type: "array", default: [] }
     },
     container: {
         width: 0,
@@ -582,6 +585,21 @@ AFRAME.registerComponent("flexbox", {
                 }
             });
         });
+    },
+
+    // Normalize the customBreakpoints schema value into an ordered array of up to
+    // 6 numbers. Accepts space- or comma-separated input ("1 4 5.5" or "1,4,5.5").
+    // These override the named-breakpoint thresholds positionally in flex-col.
+    getCustomBreakpoints() {
+        const raw = this.data.customBreakpoints;
+        if (!raw) return [];
+        const arr = Array.isArray(raw) ? raw : [raw];
+        return arr
+            .flatMap(entry => String(entry).trim().split(/\s+/))
+            .filter(token => token !== "")
+            .map(Number)
+            .filter(n => !isNaN(n))
+            .slice(0, 6);
     },
 
     applyBootstrapGrid() {
