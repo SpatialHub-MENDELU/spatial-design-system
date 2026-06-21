@@ -16,6 +16,12 @@ AFRAME.registerComponent("game-view", {
         maxDistance: {type: "number", default: 15},
         minHeight: {type: "number", default: 2},
         maxHeight: {type: "number", default: 15},
+        // Optional tilt interpolation across the zoom range. Defaults to NaN
+        // (disabled) so scenes that only set a fixed `tilt` keep their behavior.
+        // When both are set, tilt is interpolated like height: minTilt applies
+        // when zoomed in (minDistance), maxTilt when zoomed out (maxDistance).
+        minTilt: {type: "number", default: NaN},
+        maxTilt: {type: "number", default: NaN},
 
         // only for quarter-turn
         rotationSpeed: {type: "number", default: 5},
@@ -36,6 +42,8 @@ AFRAME.registerComponent("game-view", {
         this.maxDistance = this.data.maxDistance;
         this.minHeight = this.data.minHeight;
         this.maxHeight = this.data.maxHeight;
+        this.minTilt = this.data.minTilt;
+        this.maxTilt = this.data.maxTilt;
         this.cameraOffsetAngle = this.data.cameraOffsetAngle;
 
         // types of cameras
@@ -127,20 +135,30 @@ AFRAME.registerComponent("game-view", {
 
         const rangeDistance = this.data.maxDistance - this.data.minDistance;
 
+        const tiltInterpolated = !isNaN(this.data.minTilt) && !isNaN(this.data.maxTilt);
+
         if (rangeDistance !== 0) {
             const progress = (newDistance - this.data.minDistance) / rangeDistance;
             const rangeHeight = this.data.maxHeight - this.data.minHeight;
             this.data.height = this.data.minHeight + (progress * rangeHeight);
+
+            if (tiltInterpolated) {
+                const rangeTilt = this.data.maxTilt - this.data.minTilt;
+                this.data.tilt = this.data.minTilt + (progress * rangeTilt);
+            }
         } else {
             this.data.height = this.data.minHeight;
+            if (tiltInterpolated) this.data.tilt = this.data.minTilt;
         }
+
+        if (tiltInterpolated) this.tilt = this.data.tilt;
 
         if (!this.thirdPersonFollow) {
             this.updateOffsetPosition();
         }
 
-        // Notify listeners that the camera zoom (distance/height) changed
-        this.el.emit("zoom-changed", { distance: this.data.distance, height: this.data.height });
+        // Notify listeners that the camera zoom (distance/height/tilt) changed
+        this.el.emit("zoom-changed", { distance: this.data.distance, height: this.data.height, tilt: this.data.tilt });
     },
 
     enforceZoomConstraints() {
@@ -231,12 +249,16 @@ AFRAME.registerComponent("game-view", {
             oldData.minDistance !== this.data.minDistance ||
             oldData.maxDistance !== this.data.maxDistance ||
             oldData.minHeight !== this.data.minHeight ||
-            oldData.maxHeight !== this.data.maxHeight
+            oldData.maxHeight !== this.data.maxHeight ||
+            oldData.minTilt !== this.data.minTilt ||
+            oldData.maxTilt !== this.data.maxTilt
         )) {
             if (oldData.minDistance !== this.data.minDistance) this.minDistance = this.data.minDistance;
             if (oldData.maxDistance !== this.data.maxDistance) this.maxDistance = this.data.maxDistance;
             if (oldData.minHeight !== this.data.minHeight) this.minHeight = this.data.minHeight;
             if (oldData.maxHeight !== this.data.maxHeight) this.maxHeight = this.data.maxHeight;
+            if (oldData.minTilt !== this.data.minTilt) this.minTilt = this.data.minTilt;
+            if (oldData.maxTilt !== this.data.maxTilt) this.maxTilt = this.data.maxTilt;
 
             this.enforceZoomConstraints();
             this.updateOffsetPosition();
