@@ -18,6 +18,9 @@ AFRAME.registerComponent("fly", {
 
         speed: {type: "number", default: 4}, // Defines the player's base flying speed.
         rotationSpeed: {type: "number", default: 40}, // Defines the turning speed. It is used only when allowRoll is false.
+        ascendSpeed: {type: "number", default: 0}, // Speed when ascending (moving up). When 0, falls back to speed.
+        descendSpeed: {type: "number", default: 0}, // Speed when descending (moving down). When 0, falls back to speed.
+        horizontalSpeed: {type: "number", default: 0}, // Speed when dodging horizontally to the sides in autoForwardFixedDirection. When 0, falls back to speed.
 
         sprint: {type: "boolean", default: false}, // If true, the player can sprint when holding the sprintKey, increasing their speed to sprintSpeed.
         keySprint: {type: "string", default: "shift"}, // Key used to sprint with the character.
@@ -75,6 +78,9 @@ AFRAME.registerComponent("fly", {
         this.gravityY = -9.800000190734863
 
         this.speed = this.data.speed
+        this.ascendSpeed = this.data.ascendSpeed
+        this.descendSpeed = this.data.descendSpeed
+        this.horizontalSpeed = this.data.horizontalSpeed
         this.sprintEnabled = this.data.sprint
         this.sprintSpeed = this.data.sprintSpeed
         this.rotationSpeed = this.data.rotationSpeed
@@ -264,6 +270,9 @@ AFRAME.registerComponent("fly", {
         // speeds
         if (!isPositiveNumber(this.data.speed, "speed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.rotationSpeed, "rotationSpeed")) this.wrongInput = true
+        if (!isPositiveNumber(this.data.ascendSpeed, "ascendSpeed", true)) this.wrongInput = true
+        if (!isPositiveNumber(this.data.descendSpeed, "descendSpeed", true)) this.wrongInput = true
+        if (!isPositiveNumber(this.data.horizontalSpeed, "horizontalSpeed", true)) this.wrongInput = true
         if (this.sprintEnabled && !isPositiveNumber(this.data.sprintSpeed, "sprintSpeed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.pitchSpeed, "pitchSpeed")) this.wrongInput = true
         if (!isPositiveNumber(this.data.rollSpeed, "rollSpeed")) this.wrongInput = true
@@ -303,6 +312,9 @@ AFRAME.registerComponent("fly", {
         if (oldData.allowGravity !== this.data.allowGravity) this.allowGravity = this.data.allowGravity
 
         if (oldData.speed !== this.data.speed) this.speed = this.data.speed
+        if (oldData.ascendSpeed !== this.data.ascendSpeed) this.ascendSpeed = this.data.ascendSpeed
+        if (oldData.descendSpeed !== this.data.descendSpeed) this.descendSpeed = this.data.descendSpeed
+        if (oldData.horizontalSpeed !== this.data.horizontalSpeed) this.horizontalSpeed = this.data.horizontalSpeed
         if (oldData.rotationSpeed !== this.data.rotationSpeed) this.rotationSpeed = this.data.rotationSpeed
         if (oldData.sprint !== this.data.sprint) this.sprintEnabled = this.data.sprint
         if (oldData.sprintSpeed !== this.data.sprintSpeed) this.sprintSpeed = this.data.sprintSpeed
@@ -449,6 +461,20 @@ AFRAME.registerComponent("fly", {
         }
     },
 
+    // Resolve per-direction speeds. When the dedicated speed is 0 (unset),
+    // fall back to the current base speed (which also reflects sprinting).
+    getAscendSpeed() {
+        return this.ascendSpeed > 0 ? this.ascendSpeed : this.speed
+    },
+
+    getDescendSpeed() {
+        return this.descendSpeed > 0 ? this.descendSpeed : this.speed
+    },
+
+    getHorizontalSpeed() {
+        return this.horizontalSpeed > 0 ? this.horizontalSpeed : this.speed
+    },
+
     startSprinting() {
         this.speed = this.sprintSpeed
     },
@@ -468,8 +494,8 @@ AFRAME.registerComponent("fly", {
         const descending = this.canMoveVertically && this.descending;
 
         let speed = 0
-        if (ascending) speed = this.speed
-        else if (descending) speed = -this.speed;
+        if (ascending) speed = this.getAscendSpeed()
+        else if (descending) speed = -this.getDescendSpeed();
 
         const vel = this.velocity
         let velX = vel.x()
@@ -588,8 +614,12 @@ AFRAME.registerComponent("fly", {
         // pitch - nose up/down
         if (this.allowPitch) this.setPitchDeg(deltaSec);
         else {
-            const moveUp = this.canMoveVertically ? (this.movingForward ? 1 : this.movingBackward ? -1 : 0) : 0;
-            this.verticalVelocity = moveUp * this.speed;
+            let vertical = 0;
+            if (this.canMoveVertically) {
+                if (this.movingForward) vertical = this.getAscendSpeed();
+                else if (this.movingBackward) vertical = -this.getDescendSpeed();
+            }
+            this.verticalVelocity = vertical;
         }
 
         // roll - tilt left/right
@@ -714,13 +744,13 @@ AFRAME.registerComponent("fly", {
         let offset = new THREE.Vector3(0, 0, 0);
 
         if (this.canMoveVertically) {
-            if (this.movingForward) offset.add(new THREE.Vector3(0, 1, 0).multiplyScalar(speed));
-            if (this.movingBackward) offset.add(new THREE.Vector3(0, -1, 0).multiplyScalar(speed));
+            if (this.movingForward) offset.add(new THREE.Vector3(0, 1, 0).multiplyScalar(this.getAscendSpeed()));
+            if (this.movingBackward) offset.add(new THREE.Vector3(0, -1, 0).multiplyScalar(this.getDescendSpeed()));
         }
 
         if (this.canMoveHorizontally) {
-            if (this.movingRight) offset.add(new THREE.Vector3(-1, 0, 0).multiplyScalar(speed));
-            if (this.movingLeft) offset.add(new THREE.Vector3(1, 0, 0).multiplyScalar(speed));
+            if (this.movingRight) offset.add(new THREE.Vector3(-1, 0, 0).multiplyScalar(this.getHorizontalSpeed()));
+            if (this.movingLeft) offset.add(new THREE.Vector3(1, 0, 0).multiplyScalar(this.getHorizontalSpeed()));
         }
 
         const rotationQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
