@@ -101,10 +101,16 @@ AFRAME.registerComponent("game-view", {
     },
 
     handleQuarterTurnInput(e) {
-        if (e.key.toLowerCase() === this.keyTurnLeft) this.targetAngle -= 90;
-        if (e.key.toLowerCase() === this.keyTurnRight) this.targetAngle += 90;
+        const key = e.key.toLowerCase();
+        if (key !== this.keyTurnLeft && key !== this.keyTurnRight) return;
+
+        if (key === this.keyTurnLeft) this.targetAngle -= 90;
+        if (key === this.keyTurnRight) this.targetAngle += 90;
         this.targetAngle = (this.targetAngle + 360) % 360;
         this.updateOffsetPosition();
+
+        // Notify listeners that the view orientation changed
+        this.el.emit("view-rotated", { angle: this.targetAngle });
     },
 
     handleZoom(e) {
@@ -132,6 +138,9 @@ AFRAME.registerComponent("game-view", {
         if (!this.thirdPersonFollow) {
             this.updateOffsetPosition();
         }
+
+        // Notify listeners that the camera zoom (distance/height) changed
+        this.el.emit("zoom-changed", { distance: this.data.distance, height: this.data.height });
     },
 
     enforceZoomConstraints() {

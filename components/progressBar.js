@@ -58,6 +58,10 @@ AFRAME.registerComponent("progressBar", {
                 case 'value':
                     this.setContent();
                     this.updateProgressBarColor();
+                    // Notify listeners when the bar reaches completion
+                    if (this.data.value >= 100 && oldData.value < 100) {
+                        this.el.emit('progress-complete', { value: this.data.value });
+                    }
                     break;
                 case 'textcolor':
                     this.updateTextColor();

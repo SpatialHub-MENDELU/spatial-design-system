@@ -114,6 +114,8 @@ AFRAME.registerComponent("menu", {
             to: targetScale,
             dur: this.animationDuration,
         })
+
+        this.el.emit("menu-shown")
     },
 
     hide() {
@@ -128,6 +130,7 @@ AFRAME.registerComponent("menu", {
 
         setTimeout(() => {
             this.el.object3D.visible = false
+            this.el.emit("menu-hidden")
         }, this.animationDuration)
     },
 

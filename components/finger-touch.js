@@ -12,14 +12,14 @@ AFRAME.registerComponent("finger-touch", {
   onHoverStart(event) {
     const isPointing = event.detail?.hand?.getAttribute("pointing");
     if (isPointing === "true") {
-      event.target.emit("click");
+      event.target.emit("click", { hand: event.detail.hand, side: event.detail.side });
     }
   },
 
   onHoverEnd(event) {
     const isPointing = event.detail?.hand?.getAttribute("pointing");
     if (isPointing === "true") {
-      event.target.emit("click-ended");
+      event.target.emit("click-ended", { hand: event.detail.hand, side: event.detail.side });
     }
   },
 

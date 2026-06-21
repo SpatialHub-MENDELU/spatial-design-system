@@ -74,6 +74,9 @@ AFRAME.registerComponent("tabs", {
             // evt.detail.value will be the single object since multiple=false
             const activeTab = evt.detail.value;
             this.updateContentVisibility(activeTab);
+
+            // Re-emit as a tabs-level event so consumers don't depend on the internal button-toggle
+            this.el.emit("tab-changed", { value: activeTab });
         });
 
         this.el.appendChild(this.buttonToggleEl);

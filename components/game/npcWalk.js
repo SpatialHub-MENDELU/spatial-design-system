@@ -335,6 +335,12 @@ AFRAME.registerComponent('npc-walk', {
 
         if (horizontalReached && verticalReached) {
             this.positionReached = true;
+
+            // Notify listeners that the NPC reached its current target point
+            this.el.emit("npc-point-reached", {
+                index: this.currentIndex,
+                position: { x: targetPosition.x, y: targetPosition.y, z: targetPosition.z },
+            });
         }
     },
 
@@ -429,12 +435,18 @@ AFRAME.registerComponent('npc-walk', {
                 this.stopMovement();
                 this.setAnimation(this.animations.idle);
 
+                // Notify listeners that the NPC started pausing at a point
+                this.el.emit("npc-pause-start", { index: this.currentIndex });
+
                 setTimeout(() => {
                     this.setTargetPosition()
 
                     if (!this.isFinished) {
                         this.isWaiting = false;
                         this.setAnimation(this.animations.walk);
+
+                        // Notify listeners that the NPC finished pausing and resumed
+                        this.el.emit("npc-pause-end", { index: this.currentIndex });
                     }
                 }, this.pauseAtPointsDuration * 1000);
             } else this.setTargetPosition()
@@ -477,6 +489,9 @@ AFRAME.registerComponent('npc-walk', {
                 this.isFinished = true;
                 this.stopMovement();
                 this.setAnimation(this.animations.idle);
+
+                // Notify listeners that the NPC completed its path (last point reached)
+                this.el.emit("npc-path-completed", { index: this.currentIndex });
                 return
             }
             this.currentIndex++;

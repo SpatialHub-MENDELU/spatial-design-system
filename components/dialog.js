@@ -432,6 +432,9 @@ AFRAME.registerComponent("dialog", {
                 easing: "easeOutQuad"
             });
         }
+
+        // Notify listeners that the dialog has been opened (complements "dialogClosed")
+        dialog.emit("dialogOpened");
     },
 
     closeDialog() {

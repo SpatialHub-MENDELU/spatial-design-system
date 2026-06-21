@@ -128,13 +128,13 @@ AFRAME.registerComponent("ratings", {
     onStarClicked(index) {
         // Setting the attribute triggers the update() method automatically
         const newValue = index + 1;
-        if (this.data.clearable && this.data.value === newValue) {
-            this.el.setAttribute('ratings', 'value', 0);
-        } else {
-            this.el.setAttribute('ratings', 'value', newValue);
-        }
 
-        // Custom event for external listeners
-        this.el.emit('rating-changed', { value: newValue });
+        // Clicking the currently selected star clears the rating (when clearable)
+        const finalValue = (this.data.clearable && this.data.value === newValue) ? 0 : newValue;
+        this.el.setAttribute('ratings', 'value', finalValue);
+
+        // Custom event for external listeners. Emit the resulting value so listeners
+        // receive 0 when the rating is cleared (not the previously selected value).
+        this.el.emit('rating-changed', { value: finalValue });
     },
 });

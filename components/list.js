@@ -135,9 +135,9 @@ AFRAME.registerComponent("list", {
         const letterWidthRatio = 0.55;
         let lastY = 0;
 
-        items.forEach((item) => {
+        items.forEach((item, index) => {
             const itemContainer = document.createElement("a-entity");
-            
+
             // Layout constants matching card.js
             const titleFontSize = 0.075 * sizeCoef;
             const subtitleFontSize = 0.06 * sizeCoef;
@@ -174,6 +174,13 @@ AFRAME.registerComponent("list", {
                 
                 itemHeight = subtitleOffset + subtitleHeight;
             }
+
+            // Interaction: emit "selected" for text items too (highlighting stays card-only)
+            itemContainer.classList.add("clickable");
+            itemContainer.addEventListener("click", () => {
+                this.selectedIndex = index;
+                this.el.emit("selected", { item, index });
+            });
 
             itemContainer.setAttribute("position", { x: 0, y: currentY, z: 0 });
             wrapper.appendChild(itemContainer);

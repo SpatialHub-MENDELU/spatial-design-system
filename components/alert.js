@@ -109,6 +109,8 @@ AFRAME.registerComponent("alert", {
 
             this.card.addEventListener('appendIconClicked', () => {
                 if (this.data.closable) {
+                    // Notify listeners before the alert is removed from the DOM
+                    this.el.emit('alert-closed');
                     this.el.parentNode.removeChild(this.el);
                 }
             });
