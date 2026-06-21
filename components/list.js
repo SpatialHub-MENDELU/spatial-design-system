@@ -175,12 +175,25 @@ AFRAME.registerComponent("list", {
                 itemHeight = subtitleOffset + subtitleHeight;
             }
 
-            // Interaction: emit "selected" for text items too (highlighting stays card-only)
-            itemContainer.classList.add("clickable");
-            itemContainer.addEventListener("click", () => {
+            // Interaction: emit "selected" for text items too (highlighting stays card-only).
+            // The raycaster (objects: .clickable) needs an actual mesh to intersect, so an
+            // empty entity never receives clicks. Add an invisible hit-plane covering the item.
+            const hitPlane = document.createElement("a-plane");
+            hitPlane.classList.add("clickable");
+            hitPlane.setAttribute("width", width);
+            hitPlane.setAttribute("height", itemHeight + itemPadding);
+            // Content is left-anchored from x=0, so the item spans x=[0, width]; center the plane on it.
+            hitPlane.setAttribute("position", {
+                x: width / 2,
+                y: (titleFontSize / 2) - (itemHeight / 2),
+                z: -0.001,
+            });
+            hitPlane.setAttribute("material", "opacity: 0; transparent: true");
+            hitPlane.addEventListener("click", () => {
                 this.selectedIndex = index;
                 this.el.emit("selected", { item, index });
             });
+            itemContainer.appendChild(hitPlane);
 
             itemContainer.setAttribute("position", { x: 0, y: currentY, z: 0 });
             wrapper.appendChild(itemContainer);
