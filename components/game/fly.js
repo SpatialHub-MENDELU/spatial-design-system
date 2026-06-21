@@ -37,9 +37,9 @@ AFRAME.registerComponent("fly", {
 
         forwardOffsetAngle: {type: "number", default: 0}, // The angular offset (in degrees) that defines how much the model’s logical forward direction differs from its visual or model-space forward axis.
 
-        // only auto forward fixed direction properties
-        canMoveVertically: {type: "boolean", default: true}, // When using AutoForwardFixedDirection movement, this property allows the character to move up and down.
-        canMoveHorizontally: {type: "boolean", default: true}, // When using AutoForwardFixedDirection movement, this property allows the character to move left and right.
+        // movement direction restrictions (apply to every flight type)
+        canMoveVertically: {type: "boolean", default: true}, // If false, the character cannot move up/down (ascend/descend, pitch climb, vertical offset).
+        canMoveHorizontally: {type: "boolean", default: true}, // If false, the character cannot move/turn left and right.
     },
 
 
@@ -464,16 +464,19 @@ AFRAME.registerComponent("fly", {
     },
 
     ascendDescendMovement() {
+        const ascending = this.canMoveVertically && this.ascending;
+        const descending = this.canMoveVertically && this.descending;
+
         let speed = 0
-        if (this.ascending) speed = this.speed
-        else if (this.descending) speed = -this.speed;
+        if (ascending) speed = this.speed
+        else if (descending) speed = -this.speed;
 
         const vel = this.velocity
         let velX = vel.x()
         let velZ = vel.z()
 
         if (this.allowGravity) {
-            if (this.ascending) {
+            if (ascending) {
                 this.velocity = new Ammo.btVector3(velX, speed, velZ);
             }
         } else {
@@ -509,7 +512,7 @@ AFRAME.registerComponent("fly", {
 
         this.ascendDescendMovement();
 
-        if (this.movingRight || this.movingLeft) {
+        if (this.canMoveHorizontally && (this.movingRight || this.movingLeft)) {
             this.turnSmoothly(deltaSec);
         }
 
@@ -576,16 +579,16 @@ AFRAME.registerComponent("fly", {
         this.handleAutoForwardAnimations()
 
         // yaw - turn left/right
-        if (this.allowRoll) this.setYawDeg(deltaSec);
+        if (this.allowRoll && this.canMoveHorizontally) this.setYawDeg(deltaSec);
         else {
-            const dir = this.movingRight ? -1 : this.movingLeft ? 1 : 0;
+            const dir = this.canMoveHorizontally ? (this.movingRight ? -1 : this.movingLeft ? 1 : 0) : 0;
             this.currentYawDeg = (this.currentYawDeg + dir * this.rotationSpeed * deltaSec) % 360;
         }
 
         // pitch - nose up/down
         if (this.allowPitch) this.setPitchDeg(deltaSec);
         else {
-            const moveUp = this.movingForward ? 1 : this.movingBackward ? -1 : 0;
+            const moveUp = this.canMoveVertically ? (this.movingForward ? 1 : this.movingBackward ? -1 : 0) : 0;
             this.verticalVelocity = moveUp * this.speed;
         }
 
@@ -604,7 +607,7 @@ AFRAME.registerComponent("fly", {
             .normalize();
 
         const vx = forward.x * speed;
-        const vy = forward.y * speed + (this.verticalVelocity || 0);
+        const vy = this.canMoveVertically ? forward.y * speed + (this.verticalVelocity || 0) : 0;
         const vz = forward.z * speed;
 
         this.velocity = new Ammo.btVector3(vx, vy, vz);
