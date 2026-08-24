@@ -88,11 +88,19 @@ AFRAME.registerComponent("vr-interactive", {
   handleInteraction(evt) {
     if (!this.intersecting) return;
 
+    // The controllers component forwards the button press to the element the ray
+    // actually hit, which then bubbles up to us. Keep that element as the click
+    // target so listeners on nested children (menu items, list rows, ...) fire.
+    const hitEl = evt.target;
+
+    // A closer `vr-interactive` already emitted the click for this press.
+    if (hitEl !== this.el && this.hasCloserHandler(hitEl)) return;
+
     if (this.data.clickAnimation) {
       this.el.object3D.scale.multiplyScalar(this.data.scaleOnClick);
     }
 
-    this.el.emit(
+    hitEl.emit(
       "click",
       {
         source: "vr-controller",
@@ -100,6 +108,18 @@ AFRAME.registerComponent("vr-interactive", {
       },
       true
     );
+  },
+
+  // True if `hitEl` or an ancestor below `this.el` carries `vr-interactive`.
+  hasCloserHandler(hitEl) {
+    let el = hitEl;
+
+    while (el && el !== this.el) {
+      if (el.components && el.components["vr-interactive"]) return true;
+      el = el.parentElement;
+    }
+
+    return false;
   },
 
   handleInteractionEnd() {
