@@ -131,7 +131,11 @@ AFRAME.registerComponent("hands", {
 
     this.hoverByHand.set(handEl, targetEl);
 
-    targetEl.emit("hand-hover-started", { hand: handEl, side: handEl.id });
+    targetEl.emit("hand-hover-started", {
+      hand: handEl,
+      side: handEl.id,
+      point: this.getTouchPointWorld(handEl, evt.detail.trackedObject3D),
+    });
   },
 
   handleCollisionEnded(evt) {
@@ -141,7 +145,21 @@ AFRAME.registerComponent("hands", {
     if (this.hoverByHand.get(handEl) === targetEl)
       this.hoverByHand.delete(handEl);
 
-    targetEl.emit("hand-hover-ended", { hand: handEl, side: handEl.id });
+    targetEl.emit("hand-hover-ended", {
+      hand: handEl,
+      side: handEl.id,
+      point: this.getTouchPointWorld(handEl, evt.detail.trackedObject3D),
+    });
+  },
+
+  // World position of the fingertip that collided, so receivers can tell which
+  // part of a compound element was touched. `obbcollisionended` does not carry
+  // `trackedObject3D`, so fall back to the collider's own tracked object.
+  getTouchPointWorld(handEl, trackedObject3D) {
+    const object3D =
+      trackedObject3D || handEl.components["obb-collider"]?.trackedObject3D;
+
+    return object3D ? object3D.getWorldPosition(new THREE.Vector3()) : null;
   },
 
   // To make the click work, we need to check, whether the tip is pointing at the object and if the position is within the object's bounds
