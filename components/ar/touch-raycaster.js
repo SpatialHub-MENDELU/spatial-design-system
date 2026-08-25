@@ -33,7 +33,12 @@ AFRAME.registerComponent("touch-raycaster", {
         const isVisible = el?.getAttribute("visible");
         if (!isVisible) continue;
 
-        el.emit("click", { el: el });
+        // The ray reports the innermost mesh, which for a compound control is
+        // decoration (an icon, a label). Report the control it belongs to; if
+        // nothing in the chain is marked interactive, keep the element itself.
+        const target = el.closest(".clickable, .interactive") || el;
+
+        target.emit("click", { el: target });
         break;
       }
     });
