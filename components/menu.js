@@ -539,11 +539,21 @@ AFRAME.registerComponent('grid', {
       columns: { type: 'int', default: 2 },
       rows: { type: 'int', default: 2 },
       padding: { type: 'vec2', default: { x: 10, y: 10 } },
-      spacing: { type: 'number', default: 0 }
+      spacing: { type: 'number', default: 0 },
+      // How items are fitted into their cells when the grid entity has its
+      // own geometry (ignored otherwise):
+      //   geometry - set geometry width/height, keep the item's primitive
+      //              (items without geometry get a plane)
+      //   scale    - keep geometry, scale the item in x/y (keeping its aspect
+      //              ratio) to fit its cell
+      //   none     - only position the items, do not resize them
+      sizing: { type: 'string', default: 'geometry', oneOf: ['geometry', 'scale', 'none'] }
     },
 
     init() {
         this.timeout = null;
+        this.retryTimeout = null;
+        this.retryCount = 0;
         this.debouncedUpdate = () => {
             clearTimeout(this.timeout);
             this.timeout = setTimeout(() => this.updateLayout(), 20);
@@ -565,6 +575,7 @@ AFRAME.registerComponent('grid', {
         this.el.removeEventListener("child-attached", this.childAttachedHandler);
         this.el.removeEventListener("child-detached", this.debouncedUpdate);
         clearTimeout(this.timeout);
+        clearTimeout(this.retryTimeout);
     },
 
     updateLayout() {
@@ -604,18 +615,20 @@ AFRAME.registerComponent('grid', {
         const itemWidth = (gridWidth - (singleGapX * (cols + 1))) / cols;
         const itemHeight = (gridHeight - (singleGapY * (rows + 1))) / rows;
 
-        gridItems.forEach((item, index) => {
-            if (!item.hasAttribute("geometry")) {
-                item.setAttribute("geometry", { primitive: "plane", width: 1, height: 1 });
-            }
+        let needsRetry = false;
 
-            // Update item geometry to the calculated width/height
-            item.setAttribute("geometry", {
-                primitive: "plane",
-                width: itemWidth,
-                height: itemHeight
-            });
-            item.object3D.scale.set(1, 1, 1);
+        gridItems.forEach((item, index) => {
+            switch (this.data.sizing) {
+                case "scale":
+                    if (!this.scaleItemToCell(item, itemWidth, itemHeight)) {
+                        needsRetry = true;
+                    }
+                    break;
+                case "none":
+                    break;
+                default:
+                    this.resizeItemGeometry(item, itemWidth, itemHeight);
+            }
 
             const colIndex = index % cols;
             const rowIndex = Math.floor(index / cols);
@@ -629,6 +642,68 @@ AFRAME.registerComponent('grid', {
 
             item.object3D.position.z = 0.01;
         });
+
+        // In `scale` mode some items may not have a measurable size yet
+        // (e.g. troika text that has not synced). Try again shortly.
+        clearTimeout(this.retryTimeout);
+        if (needsRetry && this.retryCount < 10) {
+            this.retryCount++;
+            this.retryTimeout = setTimeout(() => this.updateLayout(), 100);
+        } else {
+            this.retryCount = 0;
+        }
+    },
+
+    /**
+     * Sets the item's geometry width/height to the cell size while keeping
+     * its primitive (a box stays a box, keeping its depth). Items without
+     * geometry get a plane, e.g. items created by the menu component.
+     */
+    resizeItemGeometry(item, width, height) {
+        if (!item.components.geometry && !item.hasAttribute("geometry")) {
+            item.setAttribute("geometry", { primitive: "plane", width, height });
+        } else {
+            // Partial update: A-Frame merges it with the existing geometry.
+            item.setAttribute("geometry", { width, height });
+        }
+        // Reset x/y scale so the item matches the cell exactly; keep z
+        // so that the depth of the item is not affected.
+        item.object3D.scale.x = 1;
+        item.object3D.scale.y = 1;
+    },
+
+    /**
+     * Uniformly scales the item (including its children) in x/y so that it
+     * fits into the cell while keeping its aspect ratio and geometry.
+     * The z scale is left untouched, so the depth of the item is kept.
+     * Returns false if the item has no measurable size yet.
+     */
+    scaleItemToCell(item, width, height) {
+        const object3D = item.object3D;
+        const originalRotation = object3D.rotation.clone();
+
+        // Measure the unscaled, unrotated size of the item.
+        object3D.scale.x = 1;
+        object3D.scale.y = 1;
+        object3D.rotation.set(0, 0, 0);
+        object3D.updateMatrixWorld(true);
+        const bbox = new THREE.Box3().setFromObject(object3D);
+        object3D.rotation.copy(originalRotation);
+
+        if (bbox.isEmpty()) return false;
+
+        // The bbox is in world space, convert it to the grid's local space.
+        const size = bbox.getSize(new THREE.Vector3());
+        const gridWorldScale = this.el.object3D.getWorldScale(new THREE.Vector3());
+        const itemWidth = size.x / gridWorldScale.x;
+        const itemHeight = size.y / gridWorldScale.y;
+
+        if (itemWidth <= 0 || itemHeight <= 0) return false;
+
+        const factor = Math.min(width / itemWidth, height / itemHeight);
+        object3D.scale.x = factor;
+        object3D.scale.y = factor;
+        return true;
     },
 
     layoutByItemSize(gridItems) {
