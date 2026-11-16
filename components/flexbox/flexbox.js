@@ -34,9 +34,10 @@ AFRAME.registerComponent("flexbox", {
     // height | width
     CROSS_DIMENSION: "",
 
-    pendingUpdate: false,
-
     init() {
+        // Set by updateLayout(), consumed by tick(). See updateLayout().
+        this.layoutDirty = false;
+
         this.handleSceneLoaded = this.handleSceneLoaded.bind(this);
         this.handleChildrenChanges = this.handleChildrenChanges.bind(this);
         this.setupObservers = this.setupObservers.bind(this);
@@ -118,21 +119,25 @@ AFRAME.registerComponent("flexbox", {
     },
 
     updateLayout() {
-        // Prevent multiple simultaneous updates
-        if (this.pendingUpdate) {
-            return;
+        // Only mark the layout as dirty, the layout itself is computed in the
+        // next tick(). This collapses multiple updates within one frame into a
+        // single layout pass and waits until DOM updates have completed.
+        //
+        // window.requestAnimationFrame is not used on purpose: browsers may
+        // not call it during an immersive WebXR session, so a pending layout
+        // would never run. tick() is driven by the renderer's animation loop,
+        // which runs both on desktop and in XR.
+        this.layoutDirty = true;
+    },
+
+    tick() {
+        if (!this.layoutDirty) return;
+        this.layoutDirty = false;
+
+        if (this.validateContainer()) {
+            this.initializeContainer();
+            this.handleModels();
         }
-
-        this.pendingUpdate = true;
-
-        // Use requestAnimationFrame to ensure DOM updates have completed
-        requestAnimationFrame(() => {
-            if (this.validateContainer()) {
-                this.initializeContainer();
-                this.handleModels();
-            }
-            this.pendingUpdate = false;
-        });
     },
 
     handleSceneLoaded() {
@@ -393,10 +398,9 @@ AFRAME.registerComponent("flexbox", {
         Array.from(this.el.children).forEach(child => {
             const flexboxComponent = child.components && child.components.flexbox;
             if (flexboxComponent) {
-                // Schedule update for next frame to ensure parent is done
-                requestAnimationFrame(() => {
-                    flexboxComponent.updateLayout();
-                });
+                // The nested layout runs in the nested flexbox's next tick,
+                // after the parent's layout is done.
+                flexboxComponent.updateLayout();
             }
         });
     },
