@@ -683,22 +683,38 @@ AFRAME.registerComponent('grid', {
         const originalRotation = object3D.rotation.clone();
         const originalScale = object3D.scale.clone();
 
-        // Measure the unscaled, unrotated size of the item.
+        // Measure the unscaled, unrotated size of the item in grid-local space.
         object3D.scale.x = 1;
         object3D.scale.y = 1;
         object3D.rotation.set(0, 0, 0);
-        object3D.updateMatrixWorld(true);
-        const bbox = new THREE.Box3().setFromObject(object3D);
+        this.el.object3D.updateWorldMatrix(true, true);
+        const inverseGridMatrix = new THREE.Matrix4().copy(this.el.object3D.matrixWorld).invert();
+        const bbox = new THREE.Box3();
+        const childBounds = new THREE.Box3();
+        const relativeMatrix = new THREE.Matrix4();
+        object3D.traverse((child) => {
+            let bounds;
+            if (child.boundingBox !== undefined) {
+                if (child.boundingBox === null) child.computeBoundingBox();
+                bounds = child.boundingBox;
+            } else if (child.geometry) {
+                if (child.geometry.boundingBox === null) child.geometry.computeBoundingBox();
+                bounds = child.geometry.boundingBox;
+            }
+            if (!bounds) return;
+
+            relativeMatrix.multiplyMatrices(inverseGridMatrix, child.matrixWorld);
+            childBounds.copy(bounds).applyMatrix4(relativeMatrix);
+            bbox.union(childBounds);
+        });
         object3D.rotation.copy(originalRotation);
         object3D.scale.copy(originalScale);
 
         if (bbox.isEmpty()) return false;
 
-        // The bbox is in world space, convert it to the grid's local space.
         const size = bbox.getSize(new THREE.Vector3());
-        const gridWorldScale = this.el.object3D.getWorldScale(new THREE.Vector3());
-        const itemWidth = size.x / gridWorldScale.x;
-        const itemHeight = size.y / gridWorldScale.y;
+        const itemWidth = size.x;
+        const itemHeight = size.y;
 
         if (itemWidth <= 0 || itemHeight <= 0) return false;
 
