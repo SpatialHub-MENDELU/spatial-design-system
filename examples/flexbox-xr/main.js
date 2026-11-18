@@ -104,6 +104,7 @@ function removeItem() {
 // laid out sit at x = 0).
 function layoutIsValid() {
     const items = Array.from(outer.children);
+    if (items.length === 0) return true;
     if (laidOutItems.get("outer") !== items.length) return false;
     for (let i = 1; i < items.length; i++) {
         const prev = items[i - 1].object3D.position.x;
