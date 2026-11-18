@@ -31,10 +31,12 @@ window.requestAnimationFrame = (callback) => {
 
 // --- Count layout passes ----------------------------------------------------
 const layoutPasses = new Map();
+const laidOutItems = new Map(); // number of items in the last layout pass
 const flexboxProto = AFRAME.components.flexbox.Component.prototype;
 const originalSetItemsLayout = flexboxProto.setItemsLayout;
 flexboxProto.setItemsLayout = function (...args) {
     layoutPasses.set(this.el.id, (layoutPasses.get(this.el.id) || 0) + 1);
+    laidOutItems.set(this.el.id, this.items.length);
     return originalSetItemsLayout.apply(this, args);
 };
 
@@ -97,10 +99,12 @@ function removeItem() {
 }
 
 // --- Layout check -----------------------------------------------------------
-// After a layout pass, items of a centred row must be ordered left to right
-// without overlapping. Items that were never laid out sit at x = 0.
+// The last layout pass must include all current items, and items of a centred
+// row must be ordered left to right without overlapping (items that were never
+// laid out sit at x = 0).
 function layoutIsValid() {
     const items = Array.from(outer.children);
+    if (laidOutItems.get("outer") !== items.length) return false;
     for (let i = 1; i < items.length; i++) {
         const prev = items[i - 1].object3D.position.x;
         const cur = items[i].object3D.position.x;
