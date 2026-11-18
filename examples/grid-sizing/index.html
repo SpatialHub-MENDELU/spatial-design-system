@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grid item sizing</title>
+  <style>
+    #report {
+      position: absolute; bottom: 8px; left: 8px; z-index: 10;
+      max-height: calc(100% - 16px); overflow: auto;
+      background: rgba(15, 17, 23, 0.85); color: #e2e8f0;
+      font: 12px/1.4 ui-monospace, monospace; padding: 10px 12px; border-radius: 8px;
+    }
+    #report table { border-collapse: collapse; }
+    #report td, #report th { padding: 1px 6px; text-align: left; }
+    #report .ok { color: #34d399; }
+    #report .fail { color: #f87171; }
+    #report summary { cursor: pointer; margin-top: 4px; }
+    #report h3 { font-size: 13px; margin: 8px 0 4px; }
+  </style>
+</head>
+<body>
+<div id="app" style="position: absolute; height: 100%; width: 100%"></div>
+<div id="report"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
