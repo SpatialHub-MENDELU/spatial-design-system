@@ -681,6 +681,7 @@ AFRAME.registerComponent('grid', {
     scaleItemToCell(item, width, height) {
         const object3D = item.object3D;
         const originalRotation = object3D.rotation.clone();
+        const originalScale = object3D.scale.clone();
 
         // Measure the unscaled, unrotated size of the item.
         object3D.scale.x = 1;
@@ -689,6 +690,7 @@ AFRAME.registerComponent('grid', {
         object3D.updateMatrixWorld(true);
         const bbox = new THREE.Box3().setFromObject(object3D);
         object3D.rotation.copy(originalRotation);
+        object3D.scale.copy(originalScale);
 
         if (bbox.isEmpty()) return false;
 
