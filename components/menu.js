@@ -18,11 +18,20 @@ AFRAME.registerComponent("menu", {
         logoicon: { type: "string", default: "" },
         backbutton: {type: 'boolean', default: false},
         showtext: {type: 'boolean', default: true},
+        // basic    - a clicked item is highlighted only briefly
+        // single   - a clicked item stays highlighted until clicked again,
+        //            selecting another item unselects the previous one
+        // multiple - like single, but any number of items can be selected
+        selectionmode: {type: 'string', default: 'multiple', oneOf: ['basic', 'single', 'multiple']},
     },
 
     init() {
         this.selected = [];
+        this.itemEls = [];
+        this.flashTimeouts = new Map();
+        this.flashDuration = 300
         this.animationDuration = 300
+        this.hideTimeout = null
 
         this.originalScale = this.el.object3D.scale.clone()
 
@@ -128,7 +137,8 @@ AFRAME.registerComponent("menu", {
             dur: 300,
         })
 
-        setTimeout(() => {
+        clearTimeout(this.hideTimeout)
+        this.hideTimeout = setTimeout(() => {
             this.el.object3D.visible = false
             this.el.emit("menu-hidden")
         }, this.animationDuration)
@@ -184,6 +194,9 @@ AFRAME.registerComponent("menu", {
                 case 'showtext':
                     this.updateItemsLayout();
                     break;
+                case 'selectionmode':
+                    this.resetSelection();
+                    break;
                 case 'clickable': // No visual change, handled in event listener
                     break;
                 default:
@@ -204,24 +217,12 @@ AFRAME.registerComponent("menu", {
     updateMenuColor() {
         this.el.setAttribute("material", { color: this.data.color });
 
-        // Update the color of already selected items
-        this.el
-            .querySelectorAll(".menu-item")
-            .forEach((item, index) => {
-                if (this.selected[index]) {
-                    const parsedItem = this.items[index];
-                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color || this.data.color);
-                    item.setAttribute("material", { color: highlightedColor });
-                    const targetTextColor = this._getTextColor(parsedItem.textColor, highlightedColor);
-
-                    const text = item.querySelector("a-troika-text");
-                    if (text) text.setAttribute("color", targetTextColor);
-
-                    // Sync icon color to match text color
-                    const icon = item.querySelector("a-image");
-                    if (icon) icon.setAttribute("color", targetTextColor);
-                }
-            });
+        // Update the color of already highlighted items
+        this.itemEls.forEach((item, index) => {
+            if (this.selected[index] || this.flashTimeouts.has(index)) {
+                this._applyItemState(index, true);
+            }
+        });
         
         this.setSupportElements();
     },
@@ -326,6 +327,98 @@ AFRAME.registerComponent("menu", {
         return textColor;
     },
 
+    _getHighlightedColor(parsedItem) {
+        return this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color || this.data.color);
+    },
+
+    // Colors the item (background, text and icon) as highlighted or normal.
+    _applyItemState(index, highlighted) {
+        const item = this.itemEls[index];
+        const parsedItem = this.items[index];
+        if (!item || !parsedItem) return;
+
+        const backgroundColor = highlighted ? this._getHighlightedColor(parsedItem) : parsedItem.color;
+        item.setAttribute("material", { color: backgroundColor });
+
+        const textColor = this._getTextColor(parsedItem.textColor, backgroundColor);
+        const text = item.querySelector("a-troika-text");
+        if (text) text.setAttribute("color", textColor);
+
+        // Sync icon color to match text color
+        const icon = item.querySelector("a-image");
+        if (icon) icon.setAttribute("color", textColor);
+    },
+
+    _getSelectedItems() {
+        return this.items.filter((_, i) => this.selected[i]);
+    },
+
+    _emitSelectionEvent(name, index) {
+        this.el.emit(name, { item: this.items[index], selectedItems: this._getSelectedItems() });
+    },
+
+    _clearFlash(index) {
+        clearTimeout(this.flashTimeouts.get(index));
+        this.flashTimeouts.delete(index);
+    },
+
+    _clearAllFlashes() {
+        this.flashTimeouts.forEach(timeout => clearTimeout(timeout));
+        this.flashTimeouts.clear();
+    },
+
+    // Highlights the item briefly (basic selection mode).
+    _flashItem(index) {
+        this._clearFlash(index);
+        this._applyItemState(index, true);
+        this.flashTimeouts.set(index, setTimeout(() => {
+            this.flashTimeouts.delete(index);
+            this._applyItemState(index, false);
+        }, this.flashDuration));
+    },
+
+    onItemClick(index) {
+        if (!this.data.clickable) {
+            // No visual feedback, but the click is still reported.
+            this._emitSelectionEvent('select', index);
+            return;
+        }
+
+        switch (this.data.selectionmode) {
+            case 'basic':
+                this._flashItem(index);
+                this._emitSelectionEvent('select', index);
+                break;
+
+            case 'single':
+                if (this.selected[index]) {
+                    this.selected[index] = false;
+                    this._applyItemState(index, false);
+                    this._emitSelectionEvent('deselect', index);
+                } else {
+                    // Unselect the previously selected item first
+                    this.selected.forEach((isSelected, i) => {
+                        if (isSelected && i !== index) {
+                            this.selected[i] = false;
+                            this._applyItemState(i, false);
+                            this._emitSelectionEvent('deselect', i);
+                        }
+                    });
+                    this.selected[index] = true;
+                    this._applyItemState(index, true);
+                    this._emitSelectionEvent('select', index);
+                }
+                break;
+
+            case 'multiple':
+            default:
+                this.selected[index] = !this.selected[index];
+                this._applyItemState(index, this.selected[index]);
+                this._emitSelectionEvent(this.selected[index] ? 'select' : 'deselect', index);
+                break;
+        }
+    },
+
     setItems(parsedItems) {
         this.items = parsedItems
         const sizeCoef = this.sizeCoef;
@@ -343,7 +436,7 @@ AFRAME.registerComponent("menu", {
             const isSelected = this.selected[index];
             
             parsedItem.color = parsedItem.color === undefined ? VARIANT_LIGHT_COLOR : parsedItem.color;
-            const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color);
+            const highlightedColor = this._getHighlightedColor(parsedItem);
             const itemBackgroundColor = isSelected ? highlightedColor : parsedItem.color;
 
             item.setAttribute("material", {
@@ -384,32 +477,14 @@ AFRAME.registerComponent("menu", {
                 text.setAttribute("position", `0 0 0.01`);
             }
 
-            item.addEventListener("click", (e) => {
-                if (this.data.clickable) {
-                    this.selected[index] = !this.selected[index];
-
-                    // Calculate suitable highlighted color based on color lightness
-                    const highlightedColor = this.data.activecolor !== "" ? this.data.activecolor : determineHighlightedColor(parsedItem.color);
-                    const itemBackgroundColor = this.selected[index] ? highlightedColor : `${parsedItem.color}`;
-
-                    item.setAttribute("material", {
-                        color: itemBackgroundColor
-                    });
-
-                    const currentTargetTextColor = this._getTextColor(parsedItem.textColor, itemBackgroundColor);
-                    if (text) text.setAttribute("color", currentTargetTextColor);
-                    const iconEl = item.querySelector("a-image");
-                    if (iconEl) iconEl.setAttribute("color", currentTargetTextColor);
-                }
-
-                item.parentElement.emit('select', {item: parsedItem});
-            })
+            item.addEventListener("click", () => this.onItemClick(index))
 
             item.appendChild(content)
         
             return item
         })
 
+        this.itemEls = nodes
         this.el.append(...nodes)
 
         if (this.data.layout === "circle") {
@@ -511,26 +586,22 @@ AFRAME.registerComponent("menu", {
     },
 
     removeAllItems() {
+        this._clearAllFlashes()
+        this.itemEls = []
         if (this.el.children.length > 0) {
             Array.from(this.el.children).forEach(el => el.parentNode.removeChild(el))
         }
     },
 
     resetSelection() {
-        this.el
-            .querySelectorAll(".menu-item")
-            .forEach((item, i) => {
-                const parsedItem = this.items[i]
-                const text = item.querySelector("a-troika-text")
-                const icon = item.querySelector("a-image")
-
-                item.setAttribute("material", {color: parsedItem.color})
-                
-                const targetTextColor = this._getTextColor(parsedItem.textColor, parsedItem.color);
-                if (text) text.setAttribute("color", targetTextColor);
-                icon?.setAttribute("src", parsedItem.icon)
-            })
+        this._clearAllFlashes()
         this.selected = []
+        this.itemEls.forEach((_, i) => this._applyItemState(i, false))
+    },
+
+    remove() {
+        this._clearAllFlashes()
+        clearTimeout(this.hideTimeout)
     }
 })
 

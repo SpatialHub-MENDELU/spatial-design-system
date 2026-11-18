@@ -21,6 +21,7 @@ AFRAME.registerPrimitive('a-ar-menu', {
     logoicon: 'menu.logoicon',
     backbutton: 'menu.backbutton',
     showtext: 'menu.showtext',
+    selectionmode: 'menu.selectionmode',
   }
 
 })
