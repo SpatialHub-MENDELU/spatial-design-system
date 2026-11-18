@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flexbox updates in XR</title>
+  <style>
+    #panel {
+      position: absolute; bottom: 8px; left: 8px; z-index: 10; max-width: 420px;
+      background: rgba(15, 17, 23, 0.85); color: #e2e8f0;
+      font: 12px/1.5 ui-monospace, monospace; padding: 10px 12px; border-radius: 8px;
+    }
+    #panel button { font: inherit; margin: 4px 4px 0 0; padding: 2px 8px; }
+    #panel label { display: block; margin-top: 6px; }
+    #panel .ok { color: #34d399; }
+    #panel .fail { color: #f87171; }
+  </style>
+</head>
+<body>
+<div id="app" style="position: absolute; height: 100%; width: 100%"></div>
+<div id="panel">
+  <div id="status"></div>
+  <button id="add">Add item</button>
+  <button id="remove">Remove item</button>
+  <label><input type="checkbox" id="auto" checked /> Auto add/remove every 2 s</label>
+  <label title="Drops window.requestAnimationFrame callbacks scheduled by the flexbox code, like browsers may do during an immersive WebXR session.">
+    <input type="checkbox" id="simulate" /> Simulate XR: block window.requestAnimationFrame for flexbox
+  </label>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
