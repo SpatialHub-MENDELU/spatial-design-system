@@ -28,7 +28,7 @@ const COLORS = ["#8A8A8A", "#018A6C", "#00C170", "#03FCC6"];
 const COLUMN_X = [-1.6, 0, 1.6];
 
 const boxItems = (mode) => COLORS.map((color, i) => `
-    <a-text value="${mode} ${i + 1}" align="center" color="black" class="clickable"
+    <a-text value="${mode} ${i + 1}" width="0.5" align="center" color="black" class="clickable"
             geometry="primitive: box; width: 0.4; height: 0.2; depth: 0.3"
             material="color: ${color}"></a-text>`).join("");
 

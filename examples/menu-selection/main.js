@@ -29,6 +29,9 @@ scene.innerHTML = `
             cursor="rayOrigin: mouse; fuse: false;"></a-entity>
 
   <a-entity camera look-controls position="0 1.6 1.2"></a-entity>
+  <a-entity laser-controls="hand: right" raycaster="objects: .clickable"></a-entity>
+  <a-entity laser-controls="hand: left" raycaster="objects: .clickable"></a-entity>
+  
 
   <a-text value="basic" align="center" color="black" position="-0.9 2.15 -1"></a-text>
   <a-text value="single" align="center" color="black" position="0 2.15 -1"></a-text>
